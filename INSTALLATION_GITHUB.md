@@ -1,13 +1,20 @@
-# Installation sur GitHub — SpeedArti Chiffrage Demo
+# Installation GitHub — SpeedArti Chiffrage Demo V1.1.0
 
-1. Créer ou ouvrir le dépôt GitHub destiné aux démonstrations de chiffrage.
-2. Envoyer **le contenu du ZIP à la racine du dépôt** (pas le ZIP lui-même).
-3. Vérifier que `index.html`, `home.css` et le dossier `plaquiste/` apparaissent à la racine.
-4. Dans GitHub : `Settings` → `Pages`.
-5. Dans `Build and deployment`, choisir `Deploy from a branch`.
-6. Sélectionner la branche utilisée et le dossier `/ (root)`.
-7. Enregistrer.
+Cette version ajoute **Couvreur** à la page de garde déjà utilisée par **Plaquiste**.
 
-La page d'accueil sera l'adresse principale GitHub Pages. Le bouton **Plaquiste** ouvrira automatiquement `/plaquiste/`.
+1. Décompresser le ZIP.
+2. Envoyer **le contenu du ZIP** à la racine du dépôt GitHub Pages de démonstration.
+3. Conserver le dossier `/plaquiste/` existant. Cette livraison contient sa copie inchangée pour permettre un remplacement complet sans casser le lien actuel.
+4. Vérifier à la racine : `index.html`, `home.css`, `.nojekyll`, `plaquiste/`, `couvreur/`.
+5. Dans GitHub : `Settings` → `Pages` → `Deploy from a branch` → branche choisie → `/ (root)`.
+6. Ouvrir la page de garde : les cartes **Plaquiste** et **Couvreur** doivent toutes les deux afficher « Disponible ».
 
-Ne pas envoyer ces fichiers sur le dépôt de production SpeedArti : il s'agit d'un projet de démonstration.
+## Mise à jour minimale d’un dépôt déjà en place
+
+Si la page de garde Plaquiste est déjà publiée :
+- remplacer `index.html` ;
+- ajouter le dossier `couvreur/` complet ;
+- conserver `home.css` et `plaquiste/` ;
+- remplacer `README.md` si souhaité.
+
+Ne pas envoyer le ZIP lui-même dans le dépôt. Ne pas utiliser ce package sur le dépôt de production SpeedArti.
