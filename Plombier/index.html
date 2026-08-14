@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="description" content="Démonstration de travail du module Plombier existant de SpeedArti." />
+  <title>SpeedArti — Démo Plombier</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <a class="brand" href="../" aria-label="Retour aux métiers">
+        <div class="logo">S</div>
+        <div>
+          <strong>Nouveau Chiffrage de Chantier</strong>
+          <span>Métier : Plombier — reprise du module existant SpeedArti</span>
+        </div>
+      </a>
+      <div class="actions">
+        <span class="badge work">Version de travail v0.1.0</span>
+        <button id="resetBtn" class="btn secondary">Réinitialiser</button>
+        <button id="saveBtn" class="btn secondary">Enregistrer</button>
+        <button id="calcBtn" class="btn primary">Calculer</button>
+      </div>
+    </header>
+
+    <div class="work-note">
+      <strong>Démo de reprise, pas un nouveau module.</strong>
+      <span>Le visuel et le parcours viennent du module Plombier existant. Le moteur reproduit l’état source actuel pour servir de base avant les dernières corrections métier de Guillaume.</span>
+    </div>
+
+    <nav id="steps" class="steps"></nav>
+    <main>
+      <section id="content"></section>
+      <footer>
+        <button id="prev" class="btn secondary">← Précédent</button>
+        <button id="next" class="btn primary">Suivant →</button>
+      </footer>
+    </main>
+  </div>
+  <script src="./engine-current.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
