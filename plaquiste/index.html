@@ -1,1 +1,36 @@
-
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#2563eb">
+  <title>SpeedArti — Chiffrage Plaquiste</title>
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    .home-back{display:inline-flex;align-items:center;gap:7px;color:#1d4ed8;text-decoration:none;font-size:12px;font-weight:800;padding:7px 10px;border-radius:9px;background:#eff6ff;border:1px solid #bfdbfe}.home-back:hover{background:#dbeafe}
+    @media(max-width:780px){.home-back{margin-bottom:8px}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">S</div>
+      <div><strong>Nouveau Chiffrage de Chantier</strong><span>Métier : Plaquiste — évolution du module existant</span></div>
+    </div>
+    <div class="actions">
+      <a class="home-back" href="../">← Choisir un autre métier</a>
+      <span class="badge">Moteur réel amélioré</span>
+      <button id="saveBtn" class="btn secondary">Enregistrer</button>
+      <button id="calcBtn" class="btn primary">Calculer</button>
+    </div>
+  </header>
+  <nav id="steps" class="steps"></nav>
+  <main>
+    <section id="content"></section>
+    <footer><button id="prev" class="btn secondary">← Précédent</button><button id="next" class="btn primary">Suivant →</button></footer>
+  </main>
+</div>
+<script src="./engine-real.js"></script><script src="./app.js"></script>
+</body>
+</html>
