@@ -2,6 +2,7 @@
  * SpeedArti — Démo Électricien
  * Base: module Electricien existant SpeedArti.
  * Corrections: réponses Guillaume + annexes du questionnaire.
+ * Mise à jour V2 : annexes complémentaires Guillaume (métrés surface, difficulté, tableau mono/tri, Consuel/diagnostic).
  * Aucune règle/prix manquant n'est inventé : les éléments non validés sont signalés/bloqués.
  */
 (function(){
@@ -55,9 +56,55 @@
     vmc: {auto:600, hygro:800, double:3500, extraMouth:115, roof:90}
   };
 
+  // Synthèse Guillaume modifiée — Annexe 1 : métrés moyens par élément et tranche de surface.
+  const LENGTH_RATIOS = [
+    {max:60, label:"≤ 60 m²", prise:2.75, eclairage:5.50, interrupteur:3.30, rj45:8.80, tv:8.80, volet:8.80, vmc:6.60, special:13.20},
+    {max:80, label:"61 à 80 m²", prise:2.97, eclairage:6.05, interrupteur:3.52, rj45:9.90, tv:9.90, volet:9.90, vmc:7.70, special:14.30},
+    {max:100,label:"81 à 100 m²", prise:3.30, eclairage:6.60, interrupteur:3.85, rj45:11.00,tv:11.00,volet:11.00,vmc:8.80, special:16.50},
+    {max:120,label:"101 à 120 m²",prise:3.52, eclairage:7.15, interrupteur:4.07, rj45:12.10,tv:12.10,volet:12.10,vmc:8.80, special:17.60},
+    {max:150,label:"121 à 150 m²",prise:3.85, eclairage:7.70, interrupteur:4.40, rj45:13.20,tv:13.20,volet:13.20,vmc:9.90, special:18.70},
+    {max:180,label:"151 à 180 m²",prise:4.18, eclairage:8.25, interrupteur:4.73, rj45:14.30,tv:14.30,volet:14.30,vmc:11.00,special:19.80},
+    {max:220,label:"181 à 220 m²",prise:4.40, eclairage:8.80, interrupteur:4.95, rj45:15.40,tv:15.40,volet:15.40,vmc:11.00,special:22.00},
+    {max:Infinity,label:"> 220 m²",prise:4.95, eclairage:9.90, interrupteur:5.50, rj45:16.50,tv:16.50,volet:16.50,vmc:13.20,special:24.20}
+  ];
+
+  // Annexe 2 : coefficient général chantier.
+  const DIFFICULTY = { simple:0.80, moyenne:1.00, complexe:1.25 };
+
+  // Annexe 3 : temps de tableau électrique.
+  // Pour un nombre intermédiaire de circuits, la démo applique le palier supérieur afin de ne pas sous-chiffrer.
+  const TABLEAU_HOURS = [
+    {circuits:8, mono:4.5, tri:6.0},
+    {circuits:12,mono:5.5, tri:7.5},
+    {circuits:16,mono:7.0, tri:9.0},
+    {circuits:20,mono:8.5, tri:11.0},
+    {circuits:24,mono:10.0,tri:13.0},
+    {circuits:28,mono:11.5,tri:14.5},
+    {circuits:32,mono:13.0,tri:16.0},
+    {circuits:36,mono:14.5,tri:18.0},
+    {circuits:40,mono:16.0,tri:19.5}
+  ];
+
+  const CONTROL_FIXED_PRICE = 150;
+
   function n(v){ const x=Number(v); return Number.isFinite(x)?x:0; }
   function ceilDiv(a,b){ return b>0 ? Math.ceil(a/b) : 0; }
   function pushMany(arr, count, factory){ for(let i=0;i<count;i++) arr.push(factory(i)); }
+
+  function lengthProfileForSurface(surface){
+    const s=Math.max(0,n(surface));
+    return LENGTH_RATIOS.find(x=>s<=x.max) || LENGTH_RATIOS[LENGTH_RATIOS.length-1];
+  }
+
+  function tableauHoursFor(circuitCount, phase, blockers){
+    const count=Math.max(0,n(circuitCount));
+    const row=TABLEAU_HOURS.find(x=>count<=x.circuits);
+    if(!row){
+      blockers.push(`Tableau ${count} circuits : l'annexe 3 s'arrête à 40 circuits. Temps tableau à valider manuellement.`);
+      return null;
+    }
+    return {hours:phase==="triphase"?row.tri:row.mono, bracket:row.circuits};
+  }
 
   function computeAutoPoints(state){
     const rooms=state.rooms||{};
@@ -214,7 +261,7 @@
         if(ci.supply==="3P") ci.phase="L1/L2/L3";
         else { ci.phase=["L1","L2","L3"][leg%3]; leg++; }
       });
-      alerts.push("Triphasé : circuits monophasés répartis sur L1/L2/L3. La majoration exacte de temps/prix du tableau n'est pas validée et n'est pas inventée.");
+      alerts.push("Triphasé : circuits monophasés répartis sur L1/L2/L3. Le temps du tableau est calculé avec l’annexe 3 Guillaume.");
     } else {
       circuits.forEach(ci=>ci.phase="L1");
     }
@@ -223,37 +270,59 @@
 
   function computeMaterials(state, points, circuits, alerts, blockers){
     const materials=[];
-    const distance=n(state.installation.distanceMean);
-    if(!distance){
-      blockers.push("Longueur de fils/gaines : coefficient surface → distance moyenne non fourni. Saisir une distance moyenne manuelle pour calculer les métrés.");
-    }
+    const profile=lengthProfileForSurface(state.installation.surface);
     const sectionMeters={};
     let gaine=0;
-    if(distance){
-      circuits.forEach(ci=>{
-        // H07VU: phase + neutre + terre = 3 longueurs pour circuits 1,5/2,5.
-        if(ci.section===1.5 || ci.section===2.5){
-          sectionMeters[ci.section]=(sectionMeters[ci.section]||0)+(distance*3);
-          gaine += distance;
-        } else {
-          materials.push({
-            category:"Câblage",
-            name:`Câble circuit ${ci.name} — ${ci.section} mm²`,
-            qty:distance, unit:"ml", price:null,
-            note: ci.supply==="3P" ? "Nombre de conducteurs à confirmer selon appareil" : "Parcours estimé"
-          });
-          gaine += distance;
-        }
+
+    function addH07(section, route, label){
+      if(route<=0) return;
+      // Réponse Guillaume Q14 : phase + neutre + terre = 3 fois le parcours.
+      sectionMeters[section]=(sectionMeters[section]||0)+(route*3);
+      gaine += route;
+      alerts.push(`${label} : métrage automatique ${profile.label} appliqué.`);
+    }
+    function addCable(name, route, note){
+      if(route<=0) return;
+      materials.push({category:"Câblage",name,qty:Math.ceil(route),unit:"ml",price:null,note});
+      gaine += route;
+    }
+
+    const c=state.circuits||{};
+    const socketSection=(c.socketMode||"2.5_20")==="1.5_16" ? 1.5 : 2.5;
+
+    // Annexe 1 : longueur moyenne par unité selon la surface.
+    addH07(socketSection, points.generalSockets*profile.prise, "Prises générales");
+    addH07(2.5, points.kitchenSockets*profile.prise, "Prises cuisine");
+    addH07(1.5, points.lightPoints*profile.eclairage, "Éclairage");
+    addH07(1.5, points.switches*profile.interrupteur, "Interrupteurs / commandes");
+
+    if(points.rj45>0) addCable("Câble communication RJ45", points.rj45*profile.rj45, `Ratio ${profile.label} — ${profile.rj45.toFixed(2)} ml/U`);
+    if(points.tv>0) addCable("Câble TV / coaxial", points.tv*profile.tv, `Ratio ${profile.label} — ${profile.tv.toFixed(2)} ml/U`);
+
+    if(n(c.volets)>0) addH07(1.5, n(c.volets)*profile.volet, "Volets roulants");
+    if(c.vmcType && c.vmcType!=="none") addH07(1.5, profile.vmc, "VMC");
+
+    // Circuits spécialisés : l'annexe donne un métrage par circuit. Les circuits ayant déjà
+    // leur propre ratio (VMC, volets) sont exclus pour éviter le double comptage.
+    const specialized=circuits.filter(ci=>!["prises","cuisine","eclairage","vmc"].includes(ci.type) && ci.name!=="Volets roulants");
+    specialized.forEach(ci=>{
+      const route=profile.special;
+      if(ci.section===1.5 || ci.section===2.5){
+        addH07(ci.section, route, ci.name);
+      }else{
+        addCable(`Câble circuit ${ci.name} — ${ci.section} mm²`, route, ci.supply==="3P" ? "Nombre de conducteurs selon appareil / fabricant" : `Ratio circuit spécialisé ${profile.label}`);
+      }
+    });
+
+    Object.entries(sectionMeters).forEach(([section,qty])=>{
+      materials.push({
+        category:"Câblage", name:`Conducteurs H07VU ${section} mm²`,
+        qty:Math.ceil(qty), unit:"ml", price:null,
+        note:`Annexe 1 ${profile.label} + règle phase/neutre/terre ×3. Les conducteurs spécifiques constructeur restent selon appareil.`
       });
-      Object.entries(sectionMeters).forEach(([section,qty])=>{
-        materials.push({
-          category:"Câblage", name:`Conducteurs H07VU ${section} mm²`,
-          qty:Math.ceil(qty), unit:"ml", price:null,
-          note:"Base phase + neutre + terre. Conducteurs de commande supplémentaires non automatisés faute de règle."
-        });
-      });
-      materials.push({category:"Gaines",name:"Gaine ICTA — parcours estimatif",qty:Math.ceil(gaine),unit:"ml",price:null,note:"Aucune marge supplémentaire appliquée (réponse Guillaume)."});
-      alerts.push("Métré H07VU : base de 3 conducteurs comptée. Les conducteurs supplémentaires de commande (va-et-vient / 3 points) restent à vérifier manuellement.");
+    });
+    if(gaine>0){
+      materials.push({category:"Gaines",name:"Gaine ICTA — parcours estimatif",qty:Math.ceil(gaine),unit:"ml",price:null,note:`Annexe 1 ${profile.label}. Aucune marge supplémentaire appliquée.`});
     }
 
     if(points.generalSockets>0) materials.push({category:"Appareillage",name:"Prises 16A 2P+T — générales",qty:points.generalSockets,unit:"u",price:null});
@@ -288,9 +357,9 @@
 
   function computeLabor(state,points,circuits,alerts,blockers){
     const rate=n(state.pricing.hourlyRate)||55; // valeur existante du module, modifiable
-    let hours=0;
+    let baseHours=0;
     const detail=[];
-    const add=(label,h)=>{ if(h>0){ hours+=h; detail.push({label,hours:h}); } };
+    const add=(label,h)=>{ if(h>0){ baseHours+=h; detail.push({label,hours:h}); } };
     const installType=state.installation.type||"neuf";
 
     if(installType==="neuf"){
@@ -304,38 +373,44 @@
       ["prises","interrupteurs","luminaires","rj45","tv"].forEach(key=>{
         const x=r[key]||{};
         const create=n(x.create), replace=n(x.replace), move=n(x.move), remove=n(x.remove);
-        // Remplacement/déplacement = dépose 15 min + création 30 min.
         add(`${key} — créations`,create*.5);
         add(`${key} — remplacements`,replace*(.25+.5));
         add(`${key} — déplacements`,move*(.25+.5));
         add(`${key} — déposes seules`,remove*.25);
       });
-      if(state.tableau.replaceExisting){
-        add("Dépose tableau existant",3);
-      }
+      if(state.tableau.replaceExisting) add("Dépose tableau existant",3);
       if(n(r.gaineManualHours)>0) add("Dépose / repassage gaines — temps artisan",n(r.gaineManualHours));
     }
 
-    // Les forfaits VMC/sonnette intègrent déjà la main-d'œuvre : pas de double comptage.
-    const fixedTypes=new Set(["vmc"]);
+    // Les forfaits VMC/sonnette intègrent déjà leur main-d'œuvre : pas de double comptage.
     const specialized=circuits.filter(c=>!["prises","cuisine","eclairage","vmc"].includes(c.type)).length;
     add("Raccordement circuits spécialisés",specialized*1);
 
-    add("Pose / raccordement tableau",6);
+    const tableTime=tableauHoursFor(circuits.length,state.installation.phase,blockers);
+    if(tableTime){
+      add(`Pose / raccordement tableau — palier ${tableTime.bracket} circuits`,tableTime.hours);
+    }
     if(state.tableau.ground) add("Mise à la terre",2);
     add("Tests / mise en service",1.5);
 
-    if(state.options.complexity && state.options.complexity!=="moyenne"){
-      alerts.push(`Complexité "${state.options.complexity}" conservée, mais aucun coefficient exact n'a été validé : aucune majoration automatique appliquée.`);
-    }
-    if(state.options.support && state.options.support!=="placo_neuf"){
-      alerts.push("Type de support pris en compte comme information chantier, mais les multiplicateurs exacts ne sont pas validés : aucune majoration inventée.");
-    }
-    if(state.installation.phase==="triphase"){
-      blockers.push("Tableau triphasé : temps supplémentaire d'équilibrage reconnu par Guillaume, mais coefficient exact non fourni. Total de main-d'œuvre affiché hors majoration triphasée.");
+    const complexity=state.options.complexity||"moyenne";
+    const coefficient=DIFFICULTY[complexity] ?? 1;
+    const adjustedHours=baseHours*coefficient;
+    if(coefficient!==1){
+      detail.push({label:`Coefficient chantier ${complexity} × ${coefficient.toFixed(2)}`,hours:adjustedHours-baseHours,adjustment:true});
+      alerts.push(`Coefficient général chantier appliqué : ${coefficient.toFixed(2)} (${complexity}).`);
     }
 
-    return {hours,rate,total:hours*rate,detail};
+    // Guillaume souhaite conserver les supports. Faute de multiplicateurs support distincts,
+    // ils produisent une recommandation chantier mais le coefficient chiffré reste celui de l'annexe 2.
+    if(state.options.support && state.options.support!=="placo_neuf"){
+      alerts.push(`Support sélectionné : ${state.options.support}. Vérifier que le niveau de complexité choisi reflète bien les conditions réelles de passage.`);
+    }
+    if(state.options.accesDifficile){
+      alerts.push("Accès difficile / gaines encastrées signalé : vérifier le niveau de complexité chantier avant validation du devis.");
+    }
+
+    return {hours:adjustedHours,baseHours,coefficient,rate,total:adjustedHours*rate,detail};
   }
 
   function computeFixedServices(state){
@@ -354,6 +429,9 @@
       if(extra){ const p=extra*FIXED.vmc.extraMouth; rows.push({label:`${extra} bouche(s) VMC supplémentaire(s)`,price:p}); total+=p; }
       if(c.vmcRoof){ rows.push({label:"Sortie toiture VMC",price:FIXED.vmc.roof}); total+=FIXED.vmc.roof; }
     }
+
+    if(state.tableau.consuel){ rows.push({label:"Consuel — contrôle / vérification chantier",price:CONTROL_FIXED_PRICE}); total+=CONTROL_FIXED_PRICE; }
+    if(state.tableau.diagnostic){ rows.push({label:"Diagnostic électrique — contrôle / vérification chantier",price:CONTROL_FIXED_PRICE}); total+=CONTROL_FIXED_PRICE; }
 
     const d=state.domotique||{};
     Object.entries(SOMFY).forEach(([key,item])=>{
@@ -389,8 +467,6 @@
     const fixed=computeFixedServices(state);
     normAlerts(state,points,alerts);
 
-    if(state.tableau.consuel) blockers.push("Consuel sélectionné : forfait HT non fourni par Guillaume, non chiffré.");
-    if(state.tableau.diagnostic) blockers.push("Diagnostic électrique sélectionné : forfait HT non fourni par Guillaume, non chiffré.");
     if(materials.some(m=>m.price===null)) alerts.push("Prix matériaux généraux : liaison au catalogue SpeedArti requise. Aucun prix n'est inventé dans la démo.");
 
     return {
@@ -403,6 +479,6 @@
   }
 
   window.ElectricienEngine={
-    ROOM_PROFILES,HEATING,SOMFY,FIXED,computeAutoPoints,effectivePoints,calculate
+    ROOM_PROFILES,HEATING,SOMFY,FIXED,LENGTH_RATIOS,DIFFICULTY,TABLEAU_HOURS,CONTROL_FIXED_PRICE,lengthProfileForSurface,computeAutoPoints,effectivePoints,calculate
   };
 })();

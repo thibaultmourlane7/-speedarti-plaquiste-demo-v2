@@ -1,6 +1,6 @@
 (function(){
   const E=window.ElectricienEngine;
-  const STORAGE="speedarti-electricien-demo-v1";
+  const STORAGE="speedarti-electricien-demo-v2";
   const steps=[
     {id:"installation",title:"Installation",sub:"Neuf / rénovation • mono / tri"},
     {id:"logement",title:"Logement",sub:"Pièces & surfaces"},
@@ -123,7 +123,7 @@
     </div>
     <div class="card"><h2>Alimentation</h2>
       ${toggle("installation.phase",[["monophase","Monophasé"],["triphase","Triphasé"]])}
-      ${state.installation.phase==="triphase"?note("Le moteur répartit les circuits monophasés sur L1/L2/L3. La majoration exacte de temps/prix du tableau triphasé n'étant pas chiffrée par Guillaume, elle reste signalée comme non validée.","alert warn"):""}
+      ${state.installation.phase==="triphase"?note("Le moteur répartit les circuits monophasés sur L1/L2/L3 et applique le temps de tableau triphasé de l’annexe 3 selon le nombre de circuits.","alert ok"):""}
     </div>
     <div class="card"><h2>Caractéristiques conservées du module existant</h2>
       <div class="grid">
@@ -132,9 +132,9 @@
         ${input("installation.levels","Nombre de niveaux",{cls:"c4",min:1})}
         ${input("installation.height","Hauteur sous plafond (m)",{cls:"c4",min:2,step:.1})}
         ${select("installation.localisationTableau","Localisation du tableau",[["cave","Cave / Sous-sol"],["rdc","RDC / Entrée"],["palier","Palier / Étage"],["garage","Garage"]],{cls:"c4"})}
-        ${input("installation.distanceMean","Distance moyenne de parcours (m)",{cls:"c4",min:0,step:.5,placeholder:"Manuel tant que ratio surface non validé"})}
+        <div class="c4 surfacebox"><b>Métrés câblage AUTO</b><br>${E.lengthProfileForSurface(state.installation.surface).label}<br><span class="muted">Annexe 1 Guillaume</span></div>
       </div>
-      ${note("<b>Point volontairement bloqué :</b> Guillaume valide un calcul automatique de longueur selon la surface, mais aucun coefficient par tranche n'est fourni. La démo conserve donc la saisie manuelle de distance comme solution de validation, sans inventer de ratio.")}
+      ${note("Les longueurs de prises, éclairages, interrupteurs, RJ45, TV, volets, VMC et circuits spécialisés sont maintenant calculées automatiquement par tranche de surface selon l’annexe 1.","alert ok")}
     </div>
     ${reno?`<div class="card"><h2>État existant — rénovation</h2><div class="option-list">
       ${check("renovation.tableauAncien","Tableau ancien / fusibles")}
@@ -157,7 +157,7 @@
     `<div class="card"><h2>Surfaces nécessaires aux minima</h2><div class="grid">
       ${input("rooms.sejourSurface","Surface séjour (m²)",{cls:"c4",min:0,step:.5})}
       ${input("rooms.cuisineSurface","Surface cuisine (m²)",{cls:"c4",min:0,step:.5})}
-      <div class="c4 surfacebox"><b>Surface logement</b><br>${esc(state.installation.surface)} m²<br><span class="muted">Conservée pour le futur ratio de câblage.</span></div>
+      <div class="c4 surfacebox"><b>Surface logement</b><br>${esc(state.installation.surface)} m²<br><span class="muted">Utilisée pour les ratios de câblage de l’annexe 1.</span></div>
     </div></div>
     <div class="card simple-card"><h2>Aperçu AUTO</h2><div class="metrics">
       <div class="metric"><span>Prises générales</span><strong>${auto.generalSockets}</strong></div>
@@ -280,24 +280,24 @@
     <p class="note">La marque sélectionne la gamme catalogue ; Guillaume indique que les références métier sont communes et que la différence porte surtout sur le prix / les habitudes artisan.</p></div>
     <div class="card"><h2>Conformité & conditions</h2><div class="option-list">
       ${check("tableau.ground","Mise à la terre complète — 20 m câblette cuivre + 1 piquet")}
-      ${check("tableau.consuel","Attestation / contrôle Consuel")}
-      ${check("tableau.diagnostic","Diagnostic électrique")}
+      ${check("tableau.consuel","Attestation / contrôle Consuel — 150 € HT")}
+      ${check("tableau.diagnostic","Diagnostic électrique — 150 € HT")}
       ${check("options.accesDifficile","Accès difficile / gaines encastrées")}
     </div>
-    ${select("options.complexity","Niveau de complexité",[["simple","Simple"],["moyenne","Moyenne"],["complexe","Complexe"]])}
+    ${select("options.complexity","Niveau de complexité",[["simple","Très simple — coefficient 0,80"],["moyenne","Normal — coefficient 1,00"],["complexe","Complexe — coefficient 1,25"]])}
     ${select("options.support","Type de support",[["placo_neuf","Doublage placo neuf"],["placo_existant","Cloison placo existante"],["brique","Brique / briquette enduite"],["beton","Béton"],["moulure","Apparent sous moulure"],["combles","Combles / vide technique"]])}
-    ${note("Les coefficients exacts de difficulté/support ne sont pas fournis. La démo conserve les champs mais n'applique aucune majoration inventée.")}
+    ${note("Annexe 2 : coefficient général appliqué à la main-d’œuvre du chantier. Le type de support reste conservé comme information et alerte métier, sans multiplicateur supplémentaire non fourni.","alert ok")}
     </div>`;
   }
 
   function renderResult(){
     lastResult=E.calculate(state);
     const r=lastResult;
-    return head("Étape 6","Résultat du chiffrage","Résultat de validation : quantités et temps calculés ; prix inconnus laissés au catalogue ou explicitement bloqués.")+
+    return head("Étape 6","Résultat du chiffrage","Résultat de validation : métrés surface, difficulté et temps tableau mono/tri intégrés ; prix catalogue inconnus toujours laissés au catalogue.")+
     `<div class="metrics">
       <div class="metric"><span>Circuits</span><strong>${r.tableau.circuits}</strong></div>
       <div class="metric"><span>Rangées tableau</span><strong>${r.tableau.rows}</strong></div>
-      <div class="metric"><span>Main-d'œuvre</span><strong>${r.labor.hours.toFixed(1)} h</strong></div>
+      <div class="metric"><span>Main-d'œuvre</span><strong>${r.labor.hours.toFixed(1)} h</strong><small>coef. ${r.labor.coefficient.toFixed(2)}</small></div>
       <div class="metric"><span>Total connu*</span><strong>${euro(r.knownTotal)}</strong></div>
     </div>
     <p class="note">* Main-d'œuvre calculée + forfaits/prix validés. Les matériaux généraux restent à relier au catalogue SpeedArti.</p>
@@ -317,7 +317,7 @@
     </tbody></table></div></div>
     <div class="card"><h2>Main-d'œuvre</h2><div class="table-wrap"><table class="table"><thead><tr><th>Poste</th><th>Temps</th></tr></thead><tbody>
       ${r.labor.detail.map(x=>`<tr><td>${esc(x.label)}</td><td>${x.hours.toFixed(2)} h</td></tr>`).join("")}
-      <tr><td><b>Total main-d'œuvre @ ${euro(r.labor.rate)}/h</b></td><td><b>${euro(r.labor.total)}</b></td></tr>
+      <tr><td><b>Total main-d'œuvre @ ${euro(r.labor.rate)}/h — coefficient ${r.labor.coefficient.toFixed(2)}</b></td><td><b>${euro(r.labor.total)}</b></td></tr>
     </tbody></table></div></div>
     <div class="card"><h2>Forfaits & équipements à prix connu</h2>${r.fixed.rows.length?`<div class="table-wrap"><table class="table"><tbody>${r.fixed.rows.map(x=>`<tr><td>${esc(x.label)}${x.indicative?' <span class="muted">(annexe 5)</span>':''}</td><td>${euro(x.price)}</td></tr>`).join("")}<tr><td><b>Total forfaits</b></td><td><b>${euro(r.fixed.total)}</b></td></tr></tbody></table></div>`:`<p class="muted">Aucun forfait sélectionné.</p>`}</div>`;
   }

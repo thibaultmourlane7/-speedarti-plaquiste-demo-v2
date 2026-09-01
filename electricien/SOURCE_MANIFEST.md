@@ -1,4 +1,4 @@
-# SOURCE MANIFEST — Électricien
+# SOURCE MANIFEST — Électricien V2
 
 ## Principe
 Travail sur copie de démonstration. Le code source SpeedArti d’origine n’est ni supprimé ni remplacé.
@@ -10,7 +10,12 @@ Travail sur copie de démonstration. Le code source SpeedArti d’origine n’es
    - `ElectricienOptionsStep.tsx`
    - `electricien.rules.json`
 2. Questionnaire métier Électricien répondu par Guillaume.
-3. Annexes 1 à 5 incluses au questionnaire.
+3. Annexes 1 à 5 du questionnaire initial.
+4. Synthèse Guillaume modifiée reçue le 1er septembre 2026 :
+   - Annexe 1 : longueurs par surface et par élément ;
+   - Annexe 2 : coefficients de difficulté 0,80 / 1,00 / 1,25 ;
+   - Annexe 3 : temps tableau mono / triphasé par nombre de circuits ;
+   - Consuel / diagnostic : 150 € HT.
 
 ## Règle de sécurité métier
 Aucune valeur manquante n’est inventée. Les règles/prix non fournis sont soit :
@@ -19,4 +24,4 @@ Aucune valeur manquante n’est inventée. Les règles/prix non fournis sont soi
 - bloqués avec une alerte explicite.
 
 ## Production
-Cette branche est une démo GitHub. Aucun déploiement ou intégration SpeedArti production n’est réalisé.
+Cette version est une démo GitHub. Aucun déploiement ou intégration SpeedArti production n’est réalisé.

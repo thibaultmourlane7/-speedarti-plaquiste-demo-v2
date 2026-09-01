@@ -1,4 +1,4 @@
-# SpeedArti — Démo Chiffrage Électricien
+# SpeedArti — Démo Chiffrage Électricien V2
 
 Cette démo **ne remplace pas** le module Électricien SpeedArti. Elle sert uniquement à valider les corrections métier avant toute intégration en production.
 
@@ -21,14 +21,18 @@ Cette démo **ne remplace pas** le module Électricien SpeedArti. Elle sert uniq
 - rénovation : conserver / remplacer / déplacer / créer ;
 - temps de main-d’œuvre validés ;
 - Somfy / TaHoma annexe 5 ;
+- **Annexe 1 complémentaire : métrés automatiques par élément et tranche de surface** ;
+- **Annexe 2 complémentaire : coefficient chantier 0,80 / 1,00 / 1,25** ;
+- **Annexe 3 complémentaire : temps tableau monophasé / triphasé selon nombre de circuits** ;
+- **Consuel et diagnostic : 150 € HT chacun** ;
 - aucune règle ou prix manquant n’est inventé.
 
-## Blocages volontaires
-Les points non chiffrés faute de valeur validée restent visibles comme blocages :
-1. coefficient surface → longueurs de fils/gaines ;
-2. coefficients exacts difficulté/support ;
-3. majoration temps/prix tableau triphasé ;
-4. forfait Consuel / diagnostic ;
-5. prix catalogue généraux.
+## Règle d’application du tableau
+L’annexe 3 donne des valeurs à 8, 12, 16, 20, 24, 28, 32, 36 et 40 circuits. Pour un nombre intermédiaire, la démo utilise le **palier supérieur** afin d’éviter un sous-chiffrage. Au-delà de 40 circuits, le calcul est bloqué et demande validation.
+
+## Points encore volontairement non inventés
+- prix des matériaux généraux : liaison catalogue SpeedArti ;
+- sections/protections PAC, climatisation, gainable, T.One, IRVE, photovoltaïque : saisie selon fabricant quand nécessaire ;
+- multiplicateur spécifique à chaque type de support : non fourni, le support reste utilisé comme information/alerte et le coefficient général chantier pilote la main-d’œuvre.
 
 Aucune donnée n’est envoyée en production.
