@@ -2,8 +2,8 @@
  * SpeedArti — Démo Électricien
  * Base: module Electricien existant SpeedArti.
  * Corrections: réponses Guillaume + annexes du questionnaire.
- * Mise à jour V2 : annexes complémentaires Guillaume (métrés surface, difficulté, tableau mono/tri, Consuel/diagnostic).
- * Aucune règle/prix manquant n'est inventé : les éléments non validés sont signalés/bloqués.
+ * Mise à jour V3 : intégration de la base de prix SpeedArti présente sur le Drive (catalogueIntegration.ts / PRIX_MARCHE_DEFAUT).
+ * Les références nouvelles absentes de cette base restent explicitement non chiffrées : aucun prix n'est inventé.
  */
 (function(){
   const ROOM_PROFILES = {
@@ -86,6 +86,46 @@
   ];
 
   const CONTROL_FIXED_PRICE = 150;
+
+  // Base de prix SpeedArti retrouvée sur le Drive — catalogueIntegration.ts / PRIX_MARCHE_DEFAUT.
+  // Prix HT. On ne complète pas cette table avec des valeurs supposées.
+  const CATALOGUE_PRICES = {
+    gaine_icta:               {price:1.20, unit:"ml"},
+    gaine_icta_25:            {price:1.50, unit:"ml"},
+    gaine_icta_32:            {price:2.00, unit:"ml"},
+    cable_1_5mm2:             {price:0.80, unit:"ml"},
+    cable_electrique:         {price:1.50, unit:"ml"},
+    cable_6mm2:               {price:3.50, unit:"ml"},
+    cable_10mm2:              {price:5.50, unit:"ml"},
+    prise_electrique:         {price:8.50, unit:"u"},
+    disjoncteur:              {price:12.00, unit:"u"},
+    disjoncteur_10a:          {price:10.00, unit:"u"},
+    disjoncteur_20a:          {price:14.00, unit:"u"},
+    disjoncteur_32a:          {price:18.00, unit:"u"},
+    tableau_electrique:       {price:120.00, unit:"u"},
+    interrupteur:             {price:7.00, unit:"u"},
+    spot_led:                 {price:15.00, unit:"u"},
+    differentiel_30ma_type_a: {price:45.00, unit:"u"},
+    differentiel_30ma_type_ac:{price:35.00, unit:"u"},
+    boite_encastrement:       {price:0.80, unit:"u"},
+    parafoudre_type2:         {price:85.00, unit:"u"},
+    piquet_terre:             {price:25.00, unit:"u"},
+    cable_terre_25mm2:        {price:4.50, unit:"ml"},
+    borne_ve_7kw:             {price:850.00, unit:"u"},
+    borne_ve_22kw:            {price:1800.00, unit:"u"}
+  };
+
+  function catalogueMaterial(articleId, category, name, qty, unit, note=""){
+    const q=Math.max(0,n(qty));
+    const ref=CATALOGUE_PRICES[articleId];
+    const price=ref ? ref.price : null;
+    return {
+      articleId, category, name, qty:q, unit, price,
+      total: price===null ? null : Math.round(q*price*100)/100,
+      source: price===null ? "Référence absente de la base prix Drive" : "Base prix SpeedArti — Drive",
+      note
+    };
+  }
 
   function n(v){ const x=Number(v); return Number.isFinite(x)?x:0; }
   function ceilDiv(a,b){ return b>0 ? Math.ceil(a/b) : 0; }
@@ -268,79 +308,105 @@
     return circuits;
   }
 
-  function computeMaterials(state, points, circuits, alerts, blockers){
+  function computeMaterials(state, points, circuits, tableau, alerts, blockers){
     const materials=[];
     const profile=lengthProfileForSurface(state.installation.surface);
     const sectionMeters={};
-    let gaine=0;
+    const gaineMeters={gaine_icta:0,gaine_icta_25:0,gaine_icta_32:0};
 
-    function addH07(section, route, label){
+    function addH07(section, route, label, gaineKey){
       if(route<=0) return;
       // Réponse Guillaume Q14 : phase + neutre + terre = 3 fois le parcours.
       sectionMeters[section]=(sectionMeters[section]||0)+(route*3);
-      gaine += route;
+      if(gaineKey) gaineMeters[gaineKey]=(gaineMeters[gaineKey]||0)+route;
       alerts.push(`${label} : métrage automatique ${profile.label} appliqué.`);
     }
-    function addCable(name, route, note){
+    function addCable(name, route, section, note, gaineKey="gaine_icta_32"){
       if(route<=0) return;
-      materials.push({category:"Câblage",name,qty:Math.ceil(route),unit:"ml",price:null,note});
-      gaine += route;
+      let articleId=null;
+      if(Number(section)===6) articleId="cable_6mm2";
+      if(Number(section)===10) articleId="cable_10mm2";
+      materials.push(catalogueMaterial(articleId, "Câblage", name, Math.ceil(route), "ml", note));
+      if(gaineKey) gaineMeters[gaineKey]=(gaineMeters[gaineKey]||0)+route;
     }
 
     const c=state.circuits||{};
     const socketSection=(c.socketMode||"2.5_20")==="1.5_16" ? 1.5 : 2.5;
 
     // Annexe 1 : longueur moyenne par unité selon la surface.
-    addH07(socketSection, points.generalSockets*profile.prise, "Prises générales");
-    addH07(2.5, points.kitchenSockets*profile.prise, "Prises cuisine");
-    addH07(1.5, points.lightPoints*profile.eclairage, "Éclairage");
-    addH07(1.5, points.switches*profile.interrupteur, "Interrupteurs / commandes");
+    // Diamètres ICTA repris de la logique déjà présente dans l'Électricien SpeedArti :
+    // Ø20 éclairage/commandes, Ø25 prises, Ø32 spécialisés.
+    addH07(socketSection, points.generalSockets*profile.prise, "Prises générales", "gaine_icta_25");
+    addH07(2.5, points.kitchenSockets*profile.prise, "Prises cuisine", "gaine_icta_25");
+    addH07(1.5, points.lightPoints*profile.eclairage, "Éclairage", "gaine_icta");
+    addH07(1.5, points.switches*profile.interrupteur, "Interrupteurs / commandes", "gaine_icta");
 
-    if(points.rj45>0) addCable("Câble communication RJ45", points.rj45*profile.rj45, `Ratio ${profile.label} — ${profile.rj45.toFixed(2)} ml/U`);
-    if(points.tv>0) addCable("Câble TV / coaxial", points.tv*profile.tv, `Ratio ${profile.label} — ${profile.tv.toFixed(2)} ml/U`);
+    // Communication : la longueur est validée par l'annexe 1, mais aucune référence/prix RJ45/coax
+    // n'existe dans PRIX_MARCHE_DEFAUT. On conserve donc ces lignes sans prix inventé.
+    if(points.rj45>0) materials.push(catalogueMaterial(null,"Communication","Câble communication RJ45",Math.ceil(points.rj45*profile.rj45),"ml",`Ratio ${profile.label} — ${profile.rj45.toFixed(2)} ml/U`));
+    if(points.tv>0) materials.push(catalogueMaterial(null,"Communication","Câble TV / coaxial",Math.ceil(points.tv*profile.tv),"ml",`Ratio ${profile.label} — ${profile.tv.toFixed(2)} ml/U`));
 
-    if(n(c.volets)>0) addH07(1.5, n(c.volets)*profile.volet, "Volets roulants");
-    if(c.vmcType && c.vmcType!=="none") addH07(1.5, profile.vmc, "VMC");
+    if(n(c.volets)>0) addH07(1.5, n(c.volets)*profile.volet, "Volets roulants", "gaine_icta");
+    if(c.vmcType && c.vmcType!=="none") addH07(1.5, profile.vmc, "VMC", "gaine_icta");
 
-    // Circuits spécialisés : l'annexe donne un métrage par circuit. Les circuits ayant déjà
-    // leur propre ratio (VMC, volets) sont exclus pour éviter le double comptage.
+    // Circuits spécialisés : l'annexe donne un métrage par circuit.
     const specialized=circuits.filter(ci=>!["prises","cuisine","eclairage","vmc"].includes(ci.type) && ci.name!=="Volets roulants");
     specialized.forEach(ci=>{
       const route=profile.special;
       if(ci.section===1.5 || ci.section===2.5){
-        addH07(ci.section, route, ci.name);
+        addH07(ci.section, route, ci.name, "gaine_icta_32");
       }else{
-        addCable(`Câble circuit ${ci.name} — ${ci.section} mm²`, route, ci.supply==="3P" ? "Nombre de conducteurs selon appareil / fabricant" : `Ratio circuit spécialisé ${profile.label}`);
+        addCable(`Câble circuit ${ci.name} — ${ci.section} mm²`, route, ci.section, ci.supply==="3P" ? "Nombre de conducteurs selon appareil / fabricant" : `Ratio circuit spécialisé ${profile.label}`);
       }
     });
 
     Object.entries(sectionMeters).forEach(([section,qty])=>{
-      materials.push({
-        category:"Câblage", name:`Conducteurs H07VU ${section} mm²`,
-        qty:Math.ceil(qty), unit:"ml", price:null,
-        note:`Annexe 1 ${profile.label} + règle phase/neutre/terre ×3. Les conducteurs spécifiques constructeur restent selon appareil.`
-      });
+      const articleId=Number(section)===1.5 ? "cable_1_5mm2" : Number(section)===2.5 ? "cable_electrique" : null;
+      materials.push(catalogueMaterial(
+        articleId,"Câblage",`Conducteurs H07VU ${section} mm²`,Math.ceil(qty),"ml",
+        `Annexe 1 ${profile.label} + règle phase/neutre/terre ×3. Les conducteurs spécifiques constructeur restent selon appareil.`
+      ));
     });
-    if(gaine>0){
-      materials.push({category:"Gaines",name:"Gaine ICTA — parcours estimatif",qty:Math.ceil(gaine),unit:"ml",price:null,note:`Annexe 1 ${profile.label}. Aucune marge supplémentaire appliquée.`});
-    }
 
-    if(points.generalSockets>0) materials.push({category:"Appareillage",name:"Prises 16A 2P+T — générales",qty:points.generalSockets,unit:"u",price:null});
-    if(points.kitchenSockets>0) materials.push({category:"Appareillage",name:"Prises cuisine",qty:points.kitchenSockets,unit:"u",price:null});
-    if(points.switches>0) materials.push({category:"Appareillage",name:"Commandes / interrupteurs",qty:points.switches,unit:"u",price:null});
-    if(points.rj45>0) materials.push({category:"Communication",name:"Prises RJ45",qty:points.rj45,unit:"u",price:null});
-    if(points.tv>0) materials.push({category:"Communication",name:"Prises TV / antenne",qty:points.tv,unit:"u",price:null});
-    if(points.communicationCabinet) materials.push({category:"Communication",name:"Coffret de communication",qty:1,unit:"u",price:null});
+    const gaineLabels={gaine_icta:"Gaine ICTA Ø20",gaine_icta_25:"Gaine ICTA Ø25",gaine_icta_32:"Gaine ICTA Ø32"};
+    Object.entries(gaineMeters).forEach(([articleId,qty])=>{
+      if(qty>0) materials.push(catalogueMaterial(articleId,"Gaines",gaineLabels[articleId],Math.ceil(qty),"ml",`Métré issu des ratios Guillaume ${profile.label}. Aucune marge supplémentaire.`));
+    });
 
+    // Appareillage : mêmes article_id et prix Drive que le module existant.
+    if(points.generalSockets>0) materials.push(catalogueMaterial("prise_electrique","Appareillage","Prises 16A 2P+T — générales",points.generalSockets,"u"));
+    if(points.kitchenSockets>0) materials.push(catalogueMaterial("prise_electrique","Appareillage","Prises 16A 2P+T — cuisine",points.kitchenSockets,"u"));
+    if(points.switches>0) materials.push(catalogueMaterial("interrupteur","Appareillage","Commandes / interrupteurs",points.switches,"u"));
+    const nbBoites=points.generalSockets+points.kitchenSockets+points.switches+points.lightPoints;
+    if(nbBoites>0) materials.push(catalogueMaterial("boite_encastrement","Appareillage","Boîtes d'encastrement Ø67",nbBoites,"u","Quantité conservée de la logique Électricien existante."));
+
+    // Les nouvelles références communication restent non chiffrées si elles n'existent pas dans la base Drive retrouvée.
+    if(points.rj45>0) materials.push(catalogueMaterial(null,"Communication","Prises RJ45",points.rj45,"u"));
+    if(points.tv>0) materials.push(catalogueMaterial(null,"Communication","Prises TV / antenne",points.tv,"u"));
+    if(points.communicationCabinet) materials.push(catalogueMaterial(null,"Communication","Coffret de communication",1,"u"));
+
+    // Protections divisionnaires : prix par calibre repris de PRIX_MARCHE_DEFAUT ;
+    // pour les calibres sans clé dédiée (2A, 16A, 25A...), la clé générique disjoncteur à 12 € est celle de la base SpeedArti.
     circuits.forEach(ci=>{
-      materials.push({category:"Protection",name:`Disjoncteur ${ci.breaker}A — ${ci.name}`,qty:1,unit:"u",price:null,note:`Différentiel ${ci.diff}`});
+      const articleId=ci.breaker===10?"disjoncteur_10a":ci.breaker===20?"disjoncteur_20a":ci.breaker===32?"disjoncteur_32a":"disjoncteur";
+      materials.push(catalogueMaterial(articleId,"Protection",`Disjoncteur ${ci.breaker}A — ${ci.name}`,1,"u",`Différentiel ${ci.diff}`));
     });
+
+    // Tableau complet : en neuf, ou en rénovation si remplacement complet demandé.
+    const fullTable = (state.installation.type||"neuf")==="neuf" || state.tableau.replaceExisting;
+    if(fullTable){
+      materials.push(catalogueMaterial("tableau_electrique","Tableau électrique",`Tableau ${tableau.rows} rangée(s)`,1,"u",`Marque : ${tableau.brand}`));
+      if(tableau.diffA>0) materials.push(catalogueMaterial("differentiel_30ma_type_a","Protection","Interrupteur différentiel 30mA Type A",tableau.diffA,"u"));
+      if(tableau.diffAC>0) materials.push(catalogueMaterial("differentiel_30ma_type_ac","Protection","Interrupteur différentiel 30mA Type AC",tableau.diffAC,"u"));
+    }else if(state.installation.type==="renovation" && state.tableau.partialExisting){
+      alerts.push("Modification partielle du tableau : seuls les matériels réellement générés sont chiffrés ; aucun tableau complet n'est ajouté.");
+    }
 
     if(state.tableau.ground){
-      materials.push({category:"Mise à la terre",name:"Câblette cuivre",qty:20,unit:"ml",price:null});
-      materials.push({category:"Mise à la terre",name:"Piquet de terre",qty:1,unit:"u",price:null});
+      materials.push(catalogueMaterial("cable_terre_25mm2","Mise à la terre","Câblette cuivre 25 mm² vert/jaune",20,"ml"));
+      materials.push(catalogueMaterial("piquet_terre","Mise à la terre","Piquet de terre cuivre 1,5 m",1,"u"));
     }
-    if(state.tableau.parafoudre) materials.push({category:"Protection",name:"Parafoudre Type 2",qty:1,unit:"u",price:null});
+    if(state.tableau.parafoudre) materials.push(catalogueMaterial("parafoudre_type2","Protection","Parafoudre Type 2",1,"u"));
     return materials;
   }
 
@@ -462,23 +528,25 @@
     const points=effectivePoints(state);
     const circuits=buildCircuits(state,points,alerts,blockers);
     const tableau=computeTableau(state,circuits);
-    const materials=computeMaterials(state,points,circuits,alerts,blockers);
+    const materials=computeMaterials(state,points,circuits,tableau,alerts,blockers);
     const labor=computeLabor(state,points,circuits,alerts,blockers);
     const fixed=computeFixedServices(state);
     normAlerts(state,points,alerts);
 
-    if(materials.some(m=>m.price===null)) alerts.push("Prix matériaux généraux : liaison au catalogue SpeedArti requise. Aucun prix n'est inventé dans la démo.");
+    const materialTotal=materials.reduce((sum,m)=>sum+(m.total===null?0:m.total),0);
+    const unknownMaterials=materials.filter(m=>m.price===null);
+    if(unknownMaterials.length) alerts.push(`${unknownMaterials.length} ligne(s) matériau nouvelle(s) n'ont pas de prix dans la base Drive retrouvée : elles restent non chiffrées, sans invention.`);
 
     return {
-      points,circuits,tableau,materials,labor,fixed,
-      knownTotal: labor.total+fixed.total,
+      points,circuits,tableau,materials,labor,fixed,materialTotal,unknownMaterials,
+      knownTotal: materialTotal+labor.total+fixed.total,
       alerts:[...new Set(alerts)],
       blockers:[...new Set(blockers)],
-      pricingComplete: blockers.length===0 && !materials.some(m=>m.price===null)
+      pricingComplete: blockers.length===0 && unknownMaterials.length===0
     };
   }
 
   window.ElectricienEngine={
-    ROOM_PROFILES,HEATING,SOMFY,FIXED,LENGTH_RATIOS,DIFFICULTY,TABLEAU_HOURS,CONTROL_FIXED_PRICE,lengthProfileForSurface,computeAutoPoints,effectivePoints,calculate
+    ROOM_PROFILES,HEATING,SOMFY,FIXED,LENGTH_RATIOS,DIFFICULTY,TABLEAU_HOURS,CONTROL_FIXED_PRICE,CATALOGUE_PRICES,lengthProfileForSurface,computeAutoPoints,effectivePoints,calculate
   };
 })();

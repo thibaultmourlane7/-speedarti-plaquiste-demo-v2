@@ -293,14 +293,15 @@
   function renderResult(){
     lastResult=E.calculate(state);
     const r=lastResult;
-    return head("Étape 6","Résultat du chiffrage","Résultat de validation : métrés surface, difficulté et temps tableau mono/tri intégrés ; prix catalogue inconnus toujours laissés au catalogue.")+
+    return head("Étape 6","Résultat du chiffrage","Résultat de validation : règles Guillaume + base de prix SpeedArti du Drive intégrées. Les seules lignes sans prix sont celles dont la référence n'existe pas dans la base retrouvée.")+
     `<div class="metrics">
       <div class="metric"><span>Circuits</span><strong>${r.tableau.circuits}</strong></div>
       <div class="metric"><span>Rangées tableau</span><strong>${r.tableau.rows}</strong></div>
       <div class="metric"><span>Main-d'œuvre</span><strong>${r.labor.hours.toFixed(1)} h</strong><small>coef. ${r.labor.coefficient.toFixed(2)}</small></div>
+      <div class="metric"><span>Matériaux chiffrés</span><strong>${euro(r.materialTotal)}</strong></div>
       <div class="metric"><span>Total connu*</span><strong>${euro(r.knownTotal)}</strong></div>
     </div>
-    <p class="note">* Main-d'œuvre calculée + forfaits/prix validés. Les matériaux généraux restent à relier au catalogue SpeedArti.</p>
+    <p class="note">* Matériaux dont le prix existe dans la base Drive + main-d'œuvre + forfaits validés. Toute référence absente reste explicitement non chiffrée.</p>
     ${r.blockers.length?`<div class="card"><h2>⛔ Points bloqués / non chiffrés</h2>${r.blockers.map(x=>`<div class="alert err">${esc(x)}</div>`).join("")}</div>`:""}
     ${r.alerts.length?`<div class="card"><h2>⚠️ Alertes & contrôles</h2>${r.alerts.map(x=>`<div class="alert warn">${esc(x)}</div>`).join("")}</div>`:""}
     <div class="card"><h2>Points retenus</h2><div class="metrics">
@@ -312,8 +313,9 @@
     <div class="card"><h2>Circuits</h2><div class="table-wrap"><table class="table"><thead><tr><th>Circuit</th><th>Section</th><th>Disj.</th><th>Diff.</th><th>Phase</th></tr></thead><tbody>
       ${r.circuits.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.section)} mm²</td><td>${esc(c.breaker)} A</td><td>${esc(c.diff)}</td><td>${esc(c.phase)}</td></tr>`).join("")||`<tr><td colspan="5">Aucun circuit</td></tr>`}
     </tbody></table></div></div>
-    <div class="card"><h2>Matériaux / commande</h2><div class="table-wrap"><table class="table"><thead><tr><th>Catégorie</th><th>Désignation</th><th>Qté</th><th>Prix</th><th>Note</th></tr></thead><tbody>
-      ${r.materials.map(m=>`<tr><td>${esc(m.category)}</td><td>${esc(m.name)}</td><td>${esc(m.qty)} ${esc(m.unit)}</td><td>${m.price===null?'<span class="catalog-tag">Catalogue SpeedArti</span>':euro(m.price)}</td><td>${esc(m.note||"")}</td></tr>`).join("")}
+    <div class="card"><h2>Matériaux / commande</h2><div class="table-wrap"><table class="table"><thead><tr><th>Catégorie</th><th>Désignation</th><th>Qté</th><th>PU HT</th><th>Total HT</th><th>Source</th><th>Note</th></tr></thead><tbody>
+      ${r.materials.map(m=>`<tr><td>${esc(m.category)}</td><td>${esc(m.name)}</td><td>${esc(m.qty)} ${esc(m.unit)}</td><td>${m.price===null?'<span class="catalog-tag">Non trouvé</span>':euro(m.price)}</td><td>${m.total===null?'—':euro(m.total)}</td><td>${esc(m.source||"")}</td><td>${esc(m.note||"")}</td></tr>`).join("")}
+      <tr><td colspan="4"><b>Total matériaux chiffrés</b></td><td><b>${euro(r.materialTotal)}</b></td><td colspan="2"></td></tr>
     </tbody></table></div></div>
     <div class="card"><h2>Main-d'œuvre</h2><div class="table-wrap"><table class="table"><thead><tr><th>Poste</th><th>Temps</th></tr></thead><tbody>
       ${r.labor.detail.map(x=>`<tr><td>${esc(x.label)}</td><td>${x.hours.toFixed(2)} h</td></tr>`).join("")}

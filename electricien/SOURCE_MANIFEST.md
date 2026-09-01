@@ -25,3 +25,8 @@ Aucune valeur manquante n’est inventée. Les règles/prix non fournis sont soi
 
 ## Production
 Cette version est une démo GitHub. Aucun déploiement ou intégration SpeedArti production n’est réalisé.
+
+
+## Base tarifaire V3
+Source Drive : export SpeedArti `codelovableé.md`, section `src/services/chiffrage/integration/catalogueIntegration.ts`, constante `PRIX_MARCHE_DEFAUT`.
+Le moteur V3 reprend uniquement les prix existants dans cette table.

@@ -36,3 +36,9 @@ L’annexe 3 donne des valeurs à 8, 12, 16, 20, 24, 28, 32, 36 et 40 circuits. 
 - multiplicateur spécifique à chaque type de support : non fourni, le support reste utilisé comme information/alerte et le coefficient général chantier pilote la main-d’œuvre.
 
 Aucune donnée n’est envoyée en production.
+
+
+## V3 — Catalogue prix Drive
+- Intégration des prix HT présents dans `catalogueIntegration.ts` / `PRIX_MARCHE_DEFAUT` retrouvé sur le Drive SpeedArti.
+- Réintégration des matériels existants : boîtes d'encastrement, tableau, différentiels, protections, terre, parafoudre.
+- Les nouvelles références non présentes dans cette base (ex. RJ45/coax/coffret communication) restent sans prix et sont signalées ; aucun tarif n'est inventé.
