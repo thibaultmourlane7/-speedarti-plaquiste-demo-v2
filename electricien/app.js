@@ -1,0 +1,359 @@
+(function(){
+  const E=window.ElectricienEngine;
+  const STORAGE="speedarti-electricien-demo-v1";
+  const steps=[
+    {id:"installation",title:"Installation",sub:"Neuf / rénovation • mono / tri"},
+    {id:"logement",title:"Logement",sub:"Pièces & surfaces"},
+    {id:"points",title:"Points",sub:"AUTO + correction artisan"},
+    {id:"circuits",title:"Circuits",sub:"Spécialisés & équipements"},
+    {id:"tableau",title:"Tableau",sub:"Protections & conformité"},
+    {id:"resultat",title:"Résultat",sub:"Quantités • temps • alertes"}
+  ];
+
+  const emptyAction=()=>({keep:0,replace:0,move:0,create:0,remove:0});
+  const defaultState=()=>({
+    step:0,
+    installation:{type:"neuf",phase:"monophase",typeBien:"maison",surface:80,levels:1,height:2.5,localisationTableau:"rdc",distanceMean:""},
+    rooms:{
+      garage:0,escalier:0,palier:0,sas:0,tone:0,cave:0,hall:1,vestibule:0,wc:1,wcHand:0,
+      buanderie:0,cellier:0,cuisine:1,cuisineSurface:10,sejour:1,sejourSurface:30,suite:0,dressing:0,
+      sde:0,degagement:1,chambre:3,bureau:0,sdb:1
+    },
+    pointOverrides:{generalSockets:null,kitchenSockets:null,lightPoints:null,switches:null,rj45:null,tv:null},
+    circuits:{
+      socketMode:"2.5_20",
+      four:true,laveLinge:true,laveVaisselle:true,secheLinge:false,chauffeEau:true,congelateur:false,priseGTL:true,
+      volets:0,heatingPower:0,
+      pac:false,pacManual:{section:"",breaker:"",diff:"F selon configuration",supply:"mono"},
+      clim:false,climManual:{section:"",breaker:"",diff:"F selon configuration",supply:"mono"},
+      gainable:false,gainableManual:{section:"",breaker:"",diff:"Selon fabricant",supply:"mono"},
+      tone:false,toneManual:{section:"",breaker:"",diff:"Selon fabricant",supply:"mono"},
+      irve:false,irveManual:{section:"",breaker:"",diff:"Selon borne",supply:"mono"},
+      pv:false,pvManual:{section:"",breaker:"",diff:"Selon étude",supply:"mono"},
+      exteriorLights:0,exteriorSockets:0,
+      bellType:"none",
+      vmcType:"none",vmcExtraMouths:0,vmcRoof:false
+    },
+    tableau:{
+      rows:"",brand:"indifferent",replaceExisting:false,partialExisting:false,newMaterialPartial:false,
+      ground:false,parafoudre:false,differentielTete:false,consuel:false,diagnostic:false
+    },
+    renovation:{
+      prises:emptyAction(),interrupteurs:emptyAction(),luminaires:emptyAction(),rj45:emptyAction(),tv:emptyAction(),
+      gaineManualHours:0,tableauAncien:false,pasDeTerre:false,cablesAlu:false,prisesInsuffisantes:false
+    },
+    options:{complexity:"moyenne",support:"placo_neuf",accesDifficile:false},
+    pricing:{hourlyRate:55},
+    domotique:{tahoma:0,izymo:0,izymoProg:0,alarm:0,outdoorCam:0,indoorCam:0,visioSomfy:0,connectedLight:0,zigbee:0,ioPlug:0,programming:0}
+  });
+
+  let state=load();
+  let lastResult=null;
+
+  const $=s=>document.querySelector(s);
+  const content=$("#content");
+  function load(){
+    try{
+      const raw=localStorage.getItem(STORAGE);
+      if(raw) return merge(defaultState(),JSON.parse(raw));
+    }catch(e){}
+    return defaultState();
+  }
+  function merge(base,obj){
+    if(!obj||typeof obj!=="object") return base;
+    Object.keys(obj).forEach(k=>{
+      if(obj[k] && typeof obj[k]==="object" && !Array.isArray(obj[k]) && base[k] && typeof base[k]==="object"){
+        base[k]=merge(base[k],obj[k]);
+      }else base[k]=obj[k];
+    });
+    return base;
+  }
+  function save(show=true){
+    localStorage.setItem(STORAGE,JSON.stringify(state));
+    if(show) toast("Démo Électricien enregistrée localement.","ok");
+  }
+  function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));}
+  function euro(v){return new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR"}).format(Number(v)||0);}
+  function num(v){const x=Number(v);return Number.isFinite(x)?x:0;}
+  function val(path){
+    return path.split(".").reduce((o,k)=>o?.[k],state);
+  }
+  function set(path,value){
+    const parts=path.split("."); let o=state;
+    parts.slice(0,-1).forEach(k=>{if(!o[k]||typeof o[k]!=="object")o[k]={};o=o[k];});
+    o[parts.at(-1)]=value;
+  }
+  function input(path,label,opt={}){
+    const v=val(path)??"";
+    const type=opt.type||"number";
+    return `<div class="field ${opt.cls||""}"><label>${label}</label><input class="input" data-path="${path}" type="${type}" ${type==="number"?`min="${opt.min??0}" step="${opt.step??1}"`:""} value="${esc(v)}" ${opt.placeholder?`placeholder="${esc(opt.placeholder)}"`:""}></div>`;
+  }
+  function select(path,label,options,opt={}){
+    const v=String(val(path)??"");
+    return `<div class="field ${opt.cls||""}"><label>${label}</label><select class="select" data-path="${path}">${options.map(([x,t])=>`<option value="${esc(x)}" ${String(x)===v?"selected":""}>${esc(t)}</option>`).join("")}</select></div>`;
+  }
+  function check(path,label,opt={}){
+    return `<label class="check ${opt.cls||""}"><input type="checkbox" data-path="${path}" ${val(path)?"checked":""}><span>${label}</span></label>`;
+  }
+  function toggle(path,options){
+    const v=String(val(path));
+    return `<div class="toggle">${options.map(([x,t])=>`<button type="button" data-set="${path}" data-value="${x}" class="${String(x)===v?"active":""}">${t}</button>`).join("")}</div>`;
+  }
+  function head(eyebrow,title,desc){
+    return `<div class="head"><span class="eyebrow">${eyebrow}</span><h1>${title}</h1><p>${desc}</p></div>`;
+  }
+  function note(text,kind="note-card"){return `<div class="${kind}">${text}</div>`;}
+  function toast(text,kind="ok"){
+    const el=document.createElement("div");el.className=`alert ${kind} toast`;el.textContent=text;document.body.appendChild(el);
+    setTimeout(()=>el.remove(),2600);
+  }
+
+  function renderSteps(){
+    $("#steps").innerHTML=steps.map((s,i)=>`<button class="step ${i===state.step?"active":""}" data-step="${i}"><b>${i+1}. ${s.title}</b><span>${s.sub}</span></button>`).join("");
+  }
+
+  function renderInstallation(){
+    const reno=state.installation.type==="renovation";
+    return head("Étape 1","Installation","Le parcours existant est conservé. Les choix validés Neuf / Rénovation et Monophasé / Triphasé pilotent réellement le calcul.")+
+    `<div class="card"><h2>Type d'installation</h2><p class="muted">Décision Guillaume : conserver uniquement Neuf et Rénovation.</p>
+      <div class="choice-grid">${[
+        ["neuf","🏗️","Construction neuve","Calcul AUTO complet des besoins par pièce."],
+        ["renovation","🔧","Rénovation","Conservation / remplacement / déplacement / création."]
+      ].map(([x,ic,t,d])=>`<button class="choice-card ${state.installation.type===x?"selected":""}" data-set="installation.type" data-value="${x}"><b>${ic} ${t}</b><span>${d}</span></button>`).join("")}</div>
+    </div>
+    <div class="card"><h2>Alimentation</h2>
+      ${toggle("installation.phase",[["monophase","Monophasé"],["triphase","Triphasé"]])}
+      ${state.installation.phase==="triphase"?note("Le moteur répartit les circuits monophasés sur L1/L2/L3. La majoration exacte de temps/prix du tableau triphasé n'étant pas chiffrée par Guillaume, elle reste signalée comme non validée.","alert warn"):""}
+    </div>
+    <div class="card"><h2>Caractéristiques conservées du module existant</h2>
+      <div class="grid">
+        ${select("installation.typeBien","Type de bien",[["maison","Maison"],["appartement","Appartement"],["local_pro","Local professionnel"]],{cls:"c4"})}
+        ${input("installation.surface","Surface totale (m²)",{cls:"c4",min:1})}
+        ${input("installation.levels","Nombre de niveaux",{cls:"c4",min:1})}
+        ${input("installation.height","Hauteur sous plafond (m)",{cls:"c4",min:2,step:.1})}
+        ${select("installation.localisationTableau","Localisation du tableau",[["cave","Cave / Sous-sol"],["rdc","RDC / Entrée"],["palier","Palier / Étage"],["garage","Garage"]],{cls:"c4"})}
+        ${input("installation.distanceMean","Distance moyenne de parcours (m)",{cls:"c4",min:0,step:.5,placeholder:"Manuel tant que ratio surface non validé"})}
+      </div>
+      ${note("<b>Point volontairement bloqué :</b> Guillaume valide un calcul automatique de longueur selon la surface, mais aucun coefficient par tranche n'est fourni. La démo conserve donc la saisie manuelle de distance comme solution de validation, sans inventer de ratio.")}
+    </div>
+    ${reno?`<div class="card"><h2>État existant — rénovation</h2><div class="option-list">
+      ${check("renovation.tableauAncien","Tableau ancien / fusibles")}
+      ${check("renovation.pasDeTerre","Pas de mise à la terre")}
+      ${check("renovation.cablesAlu","Câbles aluminium")}
+      ${check("renovation.prisesInsuffisantes","Prises insuffisantes")}
+    </div></div>`:""}`;
+  }
+
+  const roomGroups=[
+    ["Pièces de vie",[["sejour","Espace de vie / séjour"],["cuisine","Cuisine"],["chambre","Chambres"],["suite","Suite parentale"],["bureau","Bureau"],["dressing","Dressing"]]],
+    ["Pièces d'eau & service",[["sdb","Salles de bains"],["sde","Salles d'eau"],["wc","WC"],["wcHand","WC PMR"],["buanderie","Buanderies"],["cellier","Celliers"]]],
+    ["Circulations & annexes",[["hall","Halls"],["vestibule","Vestibules"],["degagement","Dégagements"],["escalier","Cages d'escalier"],["palier","Paliers"],["sas","Sas"],["garage","Garages"],["cave","Caves"],["tone","T-One"]]]
+  ];
+
+  function renderLogement(){
+    const auto=E.computeAutoPoints(state);
+    return head("Étape 2","Composition du logement","Le nombre de pièces ambigu n'est plus inventé depuis la surface : l'artisan décrit directement les pièces, comme demandé par Guillaume.")+
+    roomGroups.map(([title,items])=>`<div class="card"><h2>${title}</h2><div class="grid">${items.map(([k,l])=>input(`rooms.${k}`,l,{cls:"c3",min:0})).join("")}</div></div>`).join("")+
+    `<div class="card"><h2>Surfaces nécessaires aux minima</h2><div class="grid">
+      ${input("rooms.sejourSurface","Surface séjour (m²)",{cls:"c4",min:0,step:.5})}
+      ${input("rooms.cuisineSurface","Surface cuisine (m²)",{cls:"c4",min:0,step:.5})}
+      <div class="c4 surfacebox"><b>Surface logement</b><br>${esc(state.installation.surface)} m²<br><span class="muted">Conservée pour le futur ratio de câblage.</span></div>
+    </div></div>
+    <div class="card simple-card"><h2>Aperçu AUTO</h2><div class="metrics">
+      <div class="metric"><span>Prises générales</span><strong>${auto.generalSockets}</strong></div>
+      <div class="metric"><span>Prises cuisine</span><strong>${auto.kitchenSockets}</strong></div>
+      <div class="metric"><span>Points lumineux</span><strong>${auto.lightPoints}</strong></div>
+      <div class="metric"><span>RJ45</span><strong>${auto.rj45}</strong></div>
+    </div>
+    <p class="note">Annexe 1 prioritaire + minima annexe 2. Le détail reste modifiable à l'étape suivante.</p></div>`;
+  }
+
+  function overrideInput(key,label,auto){
+    const raw=state.pointOverrides[key];
+    return `<div class="field c4"><label>${label}</label><div class="auto-line"><span class="auto-badge">AUTO ${auto}</span><input class="input" data-path="pointOverrides.${key}" type="number" min="0" placeholder="AUTO" value="${raw===null||raw===undefined?"":esc(raw)}"></div></div>`;
+  }
+
+  function renovationMatrix(){
+    const rows=[["prises","Prises"],["interrupteurs","Interrupteurs"],["luminaires","Points lumineux"],["rj45","RJ45"],["tv","TV / antenne"]];
+    return `<div class="card"><h2>Traitement de l'existant</h2><p class="muted">Règle Guillaume : distinguer conservation, remplacement, déplacement et création. La dépose seule reste disponible.</p>
+      <div class="table-wrap"><table class="table reno-table"><thead><tr><th>Élément</th><th>Conserver</th><th>Remplacer</th><th>Déplacer</th><th>Créer</th><th>Déposer seul</th></tr></thead><tbody>
+      ${rows.map(([k,l])=>`<tr><td><b>${l}</b></td>${["keep","replace","move","create","remove"].map(a=>`<td><input class="mini-input" data-path="renovation.${k}.${a}" type="number" min="0" value="${num(val(`renovation.${k}.${a}`))}"></td>`).join("")}</tr>`).join("")}
+      </tbody></table></div>
+      <div class="grid top-gap">${input("renovation.gaineManualHours","Temps manuel dépose / repassage gaines (h)",{cls:"c6",min:0,step:.25})}</div>
+      <p class="note">Dépose prise/interrupteur/point lumineux : 15 min. Dépose tableau complet : 3 h. Gaines : temps saisi par l'artisan.</p>
+    </div>`;
+  }
+
+  function renderPoints(){
+    const a=E.computeAutoPoints(state), p=E.effectivePoints(state);
+    return head("Étape 3","Points à créer","Le mode AUTO est la base, puis chaque valeur peut être corrigée par l'artisan sans perdre les contrôles de cohérence.")+
+    `<div class="card"><div class="row between"><div><h2>Mode AUTO + correction</h2><p class="muted">Laissez un champ vide pour reprendre l'AUTO.</p></div><span class="status-chip">Artisan maître du calcul</span></div>
+      <div class="grid">
+        ${overrideInput("generalSockets","Prises générales",a.generalSockets)}
+        ${overrideInput("kitchenSockets","Prises cuisine",a.kitchenSockets)}
+        ${overrideInput("lightPoints","Points lumineux",a.lightPoints)}
+        ${overrideInput("switches","Commandes / interrupteurs",a.switches)}
+        ${overrideInput("rj45","RJ45",a.rj45)}
+        ${overrideInput("tv","TV / antenne",a.tv)}
+      </div>
+    </div>
+    <div class="card"><h2>Détail de l'AUTO</h2><div class="grid">
+      <div class="surfacebox c3"><b>Simple allumage</b><br>${a.simple}</div>
+      <div class="surfacebox c3"><b>Va-et-vient</b><br>${a.vv}</div>
+      <div class="surfacebox c3"><b>Éclairage 3 points</b><br>${a.three}</div>
+      <div class="surfacebox c3"><b>Coffret communication</b><br>${p.communicationCabinet?"Oui":"Non"}</div>
+    </div>
+    <p class="note">RJ45 : T1=2, T2=3, T3+=4 minimum ; 2 juxtaposées dans le séjour. Dès qu'il existe une RJ45 ou TV, le coffret de communication est créé automatiquement.</p></div>
+    ${state.installation.type==="renovation"?renovationMatrix():""}`;
+  }
+
+  function manualBlock(flagPath,dataPath,title){
+    if(!val(flagPath)) return "";
+    return `<div class="manual-config"><b>${title} — selon fabricant</b><div class="grid top-gap">
+      ${input(`${dataPath}.section`,"Section (mm²)",{cls:"c3",min:0,step:.5})}
+      ${input(`${dataPath}.breaker`,"Disjoncteur (A)",{cls:"c3",min:0,step:1})}
+      ${select(`${dataPath}.supply`,"Alimentation",[["mono","Mono"],["3P","Triphasé 3P"]],{cls:"c3"})}
+      ${input(`${dataPath}.diff`,"Différentiel / remarque",{cls:"c3",type:"text"})}
+    </div></div>`;
+  }
+
+  function renderCircuits(){
+    return head("Étape 4","Circuits & équipements","Les circuits validés sont automatisés. PAC, climatisation, gainable, T.One, IRVE et raccordement photovoltaïque restent saisis selon fabricant quand la règle n'est pas fournie.")+
+    `<div class="card"><h2>Circuits prises</h2>
+      ${select("circuits.socketMode","Choix conservé pour les prises générales",[["2.5_20","2,5 mm² • 20 A • 12 prises max"],["1.5_16","1,5 mm² • 16 A • 8 prises max"]])}
+      <p class="note">Les deux configurations figurent dans l'annexe 3. La démo démarre sur 2,5 mm² / 20 A pour rester cohérente avec le câblage 2,5 mm² déjà utilisé par le module existant.</p>
+    </div>
+    <div class="card"><h2>Circuits spécialisés courants</h2><div class="option-list">
+      ${check("circuits.four","Four — 2,5 mm² / 20 A")}
+      ${check("circuits.laveLinge","Lave-linge — 2,5 mm² / 20 A / type A")}
+      ${check("circuits.laveVaisselle","Lave-vaisselle — 2,5 mm² / 20 A")}
+      ${check("circuits.secheLinge","Sèche-linge — 2,5 mm² / 20 A")}
+      ${check("circuits.chauffeEau","Chauffe-eau — 2,5 mm² / 20 A")}
+      ${check("circuits.congelateur","Congélateur — 2,5 mm² / 20 A / type F recommandé")}
+      ${check("circuits.priseGTL","Prise GTL — circuit dédié")}
+    </div><div class="grid top-gap">
+      ${input("circuits.volets","Nombre de volets roulants",{cls:"c4",min:0})}
+      ${input("circuits.heatingPower","Puissance chauffage électrique totale (W)",{cls:"c4",min:0,step:50})}
+    </div></div>
+    <div class="card"><h2>Équipements selon fabricant</h2><p class="muted">Conservés dans le module, mais aucune section/protection n'est inventée.</p>
+      <div class="option-list">
+        ${check("circuits.pac","PAC")}
+        ${manualBlock("circuits.pac","circuits.pacManual","PAC")}
+        ${check("circuits.clim","Climatisation")}
+        ${manualBlock("circuits.clim","circuits.climManual","Climatisation")}
+        ${check("circuits.gainable","Gainable")}
+        ${manualBlock("circuits.gainable","circuits.gainableManual","Gainable")}
+        ${check("circuits.tone","T.One")}
+        ${manualBlock("circuits.tone","circuits.toneManual","T.One")}
+        ${check("circuits.irve","Borne IRVE")}
+        ${manualBlock("circuits.irve","circuits.irveManual","IRVE")}
+        ${check("circuits.pv","Raccordement électrique photovoltaïque")}
+        ${manualBlock("circuits.pv","circuits.pvManual","Raccordement photovoltaïque")}
+      </div>
+    </div>
+    <div class="card"><h2>VMC, sonnette & extérieur</h2><div class="grid">
+      ${select("circuits.vmcType","VMC",[["none","Aucune"],["auto","Simple flux autoréglable — 600 € HT"],["hygro","Simple flux hygroréglable — 800 € HT"],["double","Double flux — 3 500 € HT"]],{cls:"c4"})}
+      ${input("circuits.vmcExtraMouths","Bouches supplémentaires",{cls:"c4",min:0})}
+      <div class="c4 field"><label>Sortie toiture</label>${check("circuits.vmcRoof","Oui (+90 € HT)")}</div>
+      ${select("circuits.bellType","Sonnette / visiophone",[["none","Aucun"],["carillon","Carillon simple — 170 € HT"],["visio","Visiophone sans ouverture — 500 € HT"],["visioGate","Visiophone avec ouverture — 750 € HT"]],{cls:"c4"})}
+      ${input("circuits.exteriorLights","Points d'éclairage extérieur",{cls:"c4",min:0})}
+      ${input("circuits.exteriorSockets","Prises extérieures",{cls:"c4",min:0})}
+    </div></div>
+    <div class="card"><h2>Domotique Somfy / TaHoma</h2><p class="muted">Annexe 5 — matériel indicatif + temps de pose, recalculé avec le taux horaire de l'entreprise.</p>
+      <div class="grid">${Object.entries(E.SOMFY).map(([k,v])=>input(`domotique.${k}`,v.label,{cls:"c4",min:0})).join("")}</div>
+    </div>`;
+  }
+
+  function renderTableau(){
+    return head("Étape 5","Tableau électrique & conformité","Le tableau est calculé depuis les circuits. Les choix historiques sont conservés et reliés quand une règle existe.")+
+    `<div class="card"><h2>Configuration tableau</h2><div class="grid">
+      ${input("tableau.rows","Nombre de rangées (vide = AUTO)",{cls:"c4",min:1})}
+      ${select("tableau.brand","Marque",[["indifferent","Indifférent"],["schneider","Schneider Electric"],["legrand","Legrand"],["hager","Hager"]],{cls:"c4"})}
+      ${input("pricing.hourlyRate","Taux horaire entreprise (€ HT/h)",{cls:"c4",min:0,step:.5})}
+    </div><div class="option-list top-gap">
+      ${check("tableau.replaceExisting","Remplacement complet du tableau")}
+      ${check("tableau.partialExisting","Modification partielle du tableau")}
+      ${state.tableau.partialExisting?check("tableau.newMaterialPartial","Commander du matériel neuf pour la modification partielle"):""}
+      ${check("tableau.parafoudre","Parafoudre Type 2")}
+      ${check("tableau.differentielTete","Différentiel de tête")}
+    </div>
+    <p class="note">La marque sélectionne la gamme catalogue ; Guillaume indique que les références métier sont communes et que la différence porte surtout sur le prix / les habitudes artisan.</p></div>
+    <div class="card"><h2>Conformité & conditions</h2><div class="option-list">
+      ${check("tableau.ground","Mise à la terre complète — 20 m câblette cuivre + 1 piquet")}
+      ${check("tableau.consuel","Attestation / contrôle Consuel")}
+      ${check("tableau.diagnostic","Diagnostic électrique")}
+      ${check("options.accesDifficile","Accès difficile / gaines encastrées")}
+    </div>
+    ${select("options.complexity","Niveau de complexité",[["simple","Simple"],["moyenne","Moyenne"],["complexe","Complexe"]])}
+    ${select("options.support","Type de support",[["placo_neuf","Doublage placo neuf"],["placo_existant","Cloison placo existante"],["brique","Brique / briquette enduite"],["beton","Béton"],["moulure","Apparent sous moulure"],["combles","Combles / vide technique"]])}
+    ${note("Les coefficients exacts de difficulté/support ne sont pas fournis. La démo conserve les champs mais n'applique aucune majoration inventée.")}
+    </div>`;
+  }
+
+  function renderResult(){
+    lastResult=E.calculate(state);
+    const r=lastResult;
+    return head("Étape 6","Résultat du chiffrage","Résultat de validation : quantités et temps calculés ; prix inconnus laissés au catalogue ou explicitement bloqués.")+
+    `<div class="metrics">
+      <div class="metric"><span>Circuits</span><strong>${r.tableau.circuits}</strong></div>
+      <div class="metric"><span>Rangées tableau</span><strong>${r.tableau.rows}</strong></div>
+      <div class="metric"><span>Main-d'œuvre</span><strong>${r.labor.hours.toFixed(1)} h</strong></div>
+      <div class="metric"><span>Total connu*</span><strong>${euro(r.knownTotal)}</strong></div>
+    </div>
+    <p class="note">* Main-d'œuvre calculée + forfaits/prix validés. Les matériaux généraux restent à relier au catalogue SpeedArti.</p>
+    ${r.blockers.length?`<div class="card"><h2>⛔ Points bloqués / non chiffrés</h2>${r.blockers.map(x=>`<div class="alert err">${esc(x)}</div>`).join("")}</div>`:""}
+    ${r.alerts.length?`<div class="card"><h2>⚠️ Alertes & contrôles</h2>${r.alerts.map(x=>`<div class="alert warn">${esc(x)}</div>`).join("")}</div>`:""}
+    <div class="card"><h2>Points retenus</h2><div class="metrics">
+      <div class="metric"><span>Prises générales</span><strong>${r.points.generalSockets}</strong></div>
+      <div class="metric"><span>Prises cuisine</span><strong>${r.points.kitchenSockets}</strong></div>
+      <div class="metric"><span>Éclairage</span><strong>${r.points.lightPoints}</strong></div>
+      <div class="metric"><span>RJ45 / TV</span><strong>${r.points.rj45} / ${r.points.tv}</strong></div>
+    </div></div>
+    <div class="card"><h2>Circuits</h2><div class="table-wrap"><table class="table"><thead><tr><th>Circuit</th><th>Section</th><th>Disj.</th><th>Diff.</th><th>Phase</th></tr></thead><tbody>
+      ${r.circuits.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.section)} mm²</td><td>${esc(c.breaker)} A</td><td>${esc(c.diff)}</td><td>${esc(c.phase)}</td></tr>`).join("")||`<tr><td colspan="5">Aucun circuit</td></tr>`}
+    </tbody></table></div></div>
+    <div class="card"><h2>Matériaux / commande</h2><div class="table-wrap"><table class="table"><thead><tr><th>Catégorie</th><th>Désignation</th><th>Qté</th><th>Prix</th><th>Note</th></tr></thead><tbody>
+      ${r.materials.map(m=>`<tr><td>${esc(m.category)}</td><td>${esc(m.name)}</td><td>${esc(m.qty)} ${esc(m.unit)}</td><td>${m.price===null?'<span class="catalog-tag">Catalogue SpeedArti</span>':euro(m.price)}</td><td>${esc(m.note||"")}</td></tr>`).join("")}
+    </tbody></table></div></div>
+    <div class="card"><h2>Main-d'œuvre</h2><div class="table-wrap"><table class="table"><thead><tr><th>Poste</th><th>Temps</th></tr></thead><tbody>
+      ${r.labor.detail.map(x=>`<tr><td>${esc(x.label)}</td><td>${x.hours.toFixed(2)} h</td></tr>`).join("")}
+      <tr><td><b>Total main-d'œuvre @ ${euro(r.labor.rate)}/h</b></td><td><b>${euro(r.labor.total)}</b></td></tr>
+    </tbody></table></div></div>
+    <div class="card"><h2>Forfaits & équipements à prix connu</h2>${r.fixed.rows.length?`<div class="table-wrap"><table class="table"><tbody>${r.fixed.rows.map(x=>`<tr><td>${esc(x.label)}${x.indicative?' <span class="muted">(annexe 5)</span>':''}</td><td>${euro(x.price)}</td></tr>`).join("")}<tr><td><b>Total forfaits</b></td><td><b>${euro(r.fixed.total)}</b></td></tr></tbody></table></div>`:`<p class="muted">Aucun forfait sélectionné.</p>`}</div>`;
+  }
+
+  function render(){
+    renderSteps();
+    const renderers=[renderInstallation,renderLogement,renderPoints,renderCircuits,renderTableau,renderResult];
+    content.innerHTML=renderers[state.step]();
+    $("#prev").disabled=state.step===0;
+    $("#next").textContent=state.step===steps.length-1?"Revenir au début":"Suivant →";
+    bind();
+  }
+
+  function bind(){
+    document.querySelectorAll("[data-path]").forEach(el=>{
+      el.addEventListener("change",()=>{
+        let v;
+        if(el.type==="checkbox") v=el.checked;
+        else if(el.type==="number") v=el.value==="" ? "" : Number(el.value);
+        else v=el.value;
+        set(el.dataset.path,v);
+        save(false); render();
+      });
+    });
+    document.querySelectorAll("[data-set]").forEach(el=>{
+      el.addEventListener("click",()=>{set(el.dataset.set,el.dataset.value);save(false);render();});
+    });
+    document.querySelectorAll("[data-step]").forEach(el=>{
+      el.addEventListener("click",()=>{state.step=Number(el.dataset.step);save(false);render();});
+    });
+  }
+
+  $("#saveBtn").addEventListener("click",()=>save(true));
+  $("#calcBtn").addEventListener("click",()=>{state.step=steps.length-1;save(false);render();toast("Calcul de validation effectué.","ok");});
+  $("#prev").addEventListener("click",()=>{state.step=Math.max(0,state.step-1);save(false);render();window.scrollTo({top:0,behavior:"smooth"});});
+  $("#next").addEventListener("click",()=>{state.step=state.step===steps.length-1?0:Math.min(steps.length-1,state.step+1);save(false);render();window.scrollTo({top:0,behavior:"smooth"});});
+
+  render();
+})();
