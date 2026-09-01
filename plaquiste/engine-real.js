@@ -1,9 +1,9 @@
 (function(global){
 "use strict";
-/* SpeedArti Plaquiste — rules-only demo bundle v1.2.2.
+/* SpeedArti Plaquiste — rules-only demo bundle v1.3.0.
    No legacy calculator, no hidden catalogue price, no silent fallback. */
 const rules = Object.freeze({
-  version: 'plaquiste-business-2026-08-19-v1.2.2',
+  version: 'plaquiste-business-2026-08-19-v1.3.0',
   plaques: { largeurCommercialeM:1.20, perteMurPct:7, pertePlafondPct:10, perteRampantPct:12,
     surchargeAchatHtM2:Object.freeze({BA13:0,hydro:0.85,phonique:1.35,feu:2.00,habito:3.20}) },
   ossature: { pertePct:5, ouvertureMontantsTouteHauteur:4, ouvertureProfilsHorizontauxParLargeur:2,
