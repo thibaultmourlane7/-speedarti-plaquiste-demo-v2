@@ -2,10 +2,11 @@
  * SpeedArti — Démo Électricien
  * Base: module Electricien existant SpeedArti.
  * Corrections: réponses Guillaume + annexes du questionnaire.
- * Mise à jour V3 : intégration de la base de prix SpeedArti présente sur le Drive (catalogueIntegration.ts / PRIX_MARCHE_DEFAUT).
- * Les références nouvelles absentes de cette base restent explicitement non chiffrées : aucun prix n'est inventé.
+ * Mise à jour V5 : ajout du catalogue appareillage multi-gammes 2026 avec sélection indépendante par famille.
+ * Les quantités métier Guillaume restent inchangées ; seule la référence/prix d'appareillage sélectionnée pilote le matériel.
  */
 (function(){
+  const CS=window.ElectricienCatalogueSelector;
   const ROOM_PROFILES = {
     garage:      {label:"Garage", sockets:2, simple:0, vv:1, three:0, tv:0, rj45:0, special20:0, special32:0},
     escalier:    {label:"Cage escalier", sockets:1, simple:0, vv:1, three:0, extraLight:1, tv:0, rj45:0, special20:0, special32:0},
@@ -97,6 +98,14 @@
     cable_electrique:         {price:1.50, unit:"ml"},
     cable_6mm2:               {price:3.50, unit:"ml"},
     cable_10mm2:              {price:5.50, unit:"ml"},
+    // Compléments prix moyens Internet — septembre 2026, uniquement références absentes de la base Drive.
+    // Méthode : moyenne arithmétique de produits comparables, prix convertis en HT (TVA 20 % quand source TTC).
+    cable_4mm2:               {price:0.82, unit:"ml", source:"Prix moyen Internet 2026 — 4 fournisseurs"},
+    cable_rj45_cat6:          {price:0.65, unit:"ml", source:"Prix moyen Internet 2026 — 4 fournisseurs"},
+    cable_coax_tv_17vatc:     {price:0.22, unit:"ml", source:"Prix moyen Internet 2026 — 5 fournisseurs"},
+    prise_rj45_cat6:          {price:13.13, unit:"u", source:"Prix moyen Internet 2026 — 4 offres complètes"},
+    prise_tv:                 {price:9.29, unit:"u", source:"Prix moyen Internet 2026 — 4 offres complètes"},
+    coffret_communication_g2: {price:79.17, unit:"u", source:"Prix moyen Internet 2026 — même référence Schneider chez 3 fournisseurs"},
     prise_electrique:         {price:8.50, unit:"u"},
     disjoncteur:              {price:12.00, unit:"u"},
     disjoncteur_10a:          {price:10.00, unit:"u"},
@@ -122,9 +131,34 @@
     return {
       articleId, category, name, qty:q, unit, price,
       total: price===null ? null : Math.round(q*price*100)/100,
-      source: price===null ? "Référence absente de la base prix Drive" : "Base prix SpeedArti — Drive",
+      source: price===null ? "Référence absente des bases prix" : (ref.source || "Base prix SpeedArti — Drive"),
       note
     };
+  }
+
+  function configuredMaterial(state,familyKey,category,baseName,qty,fallbackArticleId,alerts,note=""){
+    const q=Math.max(0,n(qty));
+    if(!q) return null;
+    const resolved=CS && CS.resolve ? CS.resolve(state,familyKey) : null;
+    if(resolved && resolved.price!=null){
+      const ref=resolved.ref ? `Réf. ${resolved.ref}` : "Prix moyen catalogue";
+      if(!resolved.exact){
+        const cfg=state?.appareillage?.families?.[familyKey];
+        if(resolved.partial){
+          alerts.push(`${baseName} : composition catalogue incomplète pour ${resolved.brand}${resolved.gamme?` / ${resolved.gamme}`:""}. Le prix affiché ne couvre que les composants présents dans la base de démo.`);
+        } else if(cfg && cfg.brand && cfg.brand!=="moyen") {
+          alerts.push(`${baseName} : aucun modèle exact sélectionné, moyenne ${resolved.brand}${resolved.gamme?` / ${resolved.gamme}`:""} appliquée.`);
+        }
+      }
+      return {
+        articleId:`catalogue:${familyKey}:${resolved.id||"average"}`, category,
+        name:`${baseName} — ${resolved.label||resolved.brand||"Catalogue"}`, qty:q, unit:"u",
+        price:resolved.price,total:Math.round(q*resolved.price*100)/100,
+        source:resolved.source||"Catalogue appareillage multi-gammes 2026",
+        note:[ref,resolved.note,note].filter(Boolean).join(" · ")
+      };
+    }
+    return catalogueMaterial(fallbackArticleId,category,baseName,q,"u",note);
   }
 
   function n(v){ const x=Number(v); return Number.isFinite(x)?x:0; }
@@ -324,6 +358,7 @@
     function addCable(name, route, section, note, gaineKey="gaine_icta_32"){
       if(route<=0) return;
       let articleId=null;
+      if(Number(section)===4) articleId="cable_4mm2";
       if(Number(section)===6) articleId="cable_6mm2";
       if(Number(section)===10) articleId="cable_10mm2";
       materials.push(catalogueMaterial(articleId, "Câblage", name, Math.ceil(route), "ml", note));
@@ -341,10 +376,9 @@
     addH07(1.5, points.lightPoints*profile.eclairage, "Éclairage", "gaine_icta");
     addH07(1.5, points.switches*profile.interrupteur, "Interrupteurs / commandes", "gaine_icta");
 
-    // Communication : la longueur est validée par l'annexe 1, mais aucune référence/prix RJ45/coax
-    // n'existe dans PRIX_MARCHE_DEFAUT. On conserve donc ces lignes sans prix inventé.
-    if(points.rj45>0) materials.push(catalogueMaterial(null,"Communication","Câble communication RJ45",Math.ceil(points.rj45*profile.rj45),"ml",`Ratio ${profile.label} — ${profile.rj45.toFixed(2)} ml/U`));
-    if(points.tv>0) materials.push(catalogueMaterial(null,"Communication","Câble TV / coaxial",Math.ceil(points.tv*profile.tv),"ml",`Ratio ${profile.label} — ${profile.tv.toFixed(2)} ml/U`));
+    // Communication : ratios Guillaume + prix moyens Internet 2026 uniquement pour les références absentes du Drive.
+    if(points.rj45>0) materials.push(catalogueMaterial("cable_rj45_cat6","Communication","Câble communication RJ45 Cat.6 F/UTP",Math.ceil(points.rj45*profile.rj45),"ml",`Ratio ${profile.label} — ${profile.rj45.toFixed(2)} ml/U`));
+    if(points.tv>0) materials.push(catalogueMaterial("cable_coax_tv_17vatc","Communication","Câble TV coaxial 17VATC",Math.ceil(points.tv*profile.tv),"ml",`Ratio ${profile.label} — ${profile.tv.toFixed(2)} ml/U`));
 
     if(n(c.volets)>0) addH07(1.5, n(c.volets)*profile.volet, "Volets roulants", "gaine_icta");
     if(c.vmcType && c.vmcType!=="none") addH07(1.5, profile.vmc, "VMC", "gaine_icta");
@@ -373,17 +407,27 @@
       if(qty>0) materials.push(catalogueMaterial(articleId,"Gaines",gaineLabels[articleId],Math.ceil(qty),"ml",`Métré issu des ratios Guillaume ${profile.label}. Aucune marge supplémentaire.`));
     });
 
-    // Appareillage : mêmes article_id et prix Drive que le module existant.
-    if(points.generalSockets>0) materials.push(catalogueMaterial("prise_electrique","Appareillage","Prises 16A 2P+T — générales",points.generalSockets,"u"));
-    if(points.kitchenSockets>0) materials.push(catalogueMaterial("prise_electrique","Appareillage","Prises 16A 2P+T — cuisine",points.kitchenSockets,"u"));
-    if(points.switches>0) materials.push(catalogueMaterial("interrupteur","Appareillage","Commandes / interrupteurs",points.switches,"u"));
-    const nbBoites=points.generalSockets+points.kitchenSockets+points.switches+points.lightPoints;
-    if(nbBoites>0) materials.push(catalogueMaterial("boite_encastrement","Appareillage","Boîtes d'encastrement Ø67",nbBoites,"u","Quantité conservée de la logique Électricien existante."));
+    // Appareillage V5 : la quantité métier reste issue de Guillaume, mais le prix/référence vient
+    // du choix indépendant de l'artisan (marque → gamme → modèle / finition).
+    const totalSockets=points.generalSockets+points.kitchenSockets;
+    const socketDist=CS && CS.socketDistribution ? CS.socketDistribution(state,totalSockets) : {simple:totalSockets,double:0,triple:0,valid:true};
+    if(!socketDist.valid) blockers.push(`Répartition prises invalide : les blocs doubles/triples représentent plus de ${totalSockets} prises.`);
+    if(socketDist.simple>0){ const m=configuredMaterial(state,"priseSimple","Appareillage","Prise 16A 2P+T simple",socketDist.simple,"prise_electrique",alerts); if(m) materials.push(m); }
+    if(socketDist.double>0){ const m=configuredMaterial(state,"priseDouble","Appareillage","Bloc prise double 2P+T",socketDist.double,"prise_electrique",alerts,"Un bloc double représente 2 prises normatives."); if(m) materials.push(m); }
+    if(socketDist.triple>0){ const m=configuredMaterial(state,"priseTriple","Appareillage","Bloc prise triple 2P+T",socketDist.triple,"prise_electrique",alerts,"Un bloc triple représente 3 prises normatives."); if(m) materials.push(m); }
+    if(points.switches>0){ const m=configuredMaterial(state,"interrupteur","Appareillage","Interrupteurs / commandes",points.switches,"interrupteur",alerts); if(m) materials.push(m); }
 
-    // Les nouvelles références communication restent non chiffrées si elles n'existent pas dans la base Drive retrouvée.
-    if(points.rj45>0) materials.push(catalogueMaterial(null,"Communication","Prises RJ45",points.rj45,"u"));
-    if(points.tv>0) materials.push(catalogueMaterial(null,"Communication","Prises TV / antenne",points.tv,"u"));
-    if(points.communicationCabinet) materials.push(catalogueMaterial(null,"Communication","Coffret de communication",1,"u"));
+    const nbBoites=points.generalSockets+points.kitchenSockets+points.switches+points.lightPoints;
+    if(nbBoites>0) materials.push(catalogueMaterial("boite_encastrement","Appareillage","Boîtes d'encastrement Ø67",nbBoites,"u","Quantité conservée de la logique Électricien existante ; la répartition multi-postes n'altère pas encore ce calcul de validation."));
+
+    // Communication : même principe, choix indépendant par famille.
+    if(points.rj45>0){ const m=configuredMaterial(state,"rj45","Communication","Prises RJ45",points.rj45,"prise_rj45_cat6",alerts); if(m) materials.push(m); }
+    if(points.tv>0){ const m=configuredMaterial(state,"tv","Communication","Prises TV / antenne",points.tv,"prise_tv",alerts); if(m) materials.push(m); }
+    if(points.communicationCabinet) materials.push(catalogueMaterial("coffret_communication_g2","Communication","Coffret de communication Grade 2TV - 4 RJ45",1,"u"));
+
+    if(n(c.volets)>0){ const m=configuredMaterial(state,"volet","Appareillage","Commandes volets roulants",n(c.volets),"interrupteur",alerts); if(m) materials.push(m); }
+    if(c.vmcType && c.vmcType!=="none"){ const m=configuredMaterial(state,"vmc","Appareillage","Commande VMC",1,"interrupteur",alerts); if(m) materials.push(m); }
+    if(n(c.exteriorSockets)>0){ const m=configuredMaterial(state,"priseExtSimple","Appareillage extérieur","Prises extérieures IP55",n(c.exteriorSockets),"prise_electrique",alerts); if(m) materials.push(m); }
 
     // Protections divisionnaires : prix par calibre repris de PRIX_MARCHE_DEFAUT ;
     // pour les calibres sans clé dédiée (2A, 16A, 25A...), la clé générique disjoncteur à 12 € est celle de la base SpeedArti.
@@ -535,7 +579,7 @@
 
     const materialTotal=materials.reduce((sum,m)=>sum+(m.total===null?0:m.total),0);
     const unknownMaterials=materials.filter(m=>m.price===null);
-    if(unknownMaterials.length) alerts.push(`${unknownMaterials.length} ligne(s) matériau nouvelle(s) n'ont pas de prix dans la base Drive retrouvée : elles restent non chiffrées, sans invention.`);
+    if(unknownMaterials.length) alerts.push(`${unknownMaterials.length} ligne(s) matériau ne disposent toujours pas d'un prix validé : elles restent non chiffrées.`);
 
     return {
       points,circuits,tableau,materials,labor,fixed,materialTotal,unknownMaterials,

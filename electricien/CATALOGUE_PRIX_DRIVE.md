@@ -29,3 +29,19 @@ Source : Drive SpeedArti — `catalogueIntegration.ts` / `PRIX_MARCHE_DEFAUT`. P
 | borne_ve_22kw | 1 800,00 € | unité |
 
 Toute référence nouvelle absente de cette table reste non chiffrée jusqu'à ajout/validation.
+
+
+## Compléments V4 — prix moyens Internet septembre 2026
+
+Les références ci-dessous étaient absentes de la base Drive. Elles sont ajoutées comme valeurs de secours, sans remplacer les prix Drive existants.
+
+| article_id | Prix moyen HT | Unité |
+|---|---:|---|
+| cable_4mm2 | 0,82 € | ml |
+| cable_rj45_cat6 | 0,65 € | ml |
+| cable_coax_tv_17vatc | 0,22 € | ml |
+| prise_rj45_cat6 | 13,13 € | unité |
+| prise_tv | 9,29 € | unité |
+| coffret_communication_g2 | 79,17 € | unité |
+
+Voir `CATALOGUE_PRIX_INTERNET_2026.md` pour le détail des fournisseurs et le calcul des moyennes.

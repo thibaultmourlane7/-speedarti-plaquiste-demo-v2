@@ -1,6 +1,8 @@
 (function(){
   const E=window.ElectricienEngine;
-  const STORAGE="speedarti-electricien-demo-v2";
+  const CS=window.ElectricienCatalogueSelector;
+  const STORAGE="speedarti-electricien-demo-v5";
+  const LEGACY_STORAGE="speedarti-electricien-demo-v2";
   const steps=[
     {id:"installation",title:"Installation",sub:"Neuf / rénovation • mono / tri"},
     {id:"logement",title:"Logement",sub:"Pièces & surfaces"},
@@ -20,6 +22,23 @@
       sde:0,degagement:1,chambre:3,bureau:0,sdb:1
     },
     pointOverrides:{generalSockets:null,kitchenSockets:null,lightPoints:null,switches:null,rj45:null,tv:null},
+    appareillage:{
+      global:{brand:"moyen",gamme:""},
+      socketDistribution:{double:0,triple:0},
+      families:{
+        priseSimple:{brand:"moyen",gamme:"",choiceId:""},
+        priseDouble:{brand:"moyen",gamme:"",choiceId:""},
+        priseTriple:{brand:"moyen",gamme:"",choiceId:""},
+        interrupteur:{brand:"moyen",gamme:"",choiceId:""},
+        rj45:{brand:"moyen",gamme:"",choiceId:""},
+        tv:{brand:"moyen",gamme:"",choiceId:""},
+        volet:{brand:"moyen",gamme:"",choiceId:""},
+        vmc:{brand:"moyen",gamme:"",choiceId:""},
+        priseExtSimple:{brand:"moyen",gamme:"",choiceId:""},
+        priseExtDouble:{brand:"moyen",gamme:"",choiceId:""},
+        priseExtTriple:{brand:"moyen",gamme:"",choiceId:""}
+      }
+    },
     circuits:{
       socketMode:"2.5_20",
       four:true,laveLinge:true,laveVaisselle:true,secheLinge:false,chauffeEau:true,congelateur:false,priseGTL:true,
@@ -54,7 +73,7 @@
   const content=$("#content");
   function load(){
     try{
-      const raw=localStorage.getItem(STORAGE);
+      const raw=localStorage.getItem(STORAGE) || localStorage.getItem(LEGACY_STORAGE);
       if(raw) return merge(defaultState(),JSON.parse(raw));
     }catch(e){}
     return defaultState();
@@ -106,6 +125,79 @@
   function toast(text,kind="ok"){
     const el=document.createElement("div");el.className=`alert ${kind} toast`;el.textContent=text;document.body.appendChild(el);
     setTimeout(()=>el.remove(),2600);
+  }
+
+  function familyCfg(key){
+    state.appareillage=state.appareillage||defaultState().appareillage;
+    state.appareillage.families=state.appareillage.families||{};
+    if(!state.appareillage.families[key]) state.appareillage.families[key]={brand:"moyen",gamme:"",choiceId:""};
+    return state.appareillage.families[key];
+  }
+  function optionTags(options,current,placeholder){
+    return `${placeholder!==undefined?`<option value="">${esc(placeholder)}</option>`:""}${options.map(([v,l])=>`<option value="${esc(v)}" ${String(v)===String(current)?"selected":""}>${esc(l)}</option>`).join("")}`;
+  }
+  function activeAppareillageFamilies(points){
+    if(!CS) return [];
+    const dist=CS.socketDistribution(state,num(points.generalSockets)+num(points.kitchenSockets));
+    const c=state.circuits||{};
+    return [
+      ["priseSimple","Prises simples",dist.simple],
+      ["priseDouble","Prises doubles",dist.double],
+      ["priseTriple","Prises triples",dist.triple],
+      ["interrupteur","Interrupteurs / commandes",num(points.switches)],
+      ["rj45","RJ45",num(points.rj45)],
+      ["tv","TV / antenne",num(points.tv)],
+      ["volet","Commandes volets roulants",num(c.volets)],
+      ["vmc","Commande VMC",c.vmcType&&c.vmcType!=="none"?1:0],
+      ["priseExtSimple","Prises extérieures",num(c.exteriorSockets)]
+    ].filter(x=>x[2]>0);
+  }
+  function renderFamilySelector(key,label,qty){
+    if(!CS) return "";
+    const cfg=familyCfg(key);
+    const brands=CS.brands(key);
+    const brandOpts=[["moyen","Prix moyen"]].concat(brands.map(b=>[b,b]));
+    const gammeOpts=cfg.brand!=="moyen"?CS.gammes(key,cfg.brand):[];
+    const choiceOpts=cfg.brand!=="moyen"?CS.choices(key,cfg.brand,cfg.gamme||""):[];
+    const resolved=CS.resolve(state,key);
+    return `<div class="catalog-family">
+      <div class="catalog-family-head"><div><b>${esc(label)}</b><span>${qty} unité(s) à chiffrer</span></div><strong>${resolved&&resolved.price!=null?euro(resolved.price)+" / u":"Non chiffré"}</strong></div>
+      <div class="grid catalog-fields">
+        <div class="field c4"><label>Marque</label><select class="select" data-catalog-brand="${esc(key)}">${optionTags(brandOpts,cfg.brand)}</select></div>
+        ${cfg.brand!=="moyen"?`<div class="field c4"><label>Gamme</label><select class="select" data-catalog-gamme="${esc(key)}">${optionTags(gammeOpts.map(g=>[g,g]),cfg.gamme,"Toutes les gammes / moyenne")}</select></div>`:`<div class="c4 surfacebox"><b>Prix moyen</b><br>${resolved&&resolved.price!=null?euro(resolved.price):"—"}<br><span class="muted">Toutes marques compatibles.</span></div>`}
+        ${cfg.brand!=="moyen"?`<div class="field c4"><label>Modèle / finition</label><select class="select" data-catalog-choice="${esc(key)}">${optionTags(choiceOpts.map(c=>[c.id,`${c.label} — ${euro(c.price)}`]),cfg.choiceId,"Moyenne de cette sélection")}</select></div>`:""}
+      </div>
+      <div class="catalog-resolved"><span>${resolved?.exact?"Référence exacte":"Prix de repli"}</span><b>${esc(resolved?.label||"")}</b>${resolved?.ref?`<small>Réf. ${esc(resolved.ref)}</small>`:""}${resolved?.note?`<small>${esc(resolved.note)}</small>`:""}</div>
+    </div>`;
+  }
+  function renderAppareillage(points){
+    if(!CS) return note("Catalogue multi-gammes indisponible dans cette copie de démo.","alert err");
+    state.appareillage=state.appareillage||defaultState().appareillage;
+    state.appareillage.global=state.appareillage.global||{brand:"moyen",gamme:""};
+    state.appareillage.socketDistribution=state.appareillage.socketDistribution||{double:0,triple:0};
+    const g=state.appareillage.global;
+    const allBrands=[...new Set(CS.familyKeys().flatMap(k=>CS.brands(k)))].sort();
+    const globalGammes=g.brand!=="moyen"?CS.allGammes(g.brand):[];
+    const totalSockets=num(points.generalSockets)+num(points.kitchenSockets);
+    const dist=CS.socketDistribution(state,totalSockets);
+    const families=activeAppareillageFamilies(points);
+    return `<div class="card catalog-card"><div class="row between"><div><h2>Appareillage & finitions</h2><p class="muted">Chaque famille peut avoir sa propre marque, gamme et finition. Le choix global ci-dessous est uniquement un raccourci.</p></div><span class="status-chip">Catalogue multi-gammes 2026</span></div>
+      <div class="catalog-global"><div class="grid">
+        <div class="field c4"><label>Choix global rapide</label><select class="select" data-path="appareillage.global.brand">${optionTags([["moyen","Prix moyen"]].concat(allBrands.map(b=>[b,b])),g.brand)}</select></div>
+        ${g.brand!=="moyen"?`<div class="field c4"><label>Gamme globale</label><select class="select" data-path="appareillage.global.gamme">${optionTags(globalGammes.map(x=>[x,x]),g.gamme,"Choisir / laisser libre")}</select></div>`:""}
+        <div class="c4"><label class="fake-label">&nbsp;</label><button type="button" class="btn secondary full-btn" data-apply-global>Appliquer aux familles compatibles</button></div>
+      </div></div>
+      <div class="catalog-distribution"><h3>Répartition physique des prises</h3><p class="muted">Le besoin normatif reste ${totalSockets} prises. Indique uniquement combien de blocs doubles ou triples tu souhaites ; le reste est automatiquement en prises simples.</p>
+        <div class="grid">
+          ${input("appareillage.socketDistribution.double","Blocs prises doubles",{cls:"c3",min:0})}
+          ${input("appareillage.socketDistribution.triple","Blocs prises triples",{cls:"c3",min:0})}
+          <div class="surfacebox c6"><b>${dist.simple} simple(s) + ${dist.double} double(s) + ${dist.triple} triple(s)</b><br><span class="muted">Équivalent : ${dist.simple+dist.double*2+dist.triple*3} / ${totalSockets} prises.</span></div>
+        </div>
+        ${!dist.valid?`<div class="alert err">La répartition dépasse le nombre de prises calculé. Réduis les blocs doubles/triples.</div>`:""}
+      </div>
+      <div class="catalog-families">${families.map(([k,l,q])=>renderFamilySelector(k,l,q)).join("")}</div>
+      <p class="note">Règle de prix : tarif artisan/fournisseur → référence exacte choisie → moyenne marque/gamme → moyenne générale. Les câbles et gaines restent au prix moyen.</p>
+    </div>`;
   }
 
   function renderSteps(){
@@ -204,6 +296,7 @@
       <div class="surfacebox c3"><b>Coffret communication</b><br>${p.communicationCabinet?"Oui":"Non"}</div>
     </div>
     <p class="note">RJ45 : T1=2, T2=3, T3+=4 minimum ; 2 juxtaposées dans le séjour. Dès qu'il existe une RJ45 ou TV, le coffret de communication est créé automatiquement.</p></div>
+    ${renderAppareillage(p)}
     ${state.installation.type==="renovation"?renovationMatrix():""}`;
   }
 
@@ -293,7 +386,7 @@
   function renderResult(){
     lastResult=E.calculate(state);
     const r=lastResult;
-    return head("Étape 6","Résultat du chiffrage","Résultat de validation : règles Guillaume + base de prix SpeedArti du Drive intégrées. Les seules lignes sans prix sont celles dont la référence n'existe pas dans la base retrouvée.")+
+    return head("Étape 6","Résultat du chiffrage","Résultat de validation : règles Guillaume + base prix SpeedArti Drive + compléments de prix moyens Internet 2026. Toute référence encore absente reste signalée au lieu d'être inventée.")+
     `<div class="metrics">
       <div class="metric"><span>Circuits</span><strong>${r.tableau.circuits}</strong></div>
       <div class="metric"><span>Rangées tableau</span><strong>${r.tableau.rows}</strong></div>
@@ -346,6 +439,35 @@
     });
     document.querySelectorAll("[data-set]").forEach(el=>{
       el.addEventListener("click",()=>{set(el.dataset.set,el.dataset.value);save(false);render();});
+    });
+    document.querySelectorAll("[data-catalog-brand]").forEach(el=>{
+      el.addEventListener("change",()=>{
+        const cfg=familyCfg(el.dataset.catalogBrand); cfg.brand=el.value; cfg.gamme=""; cfg.choiceId="";
+        save(false);render();
+      });
+    });
+    document.querySelectorAll("[data-catalog-gamme]").forEach(el=>{
+      el.addEventListener("change",()=>{
+        const cfg=familyCfg(el.dataset.catalogGamme); cfg.gamme=el.value; cfg.choiceId="";
+        save(false);render();
+      });
+    });
+    document.querySelectorAll("[data-catalog-choice]").forEach(el=>{
+      el.addEventListener("change",()=>{
+        const cfg=familyCfg(el.dataset.catalogChoice); cfg.choiceId=el.value;
+        save(false);render();
+      });
+    });
+    document.querySelectorAll("[data-apply-global]").forEach(el=>{
+      el.addEventListener("click",()=>{
+        const g=state.appareillage.global||{brand:"moyen",gamme:""};
+        CS.familyKeys().forEach(key=>{
+          const cfg=familyCfg(key); cfg.brand=g.brand||"moyen"; cfg.choiceId="";
+          if(cfg.brand==="moyen") cfg.gamme="";
+          else cfg.gamme=CS.gammes(key,cfg.brand).includes(g.gamme)?g.gamme:"";
+        });
+        save(false);render();toast("Choix global appliqué. Chaque famille reste modifiable indépendamment.","ok");
+      });
     });
     document.querySelectorAll("[data-step]").forEach(el=>{
       el.addEventListener("click",()=>{state.step=Number(el.dataset.step);save(false);render();});

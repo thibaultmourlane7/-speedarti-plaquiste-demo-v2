@@ -30,3 +30,20 @@ Cette version est une démo GitHub. Aucun déploiement ou intégration SpeedArti
 ## Base tarifaire V3
 Source Drive : export SpeedArti `codelovableé.md`, section `src/services/chiffrage/integration/catalogueIntegration.ts`, constante `PRIX_MARCHE_DEFAUT`.
 Le moteur V3 reprend uniquement les prix existants dans cette table.
+
+
+## Sources tarifaires V4
+- Base SpeedArti Drive `catalogueIntegration.ts / PRIX_MARCHE_DEFAUT` : conservée en priorité.
+- Compléments Internet relevés le 01/09/2026 : 123elec, Domomat, Elec44, Leroy Merlin, MaterielElectrique.com, ManoMano, Conrad, Galaxus/Reichelt selon la référence.
+- Aucun prix Drive existant n'a été remplacé par la moyenne Internet.
+
+## V5 — Appareillage multi-gammes
+- Source catalogue : `SpeedArti_Catalogue_Electricien_Multi_Gammes_2026.xlsx` généré le 01/09/2026.
+- Runtime GitHub : `catalogue-appareillage.js` (258 références appareillage) + `catalogue-selector.js`.
+- Sélection indépendante par famille et composition des gammes modulaires lorsque les composants sont présents.
+- Aucun changement des règles métier Guillaume pour les quantités de points, circuits, métrés ou temps.
+
+## Sécurité compositions V5
+- Les gammes composables utilisent uniquement des composants présents dans le catalogue embarqué.
+- Une plaque et un enjoliveur de finitions incompatibles ne sont plus assemblés automatiquement.
+- Si la composition complète n'existe pas dans la base de démo, elle est signalée comme incomplète au lieu d'être présentée comme une référence exacte.

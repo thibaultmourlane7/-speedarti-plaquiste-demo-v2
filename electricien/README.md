@@ -1,44 +1,70 @@
-# SpeedArti — Démo Chiffrage Électricien V2
+# SpeedArti — Démo Chiffrage Électricien V5
 
-Cette démo **ne remplace pas** le module Électricien SpeedArti. Elle sert uniquement à valider les corrections métier avant toute intégration en production.
+Cette démo **ne recrée pas** le module Électricien. Elle prolonge la copie de validation existante avec la sélection d'appareillage multi-marques / multi-gammes.
 
-## Base conservée
-- parcours multi-étapes du chiffrage ;
-- champs existants utiles (type de bien, surface, niveaux, tableau, conformité, options) ;
-- calcul des circuits, matériaux, main-d’œuvre, alertes ;
-- liaison prévue avec le catalogue SpeedArti ;
-- visuel de la démo chiffrage déjà utilisé pour Plaquiste.
+## V5 — Appareillage & finitions
 
-## Corrections intégrées
-- Neuf / Rénovation uniquement ;
-- Monophasé / Triphasé ;
-- composition du logement par type de pièce ;
-- mode AUTO modifiable ;
-- RJ45 / TV + coffret communication ;
-- VMC / sonnette / visiophone ;
-- circuits monophasés et triphasés d’après les annexes ;
-- chauffage électrique d’après le tableau Guillaume ;
-- rénovation : conserver / remplacer / déplacer / créer ;
-- temps de main-d’œuvre validés ;
-- Somfy / TaHoma annexe 5 ;
-- **Annexe 1 complémentaire : métrés automatiques par élément et tranche de surface** ;
-- **Annexe 2 complémentaire : coefficient chantier 0,80 / 1,00 / 1,25** ;
-- **Annexe 3 complémentaire : temps tableau monophasé / triphasé selon nombre de circuits** ;
-- **Consuel et diagnostic : 150 € HT chacun** ;
-- aucune règle ou prix manquant n’est inventé.
+Dans l'étape **Points**, un bloc `Appareillage & finitions` permet maintenant :
 
-## Règle d’application du tableau
-L’annexe 3 donne des valeurs à 8, 12, 16, 20, 24, 28, 32, 36 et 40 circuits. Pour un nombre intermédiaire, la démo utilise le **palier supérieur** afin d’éviter un sous-chiffrage. Au-delà de 40 circuits, le calcul est bloqué et demande validation.
+- un choix global rapide facultatif ;
+- puis un choix **indépendant par famille** ;
+- marque → gamme → modèle / finition → référence exacte ;
+- chaque famille peut utiliser une marque différente ;
+- les prises simples, doubles et triples sont réparties physiquement sans modifier le besoin normatif ;
+- pour les gammes composables, le prix peut être la somme `mécanisme + enjoliveur + plaque` lorsque tous les composants compatibles sont présents ;
+- les compositions incomplètes sont signalées comme telles : la démo ne mélange plus automatiquement deux finitions incompatibles ;
+- le résultat affiche la référence, le PU HT, la quantité, le total et la source.
 
-## Points encore volontairement non inventés
-- prix des matériaux généraux : liaison catalogue SpeedArti ;
-- sections/protections PAC, climatisation, gainable, T.One, IRVE, photovoltaïque : saisie selon fabricant quand nécessaire ;
-- multiplicateur spécifique à chaque type de support : non fourni, le support reste utilisé comme information/alerte et le coefficient général chantier pilote la main-d’œuvre.
+### Exemple autorisé sur un même chantier
 
-Aucune donnée n’est envoyée en production.
+- Prises simples : **Legrand Dooxie blanc** ;
+- prises doubles / triples : **Schneider Odace** ;
+- interrupteurs : **Schneider Odace anthracite** ;
+- RJ45 : **Hager Essensya** ;
+- TV : **Legrand Dooxie** ;
+- volets : **Legrand Dooxie** ;
+- VMC : **Hager Essensya** ;
+- prises extérieures : **Hager Cubyko**.
 
+Le choix d'une famille n'impose jamais la même marque aux autres familles.
 
-## V3 — Catalogue prix Drive
-- Intégration des prix HT présents dans `catalogueIntegration.ts` / `PRIX_MARCHE_DEFAUT` retrouvé sur le Drive SpeedArti.
-- Réintégration des matériels existants : boîtes d'encastrement, tableau, différentiels, protections, terre, parafoudre.
-- Les nouvelles références non présentes dans cette base (ex. RJ45/coax/coffret communication) restent sans prix et sont signalées ; aucun tarif n'est inventé.
+## Catalogue embarqué
+
+La démo charge :
+
+- `catalogue-appareillage.js` : 258 références issues de la base multi-gammes 2026 ;
+- `catalogue-selector.js` : filtres par famille / marque / gamme et composition des références modulaires.
+
+La base comprend notamment des références Schneider Electric, Hager et Legrand, avec plusieurs gammes, modèles et finitions.
+
+## Règle de prix V5
+
+Pour l'appareillage :
+
+1. prix exact de la référence choisie dans la démo ;
+2. si aucune référence exacte n'est choisie : moyenne de la marque / gamme compatible ;
+3. sinon : moyenne générale de la famille.
+
+Dans SpeedArti production, le **prix fournisseur personnel de l'artisan devra rester prioritaire** devant ce catalogue de référence.
+
+Les câbles et gaines restent sur les prix moyens existants du moteur de validation.
+
+## Quantités métier conservées
+
+La V5 ne change pas les règles Guillaume :
+
+- Neuf / Rénovation ;
+- mono / tri ;
+- AUTO des points ;
+- métrés Annexe 1 ;
+- coefficient chantier 0,80 / 1,00 / 1,25 ;
+- circuits et tableau ;
+- temps de main-d'œuvre ;
+- Consuel / diagnostic ;
+- VMC / sonnette / Somfy.
+
+Le catalogue agit sur **la référence et le prix du matériel**, pas sur le besoin métier.
+
+## Important pour la production
+
+Cette version est une démo GitHub statique. L'intégration SpeedArti finale devra conserver cette UX mais lire les références dans la base catalogue existante au lieu de charger `catalogue-appareillage.js`.
