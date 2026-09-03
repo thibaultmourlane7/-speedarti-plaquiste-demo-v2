@@ -1,23 +1,40 @@
-# SpeedArti — Démo Plombier v0.1.0
+# SpeedArti — Démo Plombier v0.2.0
 
-Cette démo **ne recrée pas le module Plombier**.
+Cette démo **ne recrée pas le module Plombier**. Elle améliore la démonstration construite à partir du module Plombier SpeedArti existant, en conservant son identité visuelle et son parcours en 5 étapes.
 
-Elle reprend le parcours et le visuel du module Plombier déjà présent dans SpeedArti, à partir du snapshot de code du 29/07/2026 utilisé comme base de travail.
+## Références utilisées
 
-## Première version
+- code Plombier existant SpeedArti ;
+- questionnaire métier principal rempli par Guillaume ;
+- questionnaire complémentaire rempli par Guillaume ;
+- mapping / workflow transmis par Thibault ;
+- validation de l’Annexe 1 ;
+- validation du cas « installation complète réseau seul sans sanitaire ».
 
-- Wizard : Métier → Type projet → Dimensions → Options → Résultats ;
-- reprise de « Petits travaux » et « Installation complète » ;
-- reprise des champs et libellés existants ;
-- moteur JavaScript de référence reproduisant l’état actuel du `PlombierCalculateur.ts` pour comparaison ;
-- aucune connexion à Supabase, au catalogue réel, au stock ou aux commandes ;
-- aucune règle inventée sur les deux dernières questions envoyées à Guillaume.
+## v0.2.0 — premier lot codé
 
-## Règle absolue
+- Installation complète avec **0 sanitaire autorisé** ;
+- points réseau / attentes EF, EC, EF+EC et platines ;
+- ajout d’équipements sanitaires **un par un** et configuration indépendante ;
+- Petits travaux **multi-prestations** avec bouton `+ Ajouter une prestation` ;
+- aucun WC ajouté silencieusement en remplacement ;
+- gamme ECO / Standard / Premium sur les familles validées ;
+- complexité appliquée uniquement à la main-d’œuvre ;
+- TVA 10 % / 20 % ;
+- PMR WC et PMR douche séparés, forfaits 300 € ;
+- douche italienne : +40 % sur la douche concernée uniquement, SPEC / natte / chape facultatifs ;
+- réseau proposé EF / EC / évacuation, visible et modifiable ;
+- Annexe 1 intégrée en unitaire / forfait complet ;
+- valeurs SpeedArti simulées comme paramètres entreprise modifiables ;
+- traceur d’alertes pour prix catalogue et temps manquants ;
+- résultat avec durée chantier, heures-homme, réseau, HT / TVA / TTC et statut de finalisation.
 
-Le travail futur se fait **dans le module existant** : correction des liaisons, des calculs, des données et des tests. La démo GitHub sert uniquement d’environnement de validation visuelle et fonctionnelle.
+## Principe de sécurité métier
 
-## En attente Guillaume
+Un champ visible doit avoir un effet réel sur le prix, le temps, les matériaux, le réseau, une recommandation ou une alerte. Lorsqu’une donnée métier n’est pas explicitement disponible, la démo n’invente pas un prix catalogue ou un temps de pose.
 
-1. Installation complète « réseau uniquement » sans sanitaire.
-2. Classement des lignes restantes de l’annexe 1.
+## Point technique conservé de l’original
+
+Le code Plombier original utilise actuellement une référence de `0,15 h/ml` pour la pose de tuyauterie. Elle est conservée dans cette démo comme comportement existant tant qu’une table de temps métier / catalogue ne la remplace pas.
+
+La surface de la maison est maintenant saisissable et conservée, mais aucune formule de pondération par surface n’a été inventée : elle n’apparaît pas explicitement dans le calculateur Plombier original disponible.
