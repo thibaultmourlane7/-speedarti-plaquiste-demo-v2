@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="description" content="Démo SpeedArti — Chiffrage Maçon corrigé à partir du module existant." />
+  <title>SpeedArti — Chiffrage Maçon</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="../" aria-label="Retour aux métiers">
+        <span class="brand-mark">S</span>
+        <span><strong>SpeedArti</strong><small>Chiffrage Maçon</small></span>
+      </a>
+      <div class="top-actions">
+        <span class="demo-pill">Démo du module existant corrigé</span>
+        <a class="btn ghost" href="../">← Retour aux métiers</a>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="hero card">
+        <div>
+          <span class="eyebrow">Module Maçon</span>
+          <h1>Chiffrage Maçon</h1>
+          <p>Version de démonstration basée sur les écrans du module SpeedArti existant. Les corrections portent sur les liaisons, les unités, les calculs et les règles validées par Guillaume — sans recréer le module.</p>
+        </div>
+        <div class="hero-badge">▦<strong>Maçon</strong><small>SpeedArti</small></div>
+      </section>
+
+      <section class="wizard card">
+        <div class="steps" id="stepsNav" aria-label="Étapes du chiffrage"></div>
+        <div id="stepHost"></div>
+        <div class="wizard-footer">
+          <button class="btn ghost" id="prevBtn" type="button">← Précédent</button>
+          <div class="footer-note" id="footerNote"></div>
+          <button class="btn primary" id="nextBtn" type="button">Suivant →</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>SpeedArti — Démonstration Maçon</span>
+      <span>Aucune donnée n’est envoyée en production.</span>
+    </footer>
+  </div>
+
+  <template id="alertTemplate"><div class="alert"></div></template>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
