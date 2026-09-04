@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
+  CATALOGUE_MACON, catalogueCandidatesForLine, resolveCatalogueProduct
+} from './catalogue-macon.js';
+import {
   defaultState, newElement, renderMode, renderWorks, renderConfig, renderOptions, renderPrices,
   calculate, validateStep, assertBalisage,
   WORKS, WORK_BY_ID, FIBRES, PREFAB_H_PER_ML, TRUCK_8X4_DEFAULT
@@ -171,6 +174,93 @@ test('poutre BA détaillée utilise longueur × section et référentiel',()=>{
 test('aucun ancien taux horaire / coefficient silencieux réintroduit',()=>{
   const src=fs.readFileSync(new URL('./core.js',import.meta.url),'utf8');
   for(const bad of ['tauxHoraire ?? 48','52 €/h','coefComplexite','×1.20','prixParUnit: Record'])assert.ok(!src.includes(bad),`ancienne valeur/règle détectée: ${bad}`);
+});
+
+
+test('catalogue Maçon neutre: 227 articles et aucune enseigne source exposée',()=>{
+  assert.equal(CATALOGUE_MACON.length,227);
+  const txt=JSON.stringify(CATALOGUE_MACON).toLowerCase();
+  assert.ok(!/point\s*\.?\s*p/i.test(txt));
+});
+
+test('catalogue: parpaing 20 cm propose des articles de 20 cm',()=>{
+  const line={id:'simple-wall-block-parpaing-20',name:'parpaing 20 cm',category:'Maçonnerie',qty:280,unit:'unité'};
+  const c=catalogueCandidatesForLine(line,8);
+  assert.ok(c.length>0);
+  assert.ok(c.some(x=>/500x200x200/i.test(x.produit)));
+});
+
+test('catalogue: tarif au cent converti en prix unitaire sans multiplication erronée',()=>{
+  const line={id:'x',name:'parpaing 20 cm',category:'Maçonnerie',qty:280,unit:'unité'};
+  const r=resolveCatalogueProduct(line,'6271640');
+  assert.equal(r.compatible,true);
+  assert.ok(Math.abs(r.lineUnitPrice-0.9642)<1e-9);
+  assert.ok(Math.abs(r.total-269.976)<1e-6);
+});
+
+test('catalogue: mortier 112 kg arrondi au conditionnement de 25 kg',()=>{
+  const line={id:'x',name:'Mortier traditionnel',category:'Liants',qty:112,unit:'kg'};
+  const r=resolveCatalogueProduct(line,'4117438');
+  assert.equal(r.compatible,true);
+  assert.equal(r.orderQty,5);
+  assert.equal(r.packContent,25);
+  assert.ok(Math.abs(r.total-41.6)<1e-9);
+});
+
+test('catalogue: Delta protection au m² converti directement',()=>{
+  const line={id:'x',name:'Delta MS',category:'Étanchéité',qty:30,unit:'m²'};
+  const r=resolveCatalogueProduct(line,'1191154');
+  assert.equal(r.compatible,true);
+  assert.equal(r.lineUnitPrice,6.25);
+  assert.equal(r.total,187.5);
+});
+
+test('catalogue: sélection article alimente le prix du chiffrage',()=>{
+  const s=base();s.simpleType='murs';
+  Object.assign(s.simple,{length:10,height:2.5,thickness:20,blocksPerM2:10,wallHPerM2:.8,material:'parpaing'});
+  let r=calculate(s);
+  const blocks=r.lines.find(x=>x.id.startsWith('simple-wall-block'));
+  s.catalogSelections[blocks.id]='6271640';
+  r=calculate(s);
+  const priced=r.lines.find(x=>x.id===blocks.id);
+  assert.equal(priced.source,'Catalogue Maçon SpeedArti');
+  assert.ok(priced.price>0);
+});
+
+test('catalogue: prix personnel reste prioritaire sur article sélectionné',()=>{
+  const s=base();s.simpleType='murs';
+  Object.assign(s.simple,{length:10,height:2.5,thickness:20,blocksPerM2:10,wallHPerM2:.8,material:'parpaing'});
+  let r=calculate(s);
+  const blocks=r.lines.find(x=>x.id.startsWith('simple-wall-block'));
+  s.catalogSelections[blocks.id]='6271640';
+  s.manualPrices[blocks.id]=1.25;
+  r=calculate(s);
+  const priced=r.lines.find(x=>x.id===blocks.id);
+  assert.equal(priced.source,'prix personnel');
+  assert.equal(priced.price,1.25);
+});
+
+test('catalogue: conversion incompatible ne crée jamais un prix silencieux',()=>{
+  const line={id:'x',name:'Béton C25/30',category:'Béton',qty:1.2,unit:'m³'};
+  const r=resolveCatalogueProduct(line,'3608102');
+  assert.equal(r.compatible,false);
+});
+
+test('interface Prix/catalogue contient le sélecteur article et reste balisée',()=>{
+  const s=base();s.simpleType='murs';
+  Object.assign(s.simple,{length:10,height:2.5,thickness:20,blocksPerM2:10,wallHPerM2:.8,material:'parpaing'});
+  const html=renderPrices(s);
+  assert.match(html,/Catalogue Maçon SpeedArti/);
+  assert.match(html,/catalogSelections\./);
+  assert.equal(assertBalisage(html),true);
+});
+
+test('aucune mention enseigne source dans les fichiers Git Maçon',()=>{
+  const files=['core.js','app.js','catalogue-macon.js','README.md','tests.mjs','index.html'];
+  for(const f of files){
+    const src=fs.readFileSync(new URL(`./${f}`,import.meta.url),'utf8');
+    assert.ok(!/point\s*\.?\s*p/i.test(src),`mention interdite dans ${f}`);
+  }
 });
 
 console.log(`OK — V2 Maçon: ${pass.length} contrôles fonctionnels passés`);

@@ -3,6 +3,9 @@ import {
   TRUCK_8X4_DEFAULT, FIBRES, CHIMNEY_CONDUITS, CHIMNEY_STACKS, CHIMNEY_CAPS,
   WORKS, WORK_BY_ID
 } from './references.js';
+import {
+  CATALOGUE_MACON, catalogueCandidatesForLine, resolveCatalogueProduct, catalogueLabel
+} from './catalogue-macon.js';
 
 export const STEPS = ['Mode', 'Ouvrage(s)', 'Configuration', 'Options', 'Prix / catalogue', 'Résultat'];
 
@@ -49,7 +52,8 @@ export const TRACE_TARGETS = {
   finishCoat:'material+price', finishCoatQty:'quantity', finishCoatUnit:'unit', finishCoatPrice:'price', waterproofCoat:'material+price', waterproofCoatQty:'quantity', waterproofCoatUnit:'unit', waterproofCoatPrice:'price',
   terraceWaterproof:'material+price', terraceWaterproofPrice:'price', terraceInsulation:'material+price', terraceInsulationPrice:'price',
   foundationOption:'material+price', foundationOptionPrice:'price', foundationOptionQty:'quantity',
-  priceInput:'price', priceSource:'price-source', addOpening:'state+route', removeOpening:'state+route', addBeam:'state+route', removeBeam:'state+route', addPignon:'state+route', removePignon:'state+route', addElement:'state+route', removeElement:'state+route'
+  catalogSelection:'catalogue-selection+price+conditionnement',
+  priceInput:'price-personnel', priceSource:'price-source', addOpening:'state+route', removeOpening:'state+route', addBeam:'state+route', removeBeam:'state+route', addPignon:'state+route', removePignon:'state+route', addElement:'state+route', removeElement:'state+route'
 };
 
 export function defaultState(){
@@ -74,6 +78,7 @@ export function defaultState(){
     elements:[],
     manualPrices:{},
     priceSources:{},
+    catalogSelections:{},
     result:null
   };
 }
@@ -971,13 +976,26 @@ export function calculate(state){
 
   const pricedLines=lines.map(l=>{
     if(l.priceMode==='required'){
-      const p=num(state.manualPrices?.[l.id]);
-      return {...l,price:p,source:state.priceSources?.[l.id]||'manuel'};
+      const manual=num(state.manualPrices?.[l.id]);
+      const selectedRef=state.catalogSelections?.[l.id]||'';
+      const resolved=selectedRef?resolveCatalogueProduct(l,selectedRef):null;
+      if(manual>0){
+        return {...l,price:manual,source:'prix personnel',catalogueSelection:selectedRef||null,catalogueResolution:resolved};
+      }
+      if(resolved?.compatible){
+        return {...l,price:resolved.lineUnitPrice,source:'Catalogue Maçon SpeedArti',catalogueSelection:selectedRef,catalogueResolution:resolved};
+      }
+      return {...l,price:0,source:selectedRef?'catalogue à compléter':'prix à renseigner',catalogueSelection:selectedRef||null,catalogueResolution:resolved};
     }
     return {...l,source:l.priceMode==='validated'?'référence validée':'saisie explicite'};
   });
   const missingPrices=pricedLines.filter(l=>l.qty>0&&l.priceMode==='required'&&!(l.price>0));
-  missingPrices.forEach(l=>alerts.push(`🚨 PRIX MANQUANT — ${l.name}.`));
+  missingPrices.forEach(l=>{
+    alerts.push(`🚨 PRIX MANQUANT — ${l.name}.`);
+    if(l.catalogueSelection&&l.catalogueResolution&&!l.catalogueResolution.compatible){
+      alerts.push(`⚠️ ${l.name} — ${l.catalogueResolution.reason}`);
+    }
+  });
 
   const materials=pricedLines.reduce((s,l)=>s+l.qty*l.price,0);
   const hours=lab.reduce((s,x)=>s+x.hours,0);
@@ -999,15 +1017,40 @@ export function renderPrices(state){
   const r=calculate(state);
   const rows=r.lines.filter(l=>l.qty>0).map(l=>{
     if(l.priceMode==='required'){
-      return `<tr class="${l.price>0?'':'missing-price'}"><td><strong>${esc(l.name)}</strong><br><span class="muted">${esc(l.category)}</span></td><td>${fmt(l.qty,2)} ${esc(l.unit)}</td><td>
-        ${field('Source prix',`priceSources.${l.id}`,state.priceSources?.[l.id]||'manuel',{scope:'root',trace:'priceSource',options:[{value:'manuel',label:'Saisie manuelle (démo)'},{value:'catalogue',label:'Catalogue SpeedArti (à connecter en production)'}]}).replace('data-field=',`data-root-field=`)}
-      </td><td>${field('Prix U. HT',`manualPrices.${l.id}`,state.manualPrices?.[l.id]??'',{scope:'root',step:'0.01',required:true,trace:'priceInput'}).replace('data-field=',`data-root-field=`)}</td></tr>`;
+      const candidates=catalogueCandidatesForLine(l,8);
+      const selectedRef=state.catalogSelections?.[l.id]||'';
+      const resolved=selectedRef?resolveCatalogueProduct(l,selectedRef):null;
+      const options=[
+        {value:'',label:candidates.length?'Choisir un article du Catalogue Maçon SpeedArti…':'Aucun article compatible proposé'},
+        ...candidates.map(product=>({value:product.referenceCatalogue,label:catalogueLabel(product)}))
+      ];
+      let detail='<span class="tiny muted">Aucun article catalogue sélectionné. Vous pouvez choisir un article ou saisir votre prix personnel.</span>';
+      if(resolved?.compatible){
+        detail=`<div class="catalog-ok"><strong>${esc(resolved.product.marque)} — ${esc(resolved.product.produit)}</strong><br>
+          <span>Réf. catalogue ${esc(resolved.product.referenceCatalogue)} · ${esc(resolved.orderLabel)} · total fournitures ${money(resolved.total)}</span></div>`;
+      }else if(resolved?.product){
+        detail=`<div class="alert warn" style="margin:6px 0 0">${esc(resolved.reason)}</div>`;
+      }
+      const currentManual=state.manualPrices?.[l.id]??'';
+      return `<tr class="${l.price>0?'':'missing-price'}">
+        <td><strong>${esc(l.name)}</strong><br><span class="muted">${esc(l.category)}</span></td>
+        <td>${fmt(l.qty,2)} ${esc(l.unit)}</td>
+        <td>
+          ${field('Article catalogue',`catalogSelections.${l.id}`,selectedRef,{scope:'root',trace:'catalogSelection',options}).replace('data-field=',`data-root-field=`)}
+          ${detail}
+        </td>
+        <td>
+          ${field('Prix U. HT personnel / unité métier',`manualPrices.${l.id}`,currentManual,{scope:'root',step:'0.01',trace:'priceInput',help:'Prioritaire sur le prix catalogue si renseigné.'}).replace('data-field=',`data-root-field=`)}
+          ${l.price>0?`<div class="tiny muted">Source retenue : ${esc(l.source)}</div>`:''}
+        </td>
+      </tr>`;
     }
     return `<tr><td><strong>${esc(l.name)}</strong><br><span class="muted">${esc(l.category)}</span></td><td>${fmt(l.qty,2)} ${esc(l.unit)}</td><td>${esc(l.source||'')}</td><td><strong>${money(l.price)}</strong></td></tr>`;
   }).join('');
-  return `<div class="section-title"><h2>Prix / catalogue</h2><p>Le catalogue est prioritaire en production. Dans cette démo, toute ligne sans prix validé possède une saisie manuelle visible. Aucun prix manquant ne peut être transformé silencieusement en 0 €.</p></div>
-    <div class="table-wrap"><table><thead><tr><th>Poste</th><th>Quantité</th><th>Source</th><th>Prix U. HT</th></tr></thead><tbody>${rows||'<tr><td colspan="4">Aucune ligne calculée.</td></tr>'}</tbody></table></div>
-    ${r.missingPrices.length?`<div class="alert danger">🚨 ${r.missingPrices.length} prix obligatoire${r.missingPrices.length>1?'s':''} à renseigner avant le résultat final.</div>`:'<div class="alert ok">✓ Tous les prix obligatoires sont renseignés.</div>'}`;
+  return `<div class="section-title"><h2>Prix / catalogue</h2><p>Le Catalogue Maçon SpeedArti propose les articles compatibles par marque, référence, conditionnement et prix artisan moyen HT. Le prix personnel de l’artisan reste prioritaire. Aucun prix absent ou conditionnement incompatible n’est converti silencieusement.</p></div>
+    <div class="info-box"><strong>${CATALOGUE_MACON.length} articles métier intégrés.</strong> Les conversions automatiques sont limitées aux unités fiables : unité/cent, kg/conditionnement, m²/rouleau ou panneau, m/ml et m³. Les autres cas restent bloqués jusqu’à une saisie explicite.</div>
+    <div class="table-wrap"><table><thead><tr><th>Poste</th><th>Besoin métier</th><th>Article catalogue / conditionnement</th><th>Prix personnel</th></tr></thead><tbody>${rows||'<tr><td colspan="4">Aucune ligne calculée.</td></tr>'}</tbody></table></div>
+    ${r.missingPrices.length?`<div class="alert danger">🚨 ${r.missingPrices.length} prix obligatoire${r.missingPrices.length>1?'s':''} à résoudre avant le résultat final.</div>`:'<div class="alert ok">✓ Tous les prix obligatoires sont résolus.</div>'}`;
 }
 
 export function renderResult(state){
@@ -1016,7 +1059,12 @@ export function renderResult(state){
     return `<div class="section-title"><h2>Résultat bloqué</h2><p>Le résultat final n’est pas calculable tant qu’un champ ou un prix obligatoire manque.</p></div>
       ${r.alerts.map(a=>`<div class="alert ${a.startsWith('🚨')?'danger':'warn'}">${esc(a)}</div>`).join('')}`;
   }
-  const rows=r.lines.filter(l=>l.qty>0).map(l=>`<tr><td><strong>${esc(l.name)}</strong><br><span class="muted">${esc(l.category)}</span></td><td>${fmt(l.qty,2)}</td><td>${esc(l.unit)}</td><td>${money(l.price)}</td><td><strong>${money(l.qty*l.price)}</strong></td></tr>`).join('');
+  const rows=r.lines.filter(l=>l.qty>0).map(l=>{
+    const cat=l.catalogueResolution?.compatible?l.catalogueResolution:null;
+    const product=cat?.product;
+    const extra=product?`<br><span class="tiny muted">${esc(product.marque)} · ${esc(product.produit)} · réf. ${esc(product.referenceCatalogue)} · ${esc(cat.orderLabel)}</span>`:'';
+    return `<tr><td><strong>${esc(l.name)}</strong><br><span class="muted">${esc(l.category)}</span>${extra}</td><td>${fmt(l.qty,2)}</td><td>${esc(l.unit)}</td><td>${money(l.price)}</td><td><strong>${money(l.qty*l.price)}</strong></td></tr>`;
+  }).join('');
   return `<div class="section-title"><h2>Résultat du chiffrage</h2><p>Résultat finalisé : aucun prix obligatoire n’est manquant.</p></div>
     <div class="metric-grid"><div class="metric"><span>Heures-homme</span><strong>${fmt(r.hours,1)} h</strong></div><div class="metric"><span>Durée chantier (${r.workers} ouvrier${r.workers>1?'s':''})</span><strong>${fmt(r.duration,1)} h</strong></div><div class="metric"><span>Coût main-d’œuvre</span><strong>${money(r.laborCost)}</strong></div></div>
     <div class="result-grid"><div><div class="table-wrap"><table><thead><tr><th>Poste</th><th>Qté</th><th>Unité</th><th>Prix U. HT</th><th>Total HT</th></tr></thead><tbody>${rows}</tbody></table></div>

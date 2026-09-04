@@ -1,28 +1,56 @@
-# SpeedArti — Démo Chiffrage Maçon V2
+# SpeedArti — Démo Chiffrage Maçon V2 + Catalogue
 
 ## Principe absolu
 
-Cette V2 ne repart pas du métier Maçon à zéro. Elle reprend le parcours et les sous-ouvrages du module Maçon SpeedArti original, puis réintègre les corrections techniques et les décisions validées avec Guillaume.
+Le module Maçon reste le module V2 validé. L'intégration catalogue ne remplace aucun calcul métier : elle se branche uniquement après le calcul des quantités, à l'étape **Prix / catalogue**.
 
-## Changements majeurs V2
+## Catalogue Maçon SpeedArti
 
-- correction de la persistance de tous les menus déroulants après rerender ;
-- restauration des sous-ouvrages supprimés dans la V1 : ouvertures, poutres BA, pignons, refends, plancher VS, longrines, jambes de force, etc. ;
-- ajout d'une vraie étape **Prix / catalogue** avant le résultat ;
-- tout prix obligatoire absent possède une case de saisie et bloque le résultat final ;
-- les 40 ouvrages de l'Annexe 1 sont réellement sélectionnables et calculables ;
-- béton / acier / coffrage / MO de l'Annexe 1 sont modifiables par l'artisan ;
-- dalle : treillis / fibres indépendants et cumulables ;
-- préfabriqué : +30 % sur fourniture seule, supprimé si prix fournisseur réel ;
-- cheminée : conduit, souche et chapeau séparés, temps et montants modifiables, prix manuel sans double comptage ;
-- heures-homme, durée et coût MO séparés ;
-- aucun ancien coefficient silencieux réintroduit ;
-- toutes les options visibles sont balisées vers quantité, matériau, prix, MO, alerte ou rapport.
+- 227 articles métier intégrés dans `catalogue-macon.js` ;
+- catalogue neutre : aucune enseigne d'origine n'est exposée dans l'interface, le code ou les tests ;
+- marque fabricant, produit, référence catalogue, unité de vente et prix artisan moyen HT restent disponibles ;
+- prix personnel artisan toujours prioritaire sur le prix catalogue ;
+- aucun prix absent ou conditionnement incompatible n'est transformé en prix silencieux.
+
+## Correspondance automatique
+
+Le moteur propose des articles selon le poste calculé :
+
+- blocs béton / parpaings ;
+- briques terre cuite ;
+- béton cellulaire ;
+- mortiers / colles ;
+- fibres ;
+- coffrage ;
+- aciers / armatures ;
+- étanchéité / protection ;
+- enduits / façade ;
+- drainage, caniveaux, assainissement, scellement et éléments préfabriqués lorsque le poste le permet.
+
+La sélection reste toujours modifiable par l'artisan.
+
+## Conditionnements
+
+Conversions automatiques autorisées uniquement lorsque l'unité est démontrable :
+
+- unité ↔ pièce ;
+- unité ↔ tarif au cent ;
+- kg ↔ sac / sachet / boîte avec poids explicite ;
+- m² ↔ m², rouleau ou panneau avec surface explicite ;
+- m / ml ↔ mètre ou pièce avec longueur explicite ;
+- m³ ↔ m³.
+
+Si la conversion n'est pas fiable, le résultat reste bloqué jusqu'à la saisie d'un prix personnel ou le choix d'un autre article.
+
+## Priorité des prix
+
+1. prix personnel renseigné par l'artisan ;
+2. article sélectionné dans le Catalogue Maçon SpeedArti avec conversion compatible ;
+3. saisie manuelle obligatoire si aucun prix exploitable n'est disponible.
 
 ## Balisage
 
-Chaque contrôle métier généré par `core.js` porte un attribut `data-trace` associé à une destination dans `TRACE_TARGETS`.
-Le test `assertBalisage()` échoue si un contrôle visible n'a pas de trace ou si une trace n'a pas de destination.
+Chaque contrôle généré par `core.js` possède un `data-trace`. Le sélecteur catalogue utilise la trace `catalogSelection` et reste soumis à la règle absolue de balisage.
 
 ## Tests
 
@@ -32,21 +60,15 @@ Lancer :
 node tests.mjs
 ```
 
-La V2 passe 29 contrôles fonctionnels, dont :
+Les tests couvrent la V2 métier existante et l'intégration catalogue :
 
-- persistance réelle des sélections ;
-- accessibilité et calculabilité des 40 ouvrages ;
-- parité dalle simple / multi ;
+- persistance des sélections ;
+- 40 ouvrages accessibles et calculables ;
 - blocage des prix manquants ;
-- présence des champs prix des options ;
-- semelle m × cm × cm ;
-- préfabriqué ;
-- cheminée ;
-- ouvertures + linteaux ;
-- poutres BA ;
-- pignons ;
-- absence de double facturation prix manuel / MO.
-
-## Limite volontaire de la démo GitHub
-
-La démo GitHub est statique : elle ne se connecte pas au vrai catalogue SpeedArti. En production, le catalogue entreprise/fournisseur doit rester prioritaire. Dans la démo, les prix non validés sont donc saisis manuellement et le résultat final reste bloqué tant qu'ils ne sont pas renseignés.
+- parité simple / multi ;
+- conditionnement au cent ;
+- arrondi des sacs au conditionnement complet ;
+- conversion m² ;
+- prix personnel prioritaire ;
+- incompatibilité d'unité bloquante ;
+- absence d'enseigne source dans les fichiers Git Maçon.

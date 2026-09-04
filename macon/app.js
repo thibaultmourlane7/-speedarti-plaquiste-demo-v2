@@ -2,7 +2,7 @@ import {
   STEPS, defaultState, renderStep, validateStep, newElement, setPath, getPath, num
 } from './core.js';
 
-const STORAGE_KEY='speedarti-macon-demo-v2';
+const STORAGE_KEY='speedarti-macon-demo-v2-catalogue';
 const TRUCK_PREF_KEY='speedarti-macon-truck-default';
 const $=(s,r=document)=>r.querySelector(s);
 const $$=(s,r=document)=>[...r.querySelectorAll(s)];
