@@ -19,7 +19,7 @@
         </div>
       </a>
       <div class="actions">
-        <span class="badge work">Version de travail v0.2.0</span>
+        <span class="badge work">Version de travail v0.3.1</span>
         <button id="resetBtn" class="btn secondary">Réinitialiser</button>
         <button id="saveBtn" class="btn secondary">Enregistrer</button>
         <button id="calcBtn" class="btn primary">Calculer</button>
@@ -28,7 +28,7 @@
 
     <div class="work-note">
       <strong>Démo de reprise, pas un nouveau module.</strong>
-      <span>Le visuel reste celui du module Plombier existant. Cette version intègre le mapping, les réponses de Guillaume, les installations réseau seul et le workflow multi-prestations.</span>
+      <span>Le visuel reste celui du module Plombier existant. Cette version intègre le catalogue Téréva 2026 avec prix -20 %, la recherche contextuelle, la saisie manuelle tracée pour les rares prix Téréva absents et les balises absolues avec auto-contrôle systématique renforcé.</span>
     </div>
 
     <nav id="steps" class="steps"></nav>
@@ -40,6 +40,8 @@
       </footer>
     </main>
   </div>
+  <script src="./catalogue-data.js"></script>
+  <script src="./catalogue-service.js"></script>
   <script src="./engine-current.js"></script>
   <script src="./app.js"></script>
 </body>

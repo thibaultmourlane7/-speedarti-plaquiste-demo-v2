@@ -1,40 +1,56 @@
-# SpeedArti — Démo Plombier v0.2.0
+# SpeedArti — Démo Plombier v0.3.1
 
-Cette démo **ne recrée pas le module Plombier**. Elle améliore la démonstration construite à partir du module Plombier SpeedArti existant, en conservant son identité visuelle et son parcours en 5 étapes.
+Cette version **ne recrée pas le module Plombier**. Elle corrige et enrichit la démo existante SpeedArti en conservant son parcours et son identité visuelle.
 
-## Références utilisées
+## Catalogue Téréva connecté
 
-- code Plombier existant SpeedArti ;
-- questionnaire métier principal rempli par Guillaume ;
-- questionnaire complémentaire rempli par Guillaume ;
-- mapping / workflow transmis par Thibault ;
-- validation de l’Annexe 1 ;
-- validation du cas « installation complète réseau seul sans sanitaire ».
+- base embarquée : **7 456 références** issues du catalogue Téréva 2026 ;
+- **7 451 références avec prix Téréva exploitable** ; 5 références ont réellement un prix « - » dans le catalogue source ;
+- prix utilisés : base Téréva **diminuée de 20 %** ;
+- recherche par produit, marque, type, finition, référence fabricant et code Téréva ;
+- filtres contextuels par équipement ;
+- filtres raccords distincts **PER / multicouche / cuivre** ;
+- recherche dédiée aux **platines sanitaires** ;
+- sélection d’une référence exacte = prix exact de cette référence, sans coefficient ECO/Standard/Premium supplémentaire ;
+- prix manuel possible et tracé lorsqu’il est explicitement saisi ;
+- articles libres possibles depuis l’ensemble du catalogue.
 
-## v0.2.0 — premier lot codé
+## Règle absolue des balises
 
-- Installation complète avec **0 sanitaire autorisé** ;
-- points réseau / attentes EF, EC, EF+EC et platines ;
-- ajout d’équipements sanitaires **un par un** et configuration indépendante ;
-- Petits travaux **multi-prestations** avec bouton `+ Ajouter une prestation` ;
-- aucun WC ajouté silencieusement en remplacement ;
-- gamme ECO / Standard / Premium sur les familles validées ;
-- complexité appliquée uniquement à la main-d’œuvre ;
-- TVA 10 % / 20 % ;
-- PMR WC et PMR douche séparés, forfaits 300 € ;
-- douche italienne : +40 % sur la douche concernée uniquement, SPEC / natte / chape facultatifs ;
-- réseau proposé EF / EC / évacuation, visible et modifiable ;
-- Annexe 1 intégrée en unitaire / forfait complet ;
-- valeurs SpeedArti simulées comme paramètres entreprise modifiables ;
-- traceur d’alertes pour prix catalogue et temps manquants ;
-- résultat avec durée chantier, heures-homme, réseau, HT / TVA / TTC et statut de finalisation.
+Chaque ligne de calcul conserve au minimum :
+- l’origine UI / donnée ;
+- la quantité et l’unité ;
+- le prix et sa source ;
+- la formule quantité × prix ;
+- la référence catalogue lorsqu’elle existe ;
+- le lien avec la main-d’œuvre et les totaux.
 
-## Principe de sécurité métier
+Le moteur `BALISES-ABSOLUES-v1.1` vérifie systématiquement les lignes, la main-d’œuvre, le total HT et la TVA avant de déclarer le chiffrage contrôlé.
 
-Un champ visible doit avoir un effet réel sur le prix, le temps, les matériaux, le réseau, une recommandation ou une alerte. Lorsqu’une donnée métier n’est pas explicitement disponible, la démo n’invente pas un prix catalogue ou un temps de pose.
+## Corrections de contrôle v0.3.1
 
-## Point technique conservé de l’original
+- suppression du prix caché **120 €** sur réparation/nettoyage chauffe-eau : le forfait complet doit recevoir un montant explicite ;
+- suppression du prix caché **180 €** sur débouchage : Guillaume a validé « tout compris MO + déplacement », mais pas un montant unique ;
+- suppression du rendement réseau caché **0,15 h/ml** : le temps réseau est désormais visible et doit être renseigné tant qu’aucun rendement métier n’est validé ;
+- les platines EF / EC / EF+EC / évacuation peuvent être résolues par une référence catalogue exacte ou un prix manuel ;
+- une référence raccord incompatible avec PER / multicouche / cuivre est bloquée ;
+- la capacité d’un chauffe-eau catalogue est contrôlée contre la capacité choisie lorsqu’elle est identifiable ;
+- les valeurs MLL / MLV modifiées dans les paramètres entreprise alimentent réellement les prestations correspondantes ;
+- le déplacement n’est plus affiché dans l’installation complète s’il n’a pas d’effet dans cette branche ;
+- réseau seul : les 5 m SDB + 8 m cuisine ne sont pas ajoutés quand aucune zone EC correspondante n’existe.
 
-Le code Plombier original utilise actuellement une référence de `0,15 h/ml` pour la pose de tuyauterie. Elle est conservée dans cette démo comme comportement existant tant qu’une table de temps métier / catalogue ne la remplace pas.
+## Garde-fous volontaires
 
-La surface de la maison est maintenant saisissable et conservée, mais aucune formule de pondération par surface n’a été inventée : elle n’apparaît pas explicitement dans le calculateur Plombier original disponible.
+- les 5 références Téréva avec prix « - » ne reçoivent aucun prix inventé ; une saisie manuelle explicite peut résoudre le blocage ;
+- **551 références** dont le titre exact n’a pas été extrait restent utilisables via code/type/variante/page avec un statut d’information, sans inventer de désignation ;
+- **2 139 références** portent encore la marque « À identifier » : aucune marque n’est devinée ;
+- prix de secours tuyaux uniquement : PER 0,80 €/ml ; Multicouche 1,12 €/ml ; Cuivre 8 €/ml ;
+- évacuation PVC : prix HT/ml explicite tant que les conditionnements catalogue ne sont pas normalisés ;
+- aucun temps métier non validé n’est ajouté silencieusement.
+
+Voir `AUTOCONTROLE.md` pour le rapport de contrôle de la version livrée.
+
+## Contrôle final de livraison
+
+La version v0.3.1 est livrée avec `autocontrol.test.js` et `SHA256SUMS.txt`.
+Le dernier cycle de contrôle exécute **167 assertions** et vérifie aussi le ZIP après extraction dans un dossier vierge.

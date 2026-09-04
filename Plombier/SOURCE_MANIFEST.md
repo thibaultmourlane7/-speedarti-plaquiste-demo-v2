@@ -1,24 +1,51 @@
-# Source de reprise — Plombier v0.2.0
+# Sources de reprise — Plombier v0.3.1
 
-Base technique : module Plombier existant du snapshot SpeedArti `speedarti-code-29-07-26` via la copie de travail Plaquiste améliorée V2.
+## Base technique
 
-Fichiers source métier / technique de référence :
-- `src/components/chiffrage/ChiffrageWizard.tsx`
-- `src/components/chiffrage/steps/PlombierTypeProjetStep.tsx`
-- `src/components/chiffrage/steps/PlombierDimensionsStep.tsx`
-- `src/components/chiffrage/steps/PlombierOptionsStep.tsx`
-- `src/services/chiffrage/calculateurs/PlombierCalculateur.ts`
-- `src/services/chiffrage/calculateurs/BaseCalculateur.ts`
-- `src/services/chiffrage/chiffrageService.ts`
-- `src/services/chiffrage/integration/catalogueIntegration.ts`
-- `src/services/chiffrage/types.ts`
-- `src/services/chiffrage/regles/plombier.rules.json`
-- `src/services/chiffrage/__tests__/PlombierCalculateur.test.ts`
+Module Plombier existant SpeedArti / démo v0.2.0, elle-même reprise du snapshot SpeedArti disponible. **Aucun module parallèle n’est créé.**
 
-Documents métier :
-- `Questionnaire_cible_correction_module_Plombier_Guillaume ok.docx`
-- `SpeedArti_Questionnaire_complementaire_Plomberie_Guillaume MODIF.docx`
-- Annexe 1 validée par Guillaume comme grille à intégrer en forfait complet ou unitaire selon l’élément.
-- Dernière décision Guillaume : une Installation complète peut être un réseau seul sans sanitaire ; les attentes EF/EC et raccordements/platines restent chiffrables.
+Fichiers techniques principaux de référence :
+- `Plombier/index.html`
+- `Plombier/app.js`
+- `Plombier/engine-current.js`
+- `Plombier/styles.css`
 
-La démo v0.2.0 reste un environnement de validation. Elle ne remplace pas directement le module React de production.
+## Sources métier
+
+- questionnaire principal Guillaume Plombier ;
+- questionnaire complémentaire Guillaume ;
+- mapping / workflow Plombier transmis par Thibault ;
+- Annexe 1 validée en unitaire / forfait complet selon la ligne ;
+- installation complète réseau seul sans sanitaire : validée ;
+- longueurs réseau EF / EC / évacuation : règles Guillaume conservées ;
+- raccords : 6 par appareil + 10 %, avec prix/type dépendant du matériau réseau ;
+- prix de secours tuyaux : PER 0,80 €/ml, multicouche 1,12 €/ml, cuivre 8 €/ml ;
+- débouchage : forfait tout compris, main-d’œuvre + déplacement inclus ; aucun montant unique ajouté sans validation ;
+- réparation/nettoyage chauffe-eau : forfait complet ; aucun montant unique ajouté sans validation.
+
+## Source catalogue v0.3.1
+
+- fichier de travail : `SpeedArti_Catalogue_Plomberie_Tereva_2026_PRIX_MOINS_20.xlsx` ;
+- source amont : `Catalogue général Téréva - 2026.pdf` ;
+- base embarquée : `catalogue-data.js` ;
+- moteur de recherche / filtres : `catalogue-service.js` ;
+- références embarquées : **7 456** ;
+- références avec prix : **7 451** ;
+- références sans prix Téréva : **5** ;
+- règle de prix : prix de la base Excel déjà diminués de 20 %.
+
+## Règles de sécurité
+
+- une référence exacte sélectionnée conserve son prix exact ;
+- les coefficients de gamme ne remultiplient pas une référence Téréva exacte ;
+- les prix manquants ne sont pas inventés ;
+- les temps non validés ne sont pas inventés ;
+- une configuration incompatible avec la référence choisie déclenche une balise ;
+- chaque ligne reste traçable UI → donnée → quantité → prix → source → calcul → total.
+
+## Précisions v0.3.1 issues du contrôle final
+
+- raccords : 6 par appareil / point réseau + 10 %, sans compter EF et EC comme deux appareils distincts ;
+- robinets d’arrêt : composition issue de l’Annexe 2 (notamment WC = 1, appareils EF+EC listés = 2), MLL/MLV sans doublon de robinet générique ;
+- recherche de fuite : diagnostic 150 € + méthode catalogue/saisie, nature tout compris sans deuxième ligne de main-d’œuvre ;
+- temps réseau : saisie explicite, aucun rendement h/ml inventé.
