@@ -6,7 +6,7 @@ import {
 import {
   defaultState, newElement, renderMode, renderWorks, renderConfig, renderOptions, renderPrices,
   calculate, validateStep, assertBalisage,
-  WORKS, WORK_BY_ID, FIBRES, PREFAB_H_PER_ML, TRUCK_8X4_DEFAULT
+  WORKS, WORK_BY_ID, FIBRES, PREFAB_H_PER_ML, TRUCK_8X4_DEFAULT, TRACE_TARGETS
 } from './core.js';
 
 const pass=[];
@@ -330,6 +330,88 @@ test('FIX capture: ancienne sélection catalogue incompatible n’est plus affic
   const row=html.split('<tr').find(x=>x.includes('Béton C25/30 — Chaînage horizontal'))||'';
   assert.ok(!row.includes('value="3483173" selected'));
   assert.ok(row.includes('Aucun article compatible proposé'));
+});
+
+
+
+test('FIX audit humain: dalle associée micro-pieux affiche épaisseur, treillis et fibres',()=>{
+  const s=base();s.mode='multiple';const e=newElement('fondations');
+  Object.assign(e.data,{foundationType:'micro_pieux',microSlabSurface:30,slabRef:'dallage_arme',thickness:12,fibres:true,fibreType:'courante',fibreDose:3.5});s.elements=[e];
+  const html=renderConfig(s);
+  assert.match(html,/Épaisseur réelle dalle associée/);
+  assert.match(html,/data-field="thickness"[^>]*data-trace="associatedSlabThickness"/);
+  assert.match(html,/data-field="treillis"[^>]*data-trace="slabTreillis"/);
+  assert.match(html,/data-field="fibres"[^>]*data-trace="slabFibres"/);
+  assert.match(html,/data-field="fibreDose"[^>]*data-trace="fibreDose"/);
+  assert.equal(assertBalisage(html),true);
+});
+
+test('FIX audit humain: dalle associée VS et terre-plein affiche une épaisseur saisissable',()=>{
+  for(const foundationType of ['vide_sanitaire','terre_plein']){
+    const s=base();s.mode='multiple';const e=newElement('fondations');
+    Object.assign(e.data,{foundationType,slabSurface:80,slabRef:'dallage_arme',thickness:15,perimeter:40,footingWidthCm:40,footingHeightCm:30});s.elements=[e];
+    const html=renderConfig(s);
+    assert.match(html,/Épaisseur réelle dalle associée/);
+    assert.match(html,/data-trace="associatedSlabThickness"/);
+    assert.equal(assertBalisage(html),true);
+  }
+});
+
+test('FIX audit humain: dalle associée micro-pieux calcule le volume réel avec épaisseur saisie',()=>{
+  const s=base();s.mode='multiple';const e=newElement('fondations');
+  Object.assign(e.data,{foundationType:'micro_pieux',microCount:4,microPrice:500,microHours:1,microSlabSurface:30,slabRef:'dallage_arme',thickness:12});s.elements=[e];
+  const r=calculate(s);
+  const concrete=r.lines.find(l=>l.id.includes('dalle VS-concrete'));
+  assert.ok(concrete,'ligne béton dalle associée absente');
+  assert.ok(Math.abs(concrete.qty-3.6)<1e-9);
+  assert.ok(!r.alerts.some(a=>/dalle VS : surface et épaisseur obligatoires/.test(a)));
+});
+
+test('FIX audit humain: dalle associée gère treillis et fibres comme la dalle principale',()=>{
+  const s=base();s.mode='multiple';const e=newElement('fondations');
+  Object.assign(e.data,{foundationType:'vide_sanitaire',perimeter:40,blockHeight:.2,rows:2,blocksPerM2:10,wallHPerM2:.5,footingWidthCm:40,footingHeightCm:30,slabSurface:80,slabRef:'dallage_arme',thickness:15,treillis:true,fibres:true,fibreType:'courante',fibreDose:3.5});s.elements=[e];
+  const r=calculate(s);
+  const steel=r.lines.find(l=>l.id.includes('dalle associée-steel'));
+  const fibre=r.lines.find(l=>l.id.includes('dalle associée-fibres'));
+  assert.ok(steel,'treillis dalle associée absent');
+  assert.equal(steel.catalogNeedQty,80);
+  assert.equal(steel.catalogNeedUnit,'m²');
+  assert.ok(fibre,'fibres dalle associée absentes');
+  assert.ok(Math.abs(fibre.qty-(80*.15*3.5))<1e-9);
+});
+
+test('FIX audit humain: isolation plancher VS n’est ajoutée qu’une seule fois',()=>{
+  const s=base();s.mode='multiple';const e=newElement('fondations');
+  Object.assign(e.data,{foundationType:'vide_sanitaire',perimeter:40,blockHeight:.2,rows:2,blocksPerM2:10,wallHPerM2:.5,footingWidthCm:40,footingHeightCm:30,slabSurface:80,slabRef:'dallage_arme',thickness:15,slabInsulation:'avec_isolant'});s.elements=[e];
+  const r=calculate(s);
+  assert.equal(r.lines.filter(l=>l.id===`${e.id}-vs-insulation`).length,1);
+});
+
+test('FIX balisage absolu: navigation Précédent/Suivant et retours métiers sont balisés',()=>{
+  const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
+  assert.match(html,/id="prevBtn"[^>]*data-trace="wizardPrev"/);
+  assert.match(html,/id="nextBtn"[^>]*data-trace="wizardNext"/);
+  assert.equal((html.match(/data-trace="returnTrades"/g)||[]).length,2);
+  assert.equal(assertBalisage(html),true);
+});
+
+test('FIX balisage absolu: anciennes traces mortes supprimées',()=>{
+  assert.equal(Object.hasOwn(TRACE_TARGETS,'elements'),false);
+  assert.equal(Object.hasOwn(TRACE_TARGETS,'priceSource'),false);
+  assert.equal(TRACE_TARGETS.associatedSlabThickness,'quantity');
+});
+
+
+
+test('FIX audit humain: fibres béton proposent des conditionnements catalogue compatibles',()=>{
+  const line={id:'slab-fibres',name:'Fibres — Dalle courante / limitation fissuration',category:'Ferraillage',qty:12.6,unit:'kg'};
+  const c=catalogueCandidatesForLine(line,8);
+  assert.ok(c.length>0,'aucune fibre catalogue proposée');
+  assert.ok(c.every(p=>p.famille==='Fibres béton'));
+  assert.ok(c.every(p=>!/lamelle|carbone/i.test(`${p.typeArticle} ${p.produit}`)));
+  const r=resolveCatalogueProduct(line,c[0].referenceCatalogue);
+  assert.equal(r.compatible,true);
+  assert.ok(r.orderQty>0);
 });
 
 console.log(`OK — V2 Maçon: ${pass.length} contrôles fonctionnels passés`);

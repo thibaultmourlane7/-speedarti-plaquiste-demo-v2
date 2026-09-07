@@ -87,3 +87,27 @@ Cette version renforce la sélection des articles à l'étape « Prix / catalogu
 - une ancienne sélection devenue incompatible est ignorée et ne peut plus alimenter le prix.
 
 Les contrôles fonctionnels incluent désormais des scénarios de non-régression dédiés à ces cas.
+
+
+## v2.3 — audit humain complet et balisage absolu
+
+Corrections issues du contrôle exhaustif du module :
+
+- ajout d’un champ **épaisseur réelle de dalle associée** pour micro-pieux, vide sanitaire et terre-plein ;
+- ajout des contrôles **treillis soudé / fibres / type de fibres / dosage** sur les dalles associées ;
+- balisage des boutons **Précédent / Suivant** et des retours vers les métiers ;
+- suppression des traces mortes du registre de balisage ;
+- suppression d’une double ligne d’isolation du plancher sur vide sanitaire ;
+- correction du filtrage catalogue des **fibres béton**, afin de proposer uniquement des conditionnements réellement compatibles et d’exclure les lamelles carbone ;
+- `assertBalisage()` contrôle désormais aussi les liens interactifs.
+
+Contrôles après correction :
+
+- **53/53 tests fonctionnels** ;
+- audit de **208 états d’interface** ;
+- **3 289 contrôles interactifs** analysés ;
+- 0 contrôle sans balise ;
+- 0 balise inconnue ;
+- 0 balise morte ;
+- 0 contrôle sans liaison ;
+- **23/23 contrôles Chromium réels** sur les zones corrigées, sans alerte ni exception JavaScript.

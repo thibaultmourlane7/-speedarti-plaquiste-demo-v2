@@ -44,6 +44,7 @@ function lineContext(line){
 // ne doit jamais transformer une ligne Béton en article d'armature.
 function familyHints(line){
   const c=lineContext(line), t=`${c.name} ${c.id}`;
+  if(/fibre/.test(t)) return ['Fibres béton'];
   if(c.category==='beton') return ['Mortiers / bétons secs'];
   if(c.category==='ferraillage') return ['Aciers / armatures'];
   if(c.category==='coffrage') return ['Panneaux de coffrage','Coffrage bois'];
@@ -76,6 +77,7 @@ function familyHints(line){
 function catalogueRole(line){
   if(line?.catalogRole)return line.catalogRole;
   const c=lineContext(line),t=`${c.name} ${c.id}`;
+  if(/fibre/.test(t))return 'fibre_beton';
   if(c.category==='beton')return 'concrete';
   if(c.category==='coffrage')return 'coffrage_surface';
   if(c.category==='ferraillage'){
@@ -100,6 +102,7 @@ function productRoleCompatible(line,product){
   // pouvant contenir des mots comme « treillis » ou « accessoires » pour toute la famille.
   const t=normalize(`${product.typeArticle||''} ${product.produit||''}`);
   if(role==='concrete')return product.famille==='Mortiers / bétons secs' && /beton/.test(t) && !/cellulaire/.test(t);
+  if(role==='fibre_beton')return product.famille==='Fibres béton' && /fibre/.test(t) && !/lamelle|carbone/.test(t);
   if(role==='coffrage_surface')return ['Panneaux de coffrage','Coffrage bois'].includes(product.famille)
     && /panneau|contreplaque|planche.*coffrage/.test(t)
     && !/accessoire|clavette|fourche|fixation|huile|demoulage/.test(t);

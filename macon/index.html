@@ -11,13 +11,13 @@
 <body>
   <div class="app-shell">
     <header class="topbar">
-      <a class="brand" href="../" aria-label="Retour aux métiers">
+      <a class="brand" href="../" aria-label="Retour aux métiers" data-trace="returnTrades">
         <span class="brand-mark">S</span>
         <span><strong>SpeedArti</strong><small>Chiffrage Maçon</small></span>
       </a>
       <div class="top-actions">
         <span class="demo-pill">V2 — correction du module existant</span>
-        <a class="btn ghost" href="../">← Retour aux métiers</a>
+        <a class="btn ghost" href="../" data-trace="returnTrades">← Retour aux métiers</a>
       </div>
     </header>
 
@@ -35,9 +35,9 @@
         <div class="steps" id="stepsNav" aria-label="Étapes du chiffrage"></div>
         <div id="stepHost"></div>
         <div class="wizard-footer">
-          <button class="btn ghost" id="prevBtn" type="button">← Précédent</button>
+          <button class="btn ghost" id="prevBtn" type="button" data-trace="wizardPrev">← Précédent</button>
           <div class="footer-note" id="footerNote"></div>
-          <button class="btn primary" id="nextBtn" type="button">Suivant →</button>
+          <button class="btn primary" id="nextBtn" type="button" data-trace="wizardNext">Suivant →</button>
         </div>
       </section>
     </main>

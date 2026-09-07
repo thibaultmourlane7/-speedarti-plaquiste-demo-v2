@@ -30,7 +30,7 @@ export const MULTI_CARDS = [
 
 // Chaque trace doit avoir une destination réelle. Les tests vérifient que tous les contrôles visibles sont balisés.
 export const TRACE_TARGETS = {
-  mode:'state+route', simpleType:'state+route', elements:'state+route',
+  mode:'state+route', simpleType:'state+route', wizardPrev:'route-step-back', wizardNext:'validation+route-step-forward', returnTrades:'route-metiers',
   hourly:'labor+price', vat:'tax', workers:'duration', concreteClass:'material-variant',
   wallLength:'quantity', wallWidth:'quantity', wallHeight:'quantity', wallThickness:'material-variant', wallBlocksPerM2:'quantity', wallMortarKgM2:'quantity', wallHoursPerM2:'labor',
   wallOpening:'quantity+associated-work', wallMaterial:'material-variant+price-key', wallMethod:'material-label', wallChainH:'material+labor', wallChainV:'material+labor',
@@ -38,9 +38,9 @@ export const TRACE_TARGETS = {
   foundationRef:'material+labor', footingLength:'quantity', footingWidth:'quantity', footingHeight:'quantity', excavationDepth:'report+earthworks-context',
   stairRef:'material+labor', stairSurface:'quantity', stairHeight:'report', stairType:'report', stairManualPrice:'price-mode', stairManualIncludesLabor:'price-mode', stairManualHours:'planning',
   chimneyHeight:'quantity+labor', chimneyCount:'quantity+labor', chimneyConduit:'material+labor', chimneyStack:'material+labor', chimneyStackCount:'quantity+labor', chimneyCap:'material+labor', chimneyCapCount:'quantity+labor', chimneyFoyer:'report', chimneyManualPrice:'price-mode', chimneySupplyOverride:'price', chimneyHoursOverride:'labor', chimneyTotalOverride:'price',
-  foundationType:'route', microCount:'quantity', microPrice:'price', microHours:'labor', microSlabSurface:'quantity', microSlabInsulation:'material', longrineType:'route', longrineLength:'quantity', longrineWidth:'quantity', longrineHeight:'quantity',
+  foundationType:'route', microCount:'quantity', microPrice:'price', microHours:'labor', longrineType:'route', longrineLength:'quantity', longrineWidth:'quantity', longrineHeight:'quantity',
   plotCount:'quantity', plotVolumeMode:'quantity-meaning', plotVolume:'quantity', basementPerimeter:'quantity', basementBlockHeight:'quantity', basementRows:'quantity', basementBlocksPerM2:'quantity', basementHoursPerM2:'labor', basementFootingWidth:'quantity', basementFootingHeight:'quantity', basementStiffeners:'quantity',
-  refendLength:'quantity', refendHeight:'quantity', refendBlocksPerM2:'quantity', refendHoursPerM2:'labor', refendStiffeners:'quantity', associatedSlabSurface:'quantity', associatedSlabRef:'material+labor', associatedSlabInsulation:'material',
+  refendLength:'quantity', refendHeight:'quantity', refendBlocksPerM2:'quantity', refendHoursPerM2:'labor', refendStiffeners:'quantity', associatedSlabSurface:'quantity', associatedSlabThickness:'quantity', associatedSlabRef:'material+labor', associatedSlabInsulation:'material',
   bearingLength:'quantity', bearingHeight:'quantity', bearingThickness:'quantity', bearingMethod:'route', prefabType:'labor', prefabBaseSupply:'price', prefabRealSupply:'price', bearingChainH:'material+labor', bearingChainV:'material+labor', braceQty:'quantity', bracePrice:'price', braceHours:'labor',
   elevationType:'report', elevationLength:'quantity', elevationHeight:'quantity', elevationThickness:'material-variant', elevationMaterial:'material-variant+price-key', elevationMethod:'material-label', elevationBlocksPerM2:'quantity', elevationMortarKgM2:'quantity', elevationHoursPerM2:'labor', elevationChainH:'material+labor', elevationChainV:'material+labor',
   openingType:'associated-work', openingWidth:'quantity', openingHeight:'quantity', openingLintelLength:'quantity', openingLintelRef:'material+labor', openingManualPrice:'price', openingManualHours:'labor',
@@ -53,7 +53,7 @@ export const TRACE_TARGETS = {
   terraceWaterproof:'material+price', terraceWaterproofPrice:'price', terraceInsulation:'material+price', terraceInsulationPrice:'price',
   foundationOption:'material+price', foundationOptionPrice:'price', foundationOptionQty:'quantity',
   catalogSelection:'catalogue-selection+price+conditionnement',
-  priceInput:'price-personnel', priceSource:'price-source', addOpening:'state+route', removeOpening:'state+route', addBeam:'state+route', removeBeam:'state+route', addPignon:'state+route', removePignon:'state+route', addElement:'state+route', removeElement:'state+route'
+  priceInput:'price-personnel', addOpening:'state+route', removeOpening:'state+route', addBeam:'state+route', removeBeam:'state+route', addPignon:'state+route', removePignon:'state+route', addElement:'state+route', removeElement:'state+route'
 };
 
 export function defaultState(){
@@ -77,7 +77,6 @@ export function defaultState(){
     },
     elements:[],
     manualPrices:{},
-    priceSources:{},
     catalogSelections:{},
     result:null
   };
@@ -313,6 +312,27 @@ function renderElementConfig(e){
   return `<div class="element-card"><header><div><strong>${iconFor(e.type)} ${esc(e.name)}</strong> <span class="badge">${esc(e.type.replaceAll('_',' '))}</span></div>${eb(e,'Supprimer',`class="btn danger small" data-remove-element="${e.id}"`,'removeElement')}</header><div class="body" data-element-root="${e.id}">${body}</div></div>`;
 }
 
+function renderAssociatedSlabControls(e,d,{surfaceKey,surfaceLabel,insulationKey=null,insulationLabel='Isolation'}){
+  const refId=d.slabRef||'';
+  const insulation=insulationKey
+    ? ef(e,insulationLabel,insulationKey,d[insulationKey]??'sans_isolant',{trace:'associatedSlabInsulation',options:[{value:'sans_isolant',label:'Sans isolant'},{value:'avec_isolant',label:'Avec isolant'}]})
+    : '';
+  let h=`<div class="grid ${insulationKey?'cols-4':'cols-3'}" style="margin-top:14px">
+    ${ef(e,surfaceLabel,surfaceKey,d[surfaceKey]??'',{step:'0.1',trace:'associatedSlabSurface'})}
+    ${ef(e,'Épaisseur réelle dalle associée (cm)','thickness',d.thickness??'',{required:true,step:'1',trace:'associatedSlabThickness',help:'Obligatoire dès qu’une dalle associée est chiffrée.'})}
+    ${ef(e,'Type dalle associée','slabRef',refId,{trace:'associatedSlabRef',options:[{value:'',label:'Aucune / choisir…'},...workOptions(['dallage_non_arme','dallage_arme','dalle_pleine_ba','dalle_portee','plancher_poutrelles_hourdis','plancher_predalles'])]})}
+    ${insulation}
+  </div>`;
+  if(refId){
+    h+=`<div class="grid cols-3" style="margin-top:14px">
+      <div class="panel soft">${ec(e,'Treillis soudé','treillis',!!d.treillis,'slabTreillis')}<br>${ec(e,'Fibres','fibres',!!d.fibres,'slabFibres')}</div>
+      ${d.fibres?ef(e,'Type de fibres','fibreType',d.fibreType??'courante',{trace:'fibreType',options:Object.entries(FIBRES).map(([id,r])=>({value:id,label:`${r.label} — ${r.min} à ${r.max} kg/m³`}))}):''}
+      ${d.fibres?ef(e,'Dosage retenu (kg/m³)','fibreDose',d.fibreDose??'',{required:true,step:'0.1',trace:'fibreDose'}):''}
+    </div>`;
+  }
+  return h;
+}
+
 function renderFoundationElement(e){
   const d=e.data;
   let sub=`<div class="grid cols-2">${ef(e,'Type de fondation','foundationType',d.foundationType??'vide_sanitaire',{trace:'foundationType',options:[
@@ -325,11 +345,7 @@ function renderFoundationElement(e){
       ${ef(e,'Prix HT / micro-pieu','microPrice',d.microPrice??'',{required:true,step:'1',trace:'microPrice'})}
       ${ef(e,'Temps MO / micro-pieu (h-homme)','microHours',d.microHours??'',{required:true,step:'0.1',trace:'microHours'})}
     </div>
-    <div class="grid cols-3" style="margin-top:14px">
-      ${ef(e,'Surface dalle sur VS (m²)','microSlabSurface',d.microSlabSurface??'',{step:'0.1',trace:'microSlabSurface'})}
-      ${ef(e,'Isolation dalle','microSlabInsulation',d.microSlabInsulation??'sans_isolant',{trace:'microSlabInsulation',options:[{value:'sans_isolant',label:'Sans isolant'},{value:'avec_isolant',label:'Avec isolant'}]})}
-      ${ef(e,'Type dalle associée','slabRef',d.slabRef??'',{trace:'associatedSlabRef',options:[{value:'',label:'Aucune / choisir…'},...workOptions(['dallage_non_arme','dallage_arme','dalle_pleine_ba','dalle_portee','plancher_poutrelles_hourdis','plancher_predalles'])]})}
-    </div>
+    ${renderAssociatedSlabControls(e,d,{surfaceKey:'microSlabSurface',surfaceLabel:'Surface dalle sur VS (m²)',insulationKey:'microSlabInsulation',insulationLabel:'Isolation dalle'})}
     <div class="grid cols-4" style="margin-top:14px">
       ${ef(e,'Type de longrine','longrineType',d.longrineType??'sans_becquet',{trace:'longrineType',options:[{value:'sans_becquet',label:'Sans becquet'},{value:'avec_becquet',label:'Avec becquet'}]})}
       ${ef(e,d.longrineType==='avec_becquet'?'Périmètre longrine (m)':'Longueur longrine (m)','beamLength',d.beamLength??'',{step:'0.1',trace:'longrineLength'})}
@@ -369,12 +385,10 @@ function renderFoundationElement(e){
       ${ef(e,'Blocs refend (u/m²)','refendBlocksPerM2',d.refendBlocksPerM2??'',{step:'0.1',trace:'refendBlocksPerM2'})}
       ${ef(e,'Temps refend (h-homme/m²)','refendHoursPerM2',d.refendHoursPerM2??'',{step:'0.01',trace:'refendHoursPerM2'})}
     </div>
-    <div class="grid cols-3" style="margin-top:14px">
+    <div class="grid cols-2" style="margin-top:14px">
       ${ef(e,'Raidisseurs refend (nb)','refendStiffeners',d.refendStiffeners??'',{step:'1',trace:'refendStiffeners'})}
-      ${ef(e,'Surface dalle associée (m²)','slabSurface',d.slabSurface??'',{step:'0.1',trace:'associatedSlabSurface'})}
-      ${ef(e,'Type dalle associée','slabRef',d.slabRef??'',{trace:'associatedSlabRef',options:[{value:'',label:'Aucune / choisir…'},...workOptions(['dallage_non_arme','dallage_arme','dalle_pleine_ba','dalle_portee','plancher_poutrelles_hourdis','plancher_predalles'])]})}
-    </div>`;
-    if(d.foundationType==='vide_sanitaire') sub+=`<div style="margin-top:14px">${ef(e,'Type de plancher VS','slabInsulation',d.slabInsulation??'sans_isolant',{trace:'associatedSlabInsulation',options:[{value:'sans_isolant',label:'Sans isolant'},{value:'avec_isolant',label:'Avec isolant'}]})}</div>`;
+    </div>
+    ${renderAssociatedSlabControls(e,d,{surfaceKey:'slabSurface',surfaceLabel:'Surface dalle associée (m²)',insulationKey:d.foundationType==='vide_sanitaire'?'slabInsulation':null,insulationLabel:'Type de plancher VS'})}`;
     sub+=renderRefOverrides('element',d,'semelle_filante').replaceAll('data-field=',`data-el-id="${e.id}" data-field=`);
     sub+=renderRefOverrides('element',d,'potelet_raidisseur_vertical').replaceAll('data-field=',`data-el-id="${e.id}" data-field=`);
     if(d.slabRef) sub+=renderRefOverrides('element',d,d.slabRef).replaceAll('data-field=',`data-el-id="${e.id}" data-field=`);
@@ -1149,8 +1163,8 @@ export function collectTraces(html){
 }
 
 export function assertBalisage(html){
-  const controls=[...String(html).matchAll(/<(input|select|button)\b[^>]*>/gi)].map(m=>m[0]);
-  const missing=controls.filter(tag=>!tag.includes('data-trace=')&&!tag.includes('id="prevBtn"')&&!tag.includes('id="nextBtn"'));
+  const controls=[...String(html).matchAll(/<(input|select|button|a)\b[^>]*>/gi)].map(m=>m[0]);
+  const missing=controls.filter(tag=>!tag.includes('data-trace='));
   if(missing.length)throw new Error(`Contrôles sans balisage: ${missing.slice(0,5).join(' | ')}`);
   const unknown=collectTraces(html).filter(t=>!TRACE_TARGETS[t]);
   if(unknown.length)throw new Error(`Traces sans destination: ${[...new Set(unknown)].join(', ')}`);
