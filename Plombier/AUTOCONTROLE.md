@@ -1,33 +1,43 @@
-# SpeedArti — Plombier v0.6.0 — Auto-contrôle
+# SpeedArti — Plombier v0.6.1 — Auto-contrôle
 
 Date : 2026-09-07
 
-## Objet du lot
+## Objet
 
-Réorganisation du module Plombier existant autour d’une première page **Base chantier**, sans refonte du moteur métier validé.
+Contrôle complet de la réorganisation demandée du module Plombier, sans recréer le moteur métier.
 
-Contrôles spécifiques ajoutés :
-- 3 étapes du nouveau parcours ;
-- 4 zones RDC/R+1 avec/sans sanitaire ;
-- instances sanitaires indépendantes ;
-- absence du bouton Configurer sur la première page ;
-- bouton Configurer uniquement lorsqu’un sanitaire existe ;
+## Contrôles spécifiques du lot
+
+- parcours principal en 4 pages ;
+- Base chantier en page 1 ;
+- distances chauffe-eau présentes en page 1 et absentes de la page Configuration ;
+- 4 cases RDC/R+1 avec/sans sanitaire ;
+- équipement rattaché au niveau RDC/R+1 lors de l'ajout ;
+- chaque clic crée une instance sanitaire indépendante ;
+- icônes sanitaires SVG ;
+- panier latéral qui apparaît après sélection ;
+- aucun Configurer en page 2 ;
+- Configurer uniquement en page 3 et uniquement avec sanitaires ;
 - réseau seul sans configuration sanitaire ;
 - calcul automatique EF/EC/évacuation ;
-- propositions automatiques de platines, raccords et robinets d’arrêt ;
-- remplacement manuel des propositions automatiques pris en compte dans le moteur ;
-- conservation des distances chauffe-eau dans la Base chantier ;
-- nettoyage des libellés internes dans l’interface artisan ;
-- maintien des règles TVA, complexité, aléas, catalogue, stock et approvisionnement.
+- platines, raccords et robinets/vannes automatiques ;
+- quantités automatiques modifiables et reprises par le moteur ;
+- nettoyage des libellés de travail dans l'interface artisan ;
+- absence de champs demandant un prix dans le parcours artisan normal ;
+- services petits travaux alimentables par tarifs entreprise SpeedArti sans saisie chantier ;
+- page Résultats réellement routée en étape 4 ;
+- maintien TVA, complexité, aléas, catalogue, stock et approvisionnement.
 
-## Résultat automatique
+## Résultat
 
-- syntaxe JavaScript validée ;
+- syntaxe JavaScript : OK ;
 - catalogue : 7 456 références / 7 451 prix exploitables ;
-- prix témoin Téréva -20 % conservé ;
-- tests historiques du moteur conservés ;
-- nouveaux tests du parcours Base chantier ajoutés.
+- prix témoin Téréva -20 % : OK ;
+- tests historiques conservés ;
+- tests structurels v0.6.1 ajoutés.
 
-**Résultat : 428 / 428 assertions réussies.**
+**439 / 439 assertions réussies.**
+
+Le package est ensuite vérifié par SHA-256, extrait dans un dossier vierge, puis les tests sont relancés depuis l'extraction.
 
 Balises : `BALISES-ABSOLUES-v1.6`.

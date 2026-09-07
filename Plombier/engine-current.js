@@ -169,6 +169,7 @@
   function defaults(d,key,fallback){return n(d.settings?.[key],fallback)}
   function annexPrice(d,key){return n(d.settings?.annexe1?.[key],ANNEXE1_DEFAULTS[key]?.price||0)}
   function forfaitPrice(d,key){return n(d.settings?.forfaits?.[key],FORFAITS_DEFAULTS[key]?.price||0)}
+  function servicePrice(d,key){return n(d.settings?.services?.[key],0)}
   function gammeCoef(d){return GAMME[d.options?.gamme]||1}
   function complexiteCoef(d){return COMPLEXITE[d.options?.complexite]||1}
   function hasCatalogue(sel){return !!(sel&&sel.catalogue&&sel.code)}
@@ -498,15 +499,14 @@
       lines.push(line(`diag_${p.id}`,'Diagnostic / visite recherche de fuite',150,1,'forfait','Forfait complet',{includes_labor:true,source:'Guillaume',balise_ui:'petits_travaux.prestations.fuite.diagnostic',balise_prix:'forfait_guillaume'}));
       const methodLabels={camera:'Caméra endoscopique',colorant:'Test au colorant',demolition:'Démolition + recherche',fumee:'Test à la fumée',exterieure:'Recherche extérieure',circuits:'Mise en évidence circuits'};
       if(!p.method)alerts.push('Choisir une méthode de recherche de fuite.');
-      else if(n(p.method_price_ht,0)>0)lines.push(line(`fuite_${p.id}`,methodLabels[p.method]||'Méthode recherche de fuite',n(p.method_price_ht),1,'forfait','Forfait complet',{source:'catalogue / saisie'}));
-      else alerts.push(`Prix catalogue manquant pour la méthode « ${methodLabels[p.method]||p.method} ».`);
+      else {const price=servicePrice(d,`fuite_${p.method}`)||n(p.method_price_ht,0);if(price>0)lines.push(line(`fuite_${p.id}`,methodLabels[p.method]||'Méthode recherche de fuite',price,1,'forfait','Forfait complet',{source:servicePrice(d,`fuite_${p.method}`)>0?'Tarif entreprise SpeedArti':'ancien brouillon / tarif explicite',balise_ui:`settings.services.fuite_${p.method}`,balise_prix:'parametre_entreprise'}));else alerts.push(`Tarif entreprise SpeedArti indisponible pour la méthode « ${methodLabels[p.method]||p.method} ».`)};
       labor=0;
     } else if(type==='debouchage'){
-      const price=n(p.price_ht,0);lines.push(line(`debouchage_${p.id}`,'Débouchage — tout compris déplacement inclus',price,1,'forfait','Forfait complet',{includes_labor:true,includes_travel:true,source:price>0?'saisie artisan — nature forfait validée Guillaume':'saisie requise',balise_ui:'petits_travaux.prestations.debouchage.price_ht',balise_prix:price>0?'manuel':'manquant'}));if(price<=0)alerts.push('BALISE PRIX : montant du forfait débouchage manquant. Guillaume a validé la nature tout compris, pas un montant unique.');labor=0;
+      const companyPrice=servicePrice(d,'debouchage');const price=companyPrice||n(p.price_ht,0);lines.push(line(`debouchage_${p.id}`,'Débouchage — tout compris déplacement inclus',price,1,'forfait','Forfait complet',{includes_labor:true,includes_travel:true,source:companyPrice>0?'Tarif entreprise SpeedArti':price>0?'ancien brouillon / tarif explicite':'tarif entreprise manquant',balise_ui:'settings.services.debouchage',balise_prix:price>0?'parametre_entreprise':'manquant'}));if(price<=0)alerts.push('BALISE PRIX : tarif entreprise SpeedArti du débouchage non paramétré.');labor=0;
     } else if(type==='chauffe_eau'){
       const map={reparation:{label:'Réparation / nettoyage chauffe-eau',price:0,allin:true},changement_200l_elec:{label:'Changement chauffe-eau 200 L électrique',price:300},changement_300l_elec:{label:'Changement chauffe-eau 300 L électrique',price:550},ballon_thermo_air_ext:{label:'Ballon thermodynamique air extérieur',price:1550},ballon_thermo_groupe_ext:{label:'Thermodynamique groupe extérieur / sortie toit',price:2000}};
       const c=map[p.ce_type]||map.reparation;
-      if(c.allin){const price=n(p.price_ht,0);lines.push(line(`ce_${p.id}`,c.label,price,1,'forfait','Forfait complet',{includes_labor:true,source:price>0?'saisie artisan — nature forfait validée Guillaume':'saisie requise',balise_ui:'petits_travaux.prestations.chauffe_eau.price_ht',balise_prix:price>0?'manuel':'manquant'}));if(price<=0)alerts.push('BALISE PRIX : montant du forfait réparation / nettoyage chauffe-eau manquant.');labor=0}
+      if(c.allin){const companyPrice=servicePrice(d,'chauffe_eau_reparation');const price=companyPrice||n(p.price_ht,0);lines.push(line(`ce_${p.id}`,c.label,price,1,'forfait','Forfait complet',{includes_labor:true,source:companyPrice>0?'Tarif entreprise SpeedArti':price>0?'ancien brouillon / tarif explicite':'tarif entreprise manquant',balise_ui:'settings.services.chauffe_eau_reparation',balise_prix:price>0?'parametre_entreprise':'manquant'}));if(price<=0)alerts.push('BALISE PRIX : tarif entreprise SpeedArti de réparation / nettoyage chauffe-eau non paramétré.');labor=0}
       else {
         checkCatalogueSelection(p.catalogue,p.price_ht,c.label,alerts);const selected=hasCatalogue(p.catalogue),overridden=selected&&!!p.catalogue.price_overridden;
         const price=selected&&!overridden?cataloguePrice(p.catalogue,c.price):n(p.price_ht,c.price);

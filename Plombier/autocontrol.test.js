@@ -5,7 +5,7 @@ for(const f of ['catalogue-data.js','catalogue-service.js','engine-current.js'])
 const CAT=global.SpeedArtiCatalogueService,API=global.SpeedArtiPlombierCurrent,DB=global.SpeedArtiCataloguePlombier;
 let ok=0;function assert(cond,msg){if(!cond)throw new Error(`ASSERT ${ok+1}: ${msg}`);ok++}
 function approx(a,b,t=.011){return Math.abs(Number(a)-Number(b))<=t}
-function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.6.0',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{}}}}
+function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.6.1',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{},services:{}}}}
 function selectFirst(ctx,pred=()=>true){const a=CAT.search({context:ctx,limit:100}).find(x=>x.prix>0&&x.code&&pred(x));assert(!!a,`Référence exploitable contexte ${ctx}`);return CAT.selection(a)}
 function netRefs(d){const ctx=d.options.type_tuyau==='cuivre'?'raccord_cuivre':d.options.type_tuyau==='multicouche'?'raccord_multicouche':'raccord_per';d.installation.network.fitting_catalogue=selectFirst(ctx);d.installation.network.stop_valve_catalogue=selectFirst('robinet_arret');}
 
@@ -153,20 +153,20 @@ const tv20=base();tv20.options.taux_tva=20;tv20.installation.network.ef_only=1;t
 // 12. Petit travaux : aucun => blocage
 const p0=base();p0.options.type_projet='petits_travaux';const pr0=API.calculate(p0);assert(pr0.finalisation_bloquee===true,'Petits travaux vide bloque');assert(pr0.blocages.some(x=>/BALISE PRESTATION/.test(x)),'Balise prestation vide explicite');
 
-// 13. Débouchage prix explicite, tout compris, un seul déplacement
-const pd0=base();pd0.options.type_projet='petits_travaux';pd0.petits_travaux.prestations=[{id:'d1',type:'debouchage'}];const rd0=API.calculate(pd0);assert(rd0.finalisation_bloquee===true,'Débouchage sans montant bloque');assert(rd0.blocages.some(x=>/forfait débouchage/.test(x)),'Blocage montant débouchage explicite');
-const pd=base();pd.options.type_projet='petits_travaux';pd.options.forfaits.deplacement=true;pd.petits_travaux.prestations=[{id:'d1',type:'debouchage',price_ht:240}];const rd=API.calculate(pd);const dl=rd.materiaux.find(x=>x.article_id==='debouchage_d1');
-assert(dl.prix_unitaire_ht===240,'Débouchage utilise montant saisi');assert(dl.includes_labor===true&&dl.includes_travel===true,'Débouchage balisé MO + déplacement inclus');assert(rd.main_oeuvre.cout_total===0,'Pas de seconde MO débouchage');assert(!rd.materiaux.some(x=>x.article_id==='forfait_deplacement'),'Pas de second déplacement débouchage');assert(rd.finalisation_bloquee===false,'Débouchage renseigné finalisable');
+// 13. Débouchage : tarif entreprise automatique, tout compris, un seul déplacement
+const pd0=base();pd0.options.type_projet='petits_travaux';pd0.petits_travaux.prestations=[{id:'d1',type:'debouchage'}];const rd0=API.calculate(pd0);assert(rd0.finalisation_bloquee===true,'Débouchage sans montant bloque');assert(rd0.blocages.some(x=>/tarif entreprise SpeedArti du débouchage/i.test(x)),'Blocage tarif entreprise débouchage explicite');
+const pd=base();pd.options.type_projet='petits_travaux';pd.options.forfaits.deplacement=true;pd.settings.services.debouchage=240;pd.petits_travaux.prestations=[{id:'d1',type:'debouchage'}];const rd=API.calculate(pd);const dl=rd.materiaux.find(x=>x.article_id==='debouchage_d1');
+assert(dl.prix_unitaire_ht===240,'Débouchage utilise automatiquement le tarif entreprise');assert(dl.includes_labor===true&&dl.includes_travel===true,'Débouchage balisé MO + déplacement inclus');assert(rd.main_oeuvre.cout_total===0,'Pas de seconde MO débouchage');assert(!rd.materiaux.some(x=>x.article_id==='forfait_deplacement'),'Pas de second déplacement débouchage');assert(rd.finalisation_bloquee===false,'Débouchage renseigné finalisable');
 
-// 14. Réparation chauffe-eau forfait complet explicite
+// 14. Réparation chauffe-eau : forfait entreprise automatique
 const pc0=base();pc0.options.type_projet='petits_travaux';pc0.petits_travaux.prestations=[{id:'c1',type:'chauffe_eau',ce_type:'reparation'}];const rc0=API.calculate(pc0);assert(rc0.finalisation_bloquee===true,'Réparation CE sans montant bloque');
-const pc=base();pc.options.type_projet='petits_travaux';pc.petits_travaux.prestations=[{id:'c1',type:'chauffe_eau',ce_type:'reparation',price_ht:175,duration_h:8}];const rcp=API.calculate(pc);assert(rcp.materiaux.find(x=>x.article_id==='ce_c1').prix_unitaire_ht===175,'Réparation CE montant saisi');assert(rcp.main_oeuvre.cout_total===0,'Réparation CE forfait complet sans seconde MO même si ancienne durée existe');assert(rcp.finalisation_bloquee===false,'Réparation CE finalisable');
+const pc=base();pc.options.type_projet='petits_travaux';pc.settings.services.chauffe_eau_reparation=175;pc.petits_travaux.prestations=[{id:'c1',type:'chauffe_eau',ce_type:'reparation',duration_h:8}];const rcp=API.calculate(pc);assert(rcp.materiaux.find(x=>x.article_id==='ce_c1').prix_unitaire_ht===175,'Réparation CE utilise le tarif entreprise');assert(rcp.main_oeuvre.cout_total===0,'Réparation CE forfait complet sans seconde MO même si ancienne durée existe');assert(rcp.finalisation_bloquee===false,'Réparation CE finalisable');
 
 // 15. Recherche de fuite : tout compris sans MO doublée
-const pf=base();pf.options.type_projet='petits_travaux';pf.petits_travaux.prestations=[{id:'f1',type:'fuite',method:'camera',method_price_ht:180,duration_h:9}];const rf=API.calculate(pf);assert(rf.materiaux.some(x=>x.article_id==='diag_f1'&&x.total_ht===150),'Diagnostic fuite = 150');assert(rf.materiaux.some(x=>x.article_id==='fuite_f1'&&x.total_ht===180),'Méthode fuite = prix saisi/catalogue');assert(rf.main_oeuvre.cout_total===0,'Recherche fuite tout compris sans seconde MO');assert(rf.finalisation_bloquee===false,'Recherche fuite renseignée finalisable');
+const pf=base();pf.options.type_projet='petits_travaux';pf.settings.services.fuite_camera=180;pf.petits_travaux.prestations=[{id:'f1',type:'fuite',method:'camera',duration_h:9}];const rf=API.calculate(pf);assert(rf.materiaux.some(x=>x.article_id==='diag_f1'&&x.total_ht===150),'Diagnostic fuite = 150');assert(rf.materiaux.some(x=>x.article_id==='fuite_f1'&&x.total_ht===180),'Méthode fuite = tarif entreprise automatique');assert(rf.main_oeuvre.cout_total===0,'Recherche fuite tout compris sans seconde MO');assert(rf.finalisation_bloquee===false,'Recherche fuite renseignée finalisable');
 
 // 16. Plusieurs prestations : déplacement unique
-const pm=base();pm.options.type_projet='petits_travaux';pm.options.forfaits.deplacement=true;pm.petits_travaux.prestations=[{id:'f1',type:'fuite',method:'camera',method_price_ht:100},{id:'d1',type:'debouchage',price_ht:200}];const rmult=API.calculate(pm);assert(rmult.materiaux.filter(x=>x.article_id==='forfait_deplacement').length===0,'Débouchage inclus empêche déplacement supplémentaire');assert(rmult.materiaux.filter(x=>x.includes_travel).length===1,'Un seul poste inclut déplacement');
+const pm=base();pm.options.type_projet='petits_travaux';pm.options.forfaits.deplacement=true;pm.settings.services.fuite_camera=100;pm.settings.services.debouchage=200;pm.petits_travaux.prestations=[{id:'f1',type:'fuite',method:'camera'},{id:'d1',type:'debouchage'}];const rmult=API.calculate(pm);assert(rmult.materiaux.filter(x=>x.article_id==='forfait_deplacement').length===0,'Débouchage inclus empêche déplacement supplémentaire');assert(rmult.materiaux.filter(x=>x.includes_travel).length===1,'Un seul poste inclut déplacement');
 
 // 17. Chauffe-eau fourniture : catalogue prioritaire et capacité contrôlée
 const ce200raw=CAT.search({context:'chauffe_eau',q:'200',limit:100}).find(a=>a.prix>0&&/200\s*l/i.test(`${a.produit} ${a.variante}`));assert(!!ce200raw,'Référence CE 200 L détectée');const ce200=CAT.selection(ce200raw);
@@ -189,18 +189,18 @@ assert(approx(r1.controle_balises.tva_controlee,r1.totaux.tva),'Contrôle TVA = 
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const posData=html.indexOf('catalogue-data.js'),posService=html.indexOf('catalogue-service.js'),posEngine=html.indexOf('engine-current.js'),posApp=html.indexOf('app.js');
 assert(posData>0&&posData<posService&&posService<posEngine&&posEngine<posApp,'Ordre de chargement catalogue -> service -> moteur -> app');
-assert(/v0\.6\.0/.test(html),'HTML annonce v0.6.0');
+assert(/v0\.6\.1/.test(html),'HTML annonce v0.6.1');
 
 // 22. Contrôles statiques UI / absence de règles cachées
 const appSrc=fs.readFileSync(path.join(root,'app.js'),'utf8'),engSrc=fs.readFileSync(path.join(root,'engine-current.js'),'utf8'),catSrc=fs.readFileSync(path.join(root,'catalogue-service.js'),'utf8');
 assert(appSrc.includes('installation.network.time_h'),'Champ temps réseau présent dans UI');
 assert(appSrc.includes('manual_platine_ef_qty'),'Quantité platine EF automatique/modifiable présente');
-assert(appSrc.includes('Forfait débouchage HT'),'Montant débouchage explicite présent');
+assert(!appSrc.includes('Forfait débouchage HT'),'Aucun champ prix débouchage dans le parcours artisan');
 assert(!appSrc.includes('Forfait débouchage 180 €'),'Ancien prix débouchage caché absent UI');
 assert(!/reparation:\{[^}]*price:120/.test(engSrc),'Ancien 120 € réparation caché absent moteur');
 assert(!/(?:\*\s*\.15|\*\s*0\.15)/.test(engSrc),'Ancien rendement réseau 0,15 h/ml absent');
 assert(catSrc.includes("raccord_per")&&catSrc.includes("raccord_multicouche")&&catSrc.includes("raccord_cuivre"),'Trois contextes raccord matériau présents');
-assert(appSrc.includes("d.options.type_projet==='petits_travaux'?") ,'Affichage déplacement conditionné au mode petits travaux');
+assert(appSrc.includes("smallWorkOptions()"),'Options petits travaux dédiées sans saisie de prix');
 
 
 // 23. Composition interne des équipements et articles complémentaires explicites
@@ -306,8 +306,8 @@ assert(engSrc.includes("version:'BALISES-ABSOLUES-v1.6'"),'Moteur balises v1.6')
 
 
 // 29. Correctifs v0.5.2 issus du contrôle humain
-assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v060'"),'Clé de sauvegarde propre v0.6.0');
-assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v052','speedarti-plombier-demo-v051','speedarti-plombier-demo-v040','speedarti-plombier-demo-v031']"),'Migration des anciens brouillons prévue');
+assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v061'"),'Clé de sauvegarde propre v0.6.1');
+assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v060','speedarti-plombier-demo-v052','speedarti-plombier-demo-v051','speedarti-plombier-demo-v040','speedarti-plombier-demo-v031']"),'Migration des anciens brouillons prévue');
 assert(appSrc.includes('function migrateLegacyDraft'),'Fonction de migration brouillon présente');
 assert(appSrc.includes("delete p.duration_h"),'Migration supprime les anciennes durées CE non validées');
 assert(appSrc.includes("catalogueRenderTimer=setTimeout"),'Recherche catalogue saisie rapide temporisée');
@@ -366,16 +366,27 @@ const z2=base();z2.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:tru
 const pz2=API.previewNetwork(z2);assert(pz2.ef===19,'Override longueur EF artisan devient valeur de calcul');assert(pz2.platineEf===3,'Override platines artisan devient quantité de calcul');assert(pz2.fittings===15,'Override raccords artisan devient quantité de calcul');assert(pz2.stopValves===2,'Override vannes artisan devient quantité de calcul');
 const rz2=API.calculate(z2);assert(rz2.surfaces.detail_par_face.EF_ml===19,'Résultat final reprend longueur EF modifiée');assert(rz2.surfaces.detail_par_face.platines_EF===3,'Résultat final reprend platines modifiées');assert(rz2.materiaux.find(x=>x.article_id==='raccords_per').quantite_finale===15,'Résultat final reprend raccords modifiés');assert(rz2.materiaux.find(x=>x.article_id==='robinets_arret').quantite_finale===2,'Résultat final reprend robinets modifiés');
 
-// 31. Nettoyage interface artisan / structure 3 pages
-assert(appSrc.includes("['Base chantier','Dimensionnement & réseau']")&&appSrc.includes("['Configuration','Sanitaires & options']")&&appSrc.includes("['Résultats','Contrôle avant devis']"),'Parcours principal réduit à trois pages métier');
+// 31. Nettoyage interface artisan / structure 4 pages corrigée
+assert(appSrc.includes("['Base chantier','Dimensionnement & distances']")&&appSrc.includes("['Équipements & réseau','Sanitaires & quantités']")&&appSrc.includes("['Configuration & options','Réglages facultatifs']")&&appSrc.includes("['Résultats','Contrôle avant devis']"),'Parcours principal séparé en quatre pages métier');
 assert(appSrc.includes('RDC — Sans sanitaire')&&appSrc.includes('R+1 — Sans sanitaire')&&appSrc.includes('RDC — Avec sanitaires')&&appSrc.includes('R+1 — Avec sanitaires'),'Quatre cases chantier présentes');
-assert(appSrc.includes('Chaque clic crée un élément indépendant'),'UI explique les sanitaires indépendants');
+assert(appSrc.includes('Deux clics sur WC créent WC 1 et WC 2'),'UI explique les sanitaires indépendants');
 assert(appSrc.includes('data-configure-equipment')&&appSrc.includes('configurable?'),'Configurer est piloté par la présence de sanitaires');
-assert(appSrc.includes('selectedCart(eqs,false)'),'Page Base affiche le panier sans bouton Configurer');
-assert(appSrc.includes('selectedCart(eqs,eqs.length>0)'),'Page Configuration affiche Configurer seulement si des sanitaires existent');
-assert(appSrc.includes('Distances chauffe-eau → pièces'),'Distances déplacées sur la Base chantier');
-assert(appSrc.includes('Réseau calculé automatiquement'),'Réseau automatique visible sur la Base chantier');
+assert(appSrc.includes('selectedCart(eqs,false)'),'Page Équipements & réseau affiche le panier sans bouton Configurer');
+assert(appSrc.includes('configurable?selectedCart(eqs,true)'), 'Page Configuration & options affiche Configurer seulement si une zone avec sanitaires contient des éléments');
+assert(appSrc.includes('Distances depuis le chauffe-eau'),'Distances chauffe-eau visibles sur la Base chantier');
+assert(appSrc.includes('Chauffe-eau → salle de bains (m)')&&appSrc.includes('Chauffe-eau → cuisine (m)'),'Deux distances chauffe-eau conservées et modifiables');
+assert(appSrc.includes('Quantités réseau proposées'),'Réseau automatique visible sur la page Équipements & réseau');
+assert(appSrc.includes('function equipmentIcon(kind)')&&appSrc.includes('<svg ${common}>'),'Icônes sanitaires SVG intégrées');
+assert(appSrc.includes("if(el.dataset.configureEquipment){activeEquipmentId=el.dataset.configureEquipment;step=2"),'Configurer ouvre bien la page 3');
+assert(appSrc.includes('[renderBase,renderEquipmentNetwork,renderConfiguration,renderResults][step]()'),'Routage des quatre pages actif');
 assert(!/head\('Étape 1','Métier/.test(appSrc),'Ancienne première page Métier supprimée du parcours');
 assert(!/Annexe 1 — grille|Composition Annexe 2/.test(appSrc),'Aucun libellé Annexe 1/2 n’est exposé dans le parcours artisan actif');
 assert(appSrc.includes('function artisanMessage')&&appSrc.includes('Référentiel SpeedArti'),'Messages techniques internes nettoyés avant affichage');
+assert(appSrc.includes("eqs.length?selectedCart(eqs,false):''"),'Panier étape 2 apparaît seulement après sélection d’un sanitaire');
+assert(appSrc.includes("configurable?selectedCart(eqs,true):''"),'Panier étape 3 conserve les sanitaires et les boutons Configurer');
+assert(appSrc.includes("equipmentPalette('rdc')")&&appSrc.includes("equipmentPalette('r1')"),'Ajout sanitaire rattaché à la zone RDC/R+1 quand les deux zones existent');
+assert(appSrc.includes("data-zone=\"${zone}\""),'Chaque nouvel équipement transporte sa zone chantier');
+assert(!/Prix méthode HT|Forfait débouchage HT|Forfait complet HT|Prix fourniture HT utilisé|Prix HT utilisé|Forfait pose — montant artisan|Forfait dépose — montant artisan/.test(appSrc),'Le parcours artisan ne demande plus de prix pendant le chiffrage');
+assert(appSrc.includes("head('Étape 4','Résultats et contrôle'")&&appSrc.includes("step!==3")&&appSrc.includes("step===3"),'Résultats réellement routés sur la page 4');
+const psTarif=base();psTarif.options.type_projet='petits_travaux';psTarif.settings.services.debouchage=215;psTarif.petits_travaux.prestations=[{id:'ds',type:'debouchage'}];const rsTarif=API.calculate(psTarif);assert(rsTarif.materiaux.find(x=>x.article_id==='debouchage_ds').prix_unitaire_ht===215,'Tarif service entreprise alimente le moteur sans saisie chantier');
 console.log(JSON.stringify({status:'OK',assertions:ok,catalogueCount:CAT.count,priceCount:CAT.priceCount,knownPrice117_19:known[0].prix,balisesVersion:r1.controle_balises.version,networkOnly:{ef:r2.surfaces.detail_par_face.EF_ml,ec:r2.surfaces.detail_par_face.EC_ml},fittingsOneFixture:fittingsWC.quantite_finale},null,2));

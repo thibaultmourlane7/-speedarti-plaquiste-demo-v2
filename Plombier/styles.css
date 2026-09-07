@@ -44,3 +44,23 @@
 @media(max-width:1050px){.layout-with-cart{grid-template-columns:minmax(0,1fr) 270px}.sanitary-palette{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:800px){.app{max-width:none}.steps{grid-template-columns:1fr 1fr 1fr}.layout-with-cart{display:block}.selection-cart{position:static;margin:14px 0}.project-switch,.zone-grid{grid-template-columns:1fr}.sanitary-palette{grid-template-columns:repeat(2,minmax(0,1fr))}.cart-item{grid-template-columns:38px minmax(0,1fr);}.cart-actions{grid-column:1/-1;justify-content:flex-end}.c3,.c8{grid-column:auto}}
 @media(max-width:460px){.steps{grid-template-columns:1fr}.sanitary-palette{grid-template-columns:repeat(2,minmax(0,1fr))}.top{padding:16px}.brand strong{font-size:16px}}
+
+/* v0.6.1 — séparation Base / Équipements & réseau / Configuration & options / Résultats */
+.steps{grid-template-columns:repeat(4,1fr)}
+.distance-card{border-color:#93c5fd;background:linear-gradient(180deg,#fff,#f8fbff)}
+.zone-icon{font-size:11px;font-weight:900;letter-spacing:.02em;color:#334155;text-align:center}
+.sanitary-icon,.cart-icon,.title-icon{color:#2563eb}
+.sanitary-icon{width:42px;height:42px;border-radius:12px;background:#eff6ff;display:grid;place-items:center}
+.sanitary-icon svg{width:30px;height:30px}
+.sanitary-tile span.sanitary-icon{font-size:0}
+.cart-icon svg{width:26px;height:26px}
+.title-icon{display:inline-grid;place-items:center;vertical-align:middle;margin-right:8px;width:34px;height:34px;border-radius:9px;background:#eff6ff}
+.title-icon svg{width:24px;height:24px}
+.selection-cart{border-color:#bfdbfe}
+.cart-head{background:linear-gradient(180deg,#eff6ff,#f8fbff)}
+@media(max-width:800px){.steps{grid-template-columns:repeat(2,1fr)}.selection-cart{border-color:#bfdbfe}.distance-card{background:#f8fbff}}
+@media(max-width:460px){.steps{grid-template-columns:1fr}.sanitary-icon{width:38px;height:38px}.sanitary-icon svg{width:27px;height:27px}}
+/* v0.6.1 — panier sanitaire et séparation RDC / R+1 */
+.cart-zone{display:block;margin-top:2px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:.02em}
+.sanitary-zone-section+.sanitary-zone-section{margin-top:18px;padding-top:16px;border-top:1px solid #e2e8f0}
+.sanitary-zone-section h3{margin:0 0 8px;font-size:14px;color:#334155}

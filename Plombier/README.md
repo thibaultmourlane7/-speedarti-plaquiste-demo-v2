@@ -1,51 +1,92 @@
-# SpeedArti — Plombier v0.6.0 — Base chantier
+# SpeedArti — Plombier v0.6.1 — Parcours chantier intégral
 
-Cette version fait évoluer le module Plombier existant sans recréer le métier ni modifier les règles de calcul validées.
+Cette version repart du module Plombier déjà développé. Le moteur métier, le catalogue Téréva, les règles de réseau, les balises, la TVA, la complexité, les aléas, l'approvisionnement et les contrôles existants sont conservés. La modification principale concerne l'organisation du parcours artisan.
 
-## Nouveau parcours artisan
+## Parcours installation complète
 
-Le parcours installation complète est organisé en 3 pages :
+Le parcours est maintenant organisé en 4 pages :
 
-1. **Base chantier** — dimensionnement, distances chauffe-eau, zones RDC/R+1, sélection des sanitaires et calcul automatique du réseau.
-2. **Configuration & options** — configuration individuelle des sanitaires sélectionnés et options complémentaires.
-3. **Résultats** — contrôle du chiffrage, matériaux, main-d’œuvre, TVA et approvisionnement.
+1. **Base chantier** — dimensionnement, distances depuis le chauffe-eau et 4 zones indépendantes RDC/R+1 avec ou sans sanitaire.
+2. **Équipements & réseau** — sélection des sanitaires, panier latéral, calcul automatique et modification des quantités réseau.
+3. **Configuration & options** — configuration individuelle facultative des sanitaires + options du chantier, avec le même panier latéral.
+4. **Résultats** — contrôle du chiffrage, matériaux, main-d'œuvre, TVA et approvisionnement.
 
-Les termes internes de travail (Guillaume, questionnaires, annexes, mapping) ne sont plus affichés dans l’interface artisan. Ils restent uniquement des sources techniques internes lorsque nécessaires au contrôle.
+## Page 1 — Base chantier
 
-## Base chantier
+- dimensionnement du chantier ;
+- surface ;
+- type de canalisation ;
+- nombre d'ouvriers ;
+- distance chauffe-eau → salle de bains ;
+- distance chauffe-eau → cuisine ;
+- 4 cases indépendantes :
+  - RDC — Sans sanitaire ;
+  - R+1 — Sans sanitaire ;
+  - RDC — Avec sanitaires ;
+  - R+1 — Avec sanitaires.
 
-Quatre zones indépendantes peuvent être sélectionnées ou désélectionnées :
-- RDC — sans sanitaire ;
-- R+1 — sans sanitaire ;
-- RDC — avec sanitaires ;
-- R+1 — avec sanitaires.
+Les distances ne sont plus répétées dans les options.
 
-Chaque clic sur un sanitaire crée une **instance indépendante** : deux clics sur WC créent WC 1 et WC 2. La page Base chantier affiche un panier latéral avec les éléments sélectionnés et leur suppression, sans bouton Configurer.
+## Page 2 — Équipements & réseau
 
-Le réseau est proposé automatiquement et reste modifiable : EF, EC, évacuation, platines, raccords, robinets d’arrêt et temps réseau. Une valeur modifiée par l’artisan devient la valeur réellement utilisée dans le calcul.
+Chaque clic crée une instance séparée. Deux clics sur WC créent **WC 1** et **WC 2**.
 
-## Configuration
+Lorsque RDC et R+1 avec sanitaires sont tous les deux sélectionnés, les palettes d'ajout sont séparées par niveau afin que chaque nouvel équipement conserve sa zone chantier.
 
-Le bouton **Configurer** apparaît uniquement lorsqu’au moins un sanitaire existe. Chaque équipement se configure séparément. En réseau seul, aucune configuration sanitaire n’est affichée.
+Les sanitaires disposent d'icônes SVG dédiées. Le panier latéral apparaît dès le premier sanitaire sélectionné. Sur cette page il permet uniquement de voir les éléments et de les supprimer : **aucun bouton Configurer**.
 
-La page centrale ne reprend plus les distances ou le dimensionnement du réseau : elle est dédiée aux configurations des sanitaires et aux options complémentaires.
+Les quantités proposées automatiquement et modifiables comprennent :
+- eau froide ;
+- eau chaude ;
+- évacuation ;
+- platines EF ;
+- platines EC ;
+- platines EF + EC ;
+- raccordements évacuation ;
+- raccords ;
+- robinets d'arrêt / vannes ;
+- temps de pose réseau.
+
+Une valeur modifiée par l'artisan devient la valeur réellement utilisée dans le calcul.
+
+## Page 3 — Configuration & options
+
+La configuration apparaît uniquement ici, au même niveau que les options.
+
+Le panier latéral est conservé. Un bouton **Configurer** apparaît pour chaque sanitaire présent. Chaque élément reste indépendant : WC 1 et WC 2 peuvent avoir des configurations différentes.
+
+En installation sans sanitaire :
+- aucune palette sanitaire ;
+- aucun panier sanitaire ;
+- aucun bouton Configurer ;
+- uniquement les options utiles au chantier.
+
+Les anciennes références de travail ne sont pas exposées à l'artisan. Les intitulés visibles sont des intitulés métier SpeedArti.
 
 ## Tarifs
 
-Le parcours normal ne demande pas à l’artisan d’inventer un prix. Une donnée tarifaire technique indisponible reste signalée comme donnée SpeedArti à compléter ; aucun prix n’est fabriqué silencieusement.
+Le parcours normal ne demande plus à l'artisan de saisir un prix pendant le chiffrage.
+
+- les articles utilisent le catalogue ou les valeurs SpeedArti/entreprise existantes ;
+- les prestations de service utilisent le tarif entreprise lorsqu'il existe ;
+- si un tarif nécessaire n'est pas paramétré, le contrôle le signale sans inventer un montant et sans demander un prix dans le chantier.
 
 ## Règles conservées
 
-- catalogue Téréva 2026 : 7 456 références, dont 7 451 avec prix exploitable ;
-- prix catalogue de la base diminués de 20 % ;
-- complexité appliquée uniquement à la main-d’œuvre ;
-- aléas = 4 % de la main-d’œuvre HT uniquement, avant TVA ;
-- quantités réseau et accessoires traçables et modifiables ;
-- stock réel uniquement, jamais de stock inventé ;
-- approvisionnement fournisseur conservé.
+- catalogue Téréva 2026 : 7 456 références, 7 451 prix exploitables ;
+- prix de la base catalogue diminués de 20 % ;
+- réseau EF/EC/évacuation et accessoires traçables ;
+- 6 raccords par appareil/point + 10 % selon les règles validées ;
+- robinets d'arrêt selon la composition de chaque équipement ;
+- complexité appliquée uniquement à la main-d'œuvre ;
+- aléas = 4 % de la main-d'œuvre HT uniquement ;
+- nombre d'ouvriers agit sur la durée chantier, pas sur les heures-homme facturées ;
+- TVA 10 % / 20 % conservée ;
+- stock réel uniquement ;
+- besoins fournisseur et exports conservés.
 
-## Balises absolues
+## Balises
 
 Version : `BALISES-ABSOLUES-v1.6`.
 
-Chaîne de contrôle : UI → donnée → quantité → unité → prix → source → calcul → total → approvisionnement / stock.
+Chaîne : UI → donnée → quantité → unité → prix → source → calcul → total → approvisionnement / stock.
