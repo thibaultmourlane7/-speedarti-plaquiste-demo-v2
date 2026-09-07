@@ -72,3 +72,18 @@ Les tests couvrent la V2 métier existante et l'intégration catalogue :
 - prix personnel prioritaire ;
 - incompatibilité d'unité bloquante ;
 - absence d'enseigne source dans les fichiers Git Maçon.
+
+## v2.2 — correction correspondance catalogue
+
+Cette version renforce la sélection des articles à l'étape « Prix / catalogue » :
+
+- la catégorie calculée (Béton, Ferraillage, Coffrage, etc.) est prioritaire sur les mots présents dans le libellé de l'ouvrage ;
+- une famille catalogue incompatible est exclue avant classement ;
+- une unité de vente incompatible est exclue avant affichage ;
+- le coffrage exprimé en m² propose uniquement des panneaux/contreplaqués compatibles, jamais des accessoires de coffrage à la pièce ;
+- les armatures sont filtrées par rôle métier (chaînage horizontal, vertical, linteau, semelle, treillis, etc.) ;
+- lorsque l'ouvrage fournit un linéaire physique, ce linéaire est conservé pour convertir un besoin en armatures de longueur connue, tout en gardant le poids calculé pour le chiffrage ;
+- les références dépendantes d'une zone sismique ne sont pas proposées automatiquement tant que cette zone n'est pas renseignée ;
+- une ancienne sélection devenue incompatible est ignorée et ne peut plus alimenter le prix.
+
+Les contrôles fonctionnels incluent désormais des scénarios de non-régression dédiés à ces cas.

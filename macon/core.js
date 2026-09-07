@@ -633,9 +633,36 @@ function labor(name,hours,meta={}){ return {name,hours:Math.max(0,num(hours)),..
 
 function addRefLines(lines,ref,quantity,prefix,concreteClass='C25/30'){
   const q=num(quantity); if(!(q>0&&ref))return 0;
-  if(ref.betonParUnite>0) lines.push(line(`${prefix}-beton`,`Béton ${concreteClass} — ${ref.label}`,'Béton',q*ref.betonParUnite,'m³'));
-  if(ref.acierParUnite>0) lines.push(line(`${prefix}-acier`,`Acier indicatif — ${ref.label}`,'Ferraillage',q*ref.acierParUnite,'kg'));
-  if(ref.coffrageParUnite>0) lines.push(line(`${prefix}-coffrage`,`Coffrage — ${ref.label}`,'Coffrage',q*ref.coffrageParUnite,'m²'));
+  if(ref.betonParUnite>0){
+    lines.push(line(
+      `${prefix}-beton`,
+      `Béton ${concreteClass} — ${ref.label}`,
+      'Béton',q*ref.betonParUnite,'m³',0,'required',
+      {catalogRole:'concrete'}
+    ));
+  }
+  if(ref.acierParUnite>0){
+    const meta={};
+    // Le prix du poste reste calculé sur les kg Guillaume, mais le catalogue peut
+    // utiliser le linéaire/surface physique de l'ouvrage pour commander des barres/panneaux.
+    if(['ml','m²'].includes(ref.unite)){
+      meta.catalogNeedQty=q;
+      meta.catalogNeedUnit=ref.unite;
+    }
+    lines.push(line(
+      `${prefix}-acier`,
+      `Acier indicatif — ${ref.label}`,
+      'Ferraillage',q*ref.acierParUnite,'kg',0,'required',meta
+    ));
+  }
+  if(ref.coffrageParUnite>0){
+    lines.push(line(
+      `${prefix}-coffrage`,
+      `Coffrage — ${ref.label}`,
+      'Coffrage',q*ref.coffrageParUnite,'m²',0,'required',
+      {catalogRole:'coffrage_surface'}
+    ));
+  }
   return q*ref.moHParUnite;
 }
 
@@ -733,7 +760,10 @@ function calcSlab(state,d,prefix,surface,lines,lab,alerts,reco){
   if(!(surface>0&&ep>0))alerts.push(`🚨 ${prefix} : surface et épaisseur obligatoires.`);
   if(!ref)alerts.push(`🚨 ${prefix} : type de dalle de référence obligatoire.`);
   if(surface>0&&ep>0) lines.push(line(`${prefix}-concrete`,`Béton ${g.concreteClass} — dalle réelle`,'Béton',surface*(ep/100),'m³'));
-  if(ref&&d.treillis&&ref.acierParUnite>0) lines.push(line(`${prefix}-steel`,`Acier / treillis indicatif — ${ref.label}`,'Ferraillage',surface*ref.acierParUnite,'kg'));
+  if(ref&&d.treillis&&ref.acierParUnite>0) lines.push(line(
+    `${prefix}-steel`,`Acier / treillis indicatif — ${ref.label}`,'Ferraillage',surface*ref.acierParUnite,'kg',0,'required',
+    {catalogNeedQty:surface,catalogNeedUnit:'m²',catalogRole:'treillis'}
+  ));
   if(d.fibres){
     const f=FIBRES[d.fibreType||'courante'],dose=num(d.fibreDose);
     if(!(dose>0))alerts.push(`🚨 ${prefix} : dosage fibres obligatoire.`);
@@ -1018,7 +1048,10 @@ export function renderPrices(state){
   const rows=r.lines.filter(l=>l.qty>0).map(l=>{
     if(l.priceMode==='required'){
       const candidates=catalogueCandidatesForLine(l,8);
-      const selectedRef=state.catalogSelections?.[l.id]||'';
+      const storedRef=state.catalogSelections?.[l.id]||'';
+      const candidateRefs=new Set(candidates.map(x=>String(x.referenceCatalogue)));
+      // Une ancienne sélection devenue incompatible après correction n'est jamais réaffichée ni valorisée.
+      const selectedRef=candidateRefs.has(String(storedRef))?storedRef:'';
       const resolved=selectedRef?resolveCatalogueProduct(l,selectedRef):null;
       const options=[
         {value:'',label:candidates.length?'Choisir un article du Catalogue Maçon SpeedArti…':'Aucun article compatible proposé'},

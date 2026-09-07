@@ -263,5 +263,74 @@ test('aucune mention enseigne source dans les fichiers Git Maçon',()=>{
   }
 });
 
+
+test('FIX capture: une ligne Béton de chaînage ne propose jamais une armature',()=>{
+  const line={id:'chain-h-beton',name:'Béton C25/30 — Chaînage horizontal',category:'Béton',qty:.30,unit:'m³',catalogRole:'concrete'};
+  const c=catalogueCandidatesForLine(line,8);
+  assert.ok(c.every(p=>p.famille!=='Aciers / armatures'));
+  assert.equal(resolveCatalogueProduct(line,'3483173').compatible,false);
+});
+
+test('FIX capture: coffrage en m² propose uniquement panneaux/contreplaqué compatibles',()=>{
+  const line={id:'chain-h-coffrage',name:'Coffrage — Chaînage horizontal',category:'Coffrage',qty:4.8,unit:'m²',catalogRole:'coffrage_surface'};
+  const c=catalogueCandidatesForLine(line,8);
+  assert.ok(c.length>0);
+  for(const p of c){
+    const txt=`${p.typeArticle} ${p.produit}`;
+    assert.ok(!/clavette|fourche|accessoire/i.test(txt),`accessoire proposé: ${txt}`);
+    assert.equal(resolveCatalogueProduct(line,p.referenceCatalogue).compatible,true);
+  }
+  assert.equal(resolveCatalogueProduct(line,'7460524').compatible,false);
+});
+
+test('FIX capture: acier chaînage horizontal conserve le besoin ml et exclut linteaux/semelles',()=>{
+  const s=base();s.simpleType='murs';
+  Object.assign(s.simple,{length:10,height:2.5,thickness:20,blocksPerM2:10,wallHPerM2:.8,material:'parpaing',chainH:true,chainHml:12});
+  const r=calculate(s);
+  const steel=r.lines.find(x=>x.id==='simple-chain-h-acier');
+  assert.ok(steel);
+  assert.equal(steel.qty,36);
+  assert.equal(steel.catalogNeedQty,12);
+  assert.equal(steel.catalogNeedUnit,'ml');
+  const c=catalogueCandidatesForLine(steel,8);
+  assert.ok(c.length>0);
+  for(const p of c){
+    const txt=`${p.typeArticle} ${p.produit}`;
+    assert.ok(/cha[iî]nage/i.test(txt),`pas un chaînage: ${txt}`);
+    assert.ok(!/linteau|semelle|poteau|treillis/i.test(txt),`mauvais sous-type: ${txt}`);
+  }
+});
+
+test('FIX capture: 12 ml de chaînage L6m donnent 2 pièces sans inventer un poids par barre',()=>{
+  const line={id:'chain-h-acier',name:'Acier indicatif — Chaînage horizontal',category:'Ferraillage',qty:36,unit:'kg',catalogNeedQty:12,catalogNeedUnit:'ml'};
+  const r=resolveCatalogueProduct(line,'1762230');
+  assert.equal(r.compatible,true);
+  assert.equal(r.orderQty,2);
+  assert.equal(r.packContent,6);
+  assert.ok(Math.abs(r.total-234.44)<1e-9);
+  assert.ok(Math.abs(r.lineUnitPrice-(234.44/36))<1e-12);
+});
+
+test('FIX capture: aucune armature sismique/zone n’est proposée automatiquement sans zone chantier',()=>{
+  const line={id:'chain-h-acier',name:'Acier indicatif — Chaînage horizontal',category:'Ferraillage',qty:36,unit:'kg',catalogNeedQty:12,catalogNeedUnit:'ml'};
+  const c=catalogueCandidatesForLine(line,20);
+  const refs=new Set(c.map(p=>String(p.referenceCatalogue)));
+  for(const ref of ['3483173','4474341','1109185'])assert.equal(refs.has(ref),false,`référence zone proposée: ${ref}`);
+});
+
+test('FIX capture: ancienne sélection catalogue incompatible n’est plus affichée comme sélection active',()=>{
+  const s=base();s.simpleType='murs';
+  Object.assign(s.simple,{length:10,height:2.5,thickness:20,blocksPerM2:10,wallHPerM2:.8,material:'parpaing',chainH:true,chainHml:12});
+  let r=calculate(s);
+  const concrete=r.lines.find(x=>x.id==='simple-chain-h-beton');
+  assert.ok(concrete);
+  s.catalogSelections[concrete.id]='3483173';
+  const html=renderPrices(s);
+  // La référence peut exister ailleurs dans le catalogue source JS, mais ne doit pas être une option de cette ligne.
+  const row=html.split('<tr').find(x=>x.includes('Béton C25/30 — Chaînage horizontal'))||'';
+  assert.ok(!row.includes('value="3483173" selected'));
+  assert.ok(row.includes('Aucun article compatible proposé'));
+});
+
 console.log(`OK — V2 Maçon: ${pass.length} contrôles fonctionnels passés`);
 for(const x of pass)console.log(`✓ ${x}`);

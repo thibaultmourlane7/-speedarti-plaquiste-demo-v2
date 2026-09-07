@@ -18,15 +18,50 @@ const textOf = p => normalize([
 const PRODUCT_TEXT = new Map(CATALOGUE_MACON.map(p=>[p.referenceCatalogue,textOf(p)]));
 export const CATALOGUE_BY_REF = Object.fromEntries(CATALOGUE_MACON.map(p=>[p.referenceCatalogue,p]));
 
+function normUnit(u){
+  const raw=String(u||'').toLowerCase().trim();
+  if(['m²','m2','metre carre','mètre carré'].includes(raw))return 'm²';
+  if(['m³','m3','metre cube','mètre cube'].includes(raw))return 'm³';
+  const x=normalize(u).replace('metre carre','m2').replace('metre cube','m3');
+  if(['u','unite','piece','pieces'].includes(x))return 'u';
+  if(['kg','kilogramme','kilogrammes'].includes(x))return 'kg';
+  if(['m2'].includes(x))return 'm²';
+  if(['ml','m','metre','metres'].includes(x))return 'm';
+  if(['m3'].includes(x))return 'm³';
+  return String(u||'');
+}
+
+function lineContext(line){
+  return {
+    name:normalize(line?.name||''),
+    category:normalize(line?.category||''),
+    id:normalize(line?.id||''),
+    unit:normUnit(line?.catalogNeedUnit ?? line?.unit),
+  };
+}
+
+// La catégorie calculée est prioritaire. Un mot de contexte (ex. « chaînage »)
+// ne doit jamais transformer une ligne Béton en article d'armature.
 function familyHints(line){
-  const t=normalize(`${line?.name||''} ${line?.category||''} ${line?.id||''}`);
+  const c=lineContext(line), t=`${c.name} ${c.id}`;
+  if(c.category==='beton') return ['Mortiers / bétons secs'];
+  if(c.category==='ferraillage') return ['Aciers / armatures'];
+  if(c.category==='coffrage') return ['Panneaux de coffrage','Coffrage bois'];
+  if(c.category==='liants') return ['Mortiers / bétons secs','Ciments / chaux','Béton cellulaire'];
+  if(c.category==='etancheite'||c.category==='traitements') return ['Protection / étanchéité'];
+  if(c.category==='facade'||c.category==='finitions') return ['Façade','Protection / étanchéité'];
+  if(c.category==='maconnerie'){
+    if(/brique/.test(t))return ['Briques terre cuite'];
+    if(/beton cellulaire|siporex/.test(t))return ['Béton cellulaire'];
+    return ['Blocs béton / parpaings'];
+  }
   if(/parpaing|bloc beton|blocs soubassement|blocs mur/.test(t)) return ['Blocs béton / parpaings'];
   if(/brique/.test(t)) return ['Briques terre cuite'];
   if(/beton cellulaire|siporex/.test(t)) return ['Béton cellulaire'];
   if(/mortier|colle|liants/.test(t)) return ['Mortiers / bétons secs','Béton cellulaire'];
   if(/fibre/.test(t)) return ['Fibres béton'];
   if(/coffrage/.test(t)) return ['Panneaux de coffrage','Coffrage bois'];
-  if(/acier|ferraillage|treillis|chainage|semelle.*armature/.test(t)) return ['Aciers / armatures'];
+  if(/acier|ferraillage|treillis/.test(t)) return ['Aciers / armatures'];
   if(/delta|etanche|anti termite|protection|hydrofuge/.test(t)) return ['Protection / étanchéité','Façade'];
   if(/enduit|facade|finition/.test(t)) return ['Façade','Protection / étanchéité'];
   if(/caniveau/.test(t)) return ['Caniveaux'];
@@ -34,14 +69,65 @@ function familyHints(line){
   if(/canalisation|fourreau|assainissement/.test(t)) return ['PVC assainissement >80','Drainage / EP'];
   if(/scellement|resine.*ancrage/.test(t)) return ['Scellement chimique'];
   if(/appui|seuil|prelinteau|linteau prefabrique/.test(t)) return ['Éléments préfabriqués'];
-  if(/beton/.test(t)) return ['Mortiers / bétons secs','Ciments / chaux','Granulats'];
+  if(/beton/.test(t)) return ['Mortiers / bétons secs'];
   return [];
+}
+
+function catalogueRole(line){
+  if(line?.catalogRole)return line.catalogRole;
+  const c=lineContext(line),t=`${c.name} ${c.id}`;
+  if(c.category==='beton')return 'concrete';
+  if(c.category==='coffrage')return 'coffrage_surface';
+  if(c.category==='ferraillage'){
+    if(/linteau/.test(t))return 'linteau';
+    if(/semelle/.test(t))return 'semelle';
+    if(/poteau/.test(t))return 'poteau';
+    if(/dalle|dallage|plancher|treillis/.test(t))return 'treillis';
+    if(/chainage horizontal/.test(t))return 'chainage_horizontal';
+    if(/chainage vertical/.test(t))return 'chainage_vertical';
+    if(/chainage.*toiture/.test(t))return 'chainage_horizontal';
+    if(/raidisseur vertical|potelet/.test(t))return 'raidisseur_vertical';
+    if(/raidisseur horizontal/.test(t))return 'chainage_horizontal';
+    return 'acier_generique';
+  }
+  return '';
+}
+
+function productRoleCompatible(line,product){
+  const role=catalogueRole(line);
+  if(!role)return true;
+  // Le rôle se valide sur le produit lui-même, pas sur une sous-catégorie générique
+  // pouvant contenir des mots comme « treillis » ou « accessoires » pour toute la famille.
+  const t=normalize(`${product.typeArticle||''} ${product.produit||''}`);
+  if(role==='concrete')return product.famille==='Mortiers / bétons secs' && /beton/.test(t) && !/cellulaire/.test(t);
+  if(role==='coffrage_surface')return ['Panneaux de coffrage','Coffrage bois'].includes(product.famille)
+    && /panneau|contreplaque|planche.*coffrage/.test(t)
+    && !/accessoire|clavette|fourche|fixation|huile|demoulage/.test(t);
+  if(role==='linteau')return product.famille==='Aciers / armatures' && /linteau/.test(t);
+  if(role==='semelle')return product.famille==='Aciers / armatures' && /semelle/.test(t);
+  if(role==='poteau')return product.famille==='Aciers / armatures' && /poteau/.test(t);
+  if(role==='treillis')return product.famille==='Aciers / armatures' && /treillis/.test(t);
+  if(role==='chainage_horizontal'){
+    if(product.famille!=='Aciers / armatures')return false;
+    if(/linteau|semelle|poteau|treillis|attentes/.test(t))return false;
+    if(/sismique|zone\s*[123]/.test(t))return false; // zone non renseignée : ne pas proposer automatiquement.
+    return /chainage/.test(t) && !(/vertical/.test(t)&&!/horizontal/.test(t));
+  }
+  if(role==='chainage_vertical'||role==='raidisseur_vertical'){
+    if(product.famille!=='Aciers / armatures')return false;
+    if(/linteau|semelle|poteau|treillis|attentes/.test(t))return false;
+    if(/sismique|zone\s*[123]/.test(t))return false;
+    if(role==='raidisseur_vertical' && /raidisseur/.test(t))return true;
+    return /chainage/.test(t) && !(/horizontal/.test(t)&&!/vertical|raidisseur/.test(t));
+  }
+  if(role==='acier_generique')return product.famille==='Aciers / armatures' && /fer a beton|rond a beton/.test(t);
+  return true;
 }
 
 function queryKeywords(line){
   const t=normalize(`${line?.name||''} ${line?.category||''} ${line?.id||''}`);
   const out=[];
-  for(const k of ['parpaing','brique','beton cellulaire','siporex','mortier','colle','fibre','coffrage','treillis','acier','delta','anti termite','enduit','caniveau','drain','regard','scellement','appui','seuil','linteau','beton']){
+  for(const k of ['parpaing','brique','beton cellulaire','siporex','mortier','colle','fibre','coffrage','treillis','acier','chainage','horizontal','vertical','raidisseur','semelle','poteau','linteau','delta','anti termite','enduit','caniveau','drain','regard','scellement','appui','seuil','beton']){
     if(t.includes(k))out.push(k);
   }
   return out;
@@ -57,29 +143,6 @@ function productThicknessMm(product){
   const t=`${product.produit||''} ${product.variante||''}`;
   const m=t.match(/(\d{2,4})\s*x\s*(\d{2,4})\s*x\s*(\d{2,4})\s*mm/i);
   return m?Number(m[2]):null;
-}
-
-export function catalogueCandidatesForLine(line,limit=8){
-  const families=familyHints(line);
-  const kws=queryKeywords(line);
-  const thick=thicknessMm(line);
-  return CATALOGUE_MACON.map(product=>{
-    let score=0;
-    const txt=PRODUCT_TEXT.get(product.referenceCatalogue)||'';
-    if(families.includes(product.famille))score+=60;
-    else if(families.length)score-=20;
-    for(const kw of kws)if(txt.includes(normalize(kw)))score+=8;
-    if(thick){
-      const pt=productThicknessMm(product);
-      if(pt===thick)score+=35;
-      else if(pt)score-=8;
-    }
-    if(product.prixArtisanHt>0)score+=5;
-    return {product,score};
-  }).filter(x=>x.score>0)
-    .sort((a,b)=>b.score-a.score || String(a.product.marque).localeCompare(String(b.product.marque)))
-    .slice(0,limit)
-    .map(x=>({...x.product,matchScore:x.score}));
 }
 
 function parseMassKg(text){
@@ -111,74 +174,78 @@ function parseLengthM(text){
   if(m)return Number(m[1]);
   m=s.match(/longueur\s*(\d+(?:\.\d+)?)\s*m\b/);
   if(m)return Number(m[1]);
-  return null;
+  m=s.match(/\b(\d+(?:\.\d+)?)\s*m\b/);
+  return m?Number(m[1]):null;
 }
 
-function normUnit(u){
-  const raw=String(u||'').toLowerCase().trim();
-  if(['m²','m2','metre carre','mètre carré'].includes(raw))return 'm²';
-  if(['m³','m3','metre cube','mètre cube'].includes(raw))return 'm³';
-  const x=normalize(u).replace('metre carre','m2').replace('metre cube','m3');
-  if(['u','unite','piece','pieces'].includes(x))return 'u';
-  if(['kg','kilogramme','kilogrammes'].includes(x))return 'kg';
-  if(['m2'].includes(x))return 'm²';
-  if(['ml','m','metre','metres'].includes(x))return 'm';
-  if(['m3'].includes(x))return 'm³';
-  return String(u||'');
+function conversionPlan(line,product){
+  const billingNeed=Number(line?.qty||0);
+  const need=Number(line?.catalogNeedQty ?? line?.qty ?? 0);
+  const needUnit=normUnit(line?.catalogNeedUnit ?? line?.unit);
+  const sale=product?.uniteVente;
+  const text=`${product?.produit||''} ${product?.variante||''}`;
+  if(!(billingNeed>0&&need>0))return {compatible:false,reason:'Quantité métier nulle.'};
+
+  if(needUnit==='u' && sale==='Cent')return {compatible:true,billingNeed,orderQty:need/100,orderUnit:'cent',orderLabel:`${need.toFixed(2)} unité(s) · tarif catalogue au cent`};
+  if(needUnit==='u' && ['Pièce','Unité'].includes(sale)){
+    const count=Math.ceil(need);return {compatible:true,billingNeed,orderQty:count,orderUnit:'pièce',orderLabel:`${count} pièce(s)`};
+  }
+  if(needUnit==='kg' && ['Sac-sachet','Boîte','Pièce'].includes(sale)){
+    const mass=parseMassKg(text);
+    if(mass>0){const packs=Math.ceil(need/mass);return {compatible:true,billingNeed,orderQty:packs,orderUnit:sale,packContent:mass,packContentUnit:'kg',orderLabel:`${packs} conditionnement(s) × ${mass.toFixed(3)} kg`};}
+  }
+  if(needUnit==='m²' && sale==='Mètre carré')return {compatible:true,billingNeed,orderQty:need,orderUnit:'m²',orderLabel:`${need.toFixed(2)} m²`};
+  if(needUnit==='m²' && ['Rouleau','Panneau plaque','Pièce'].includes(sale)){
+    const area=parseAreaM2(text);
+    if(area>0){const packs=Math.ceil(need/area);return {compatible:true,billingNeed,orderQty:packs,orderUnit:sale,packContent:area,packContentUnit:'m²',orderLabel:`${packs} conditionnement(s) × ${area.toFixed(2)} m²`};}
+  }
+  if(needUnit==='m' && sale==='Mètre')return {compatible:true,billingNeed,orderQty:need,orderUnit:'m',orderLabel:`${need.toFixed(2)} m`};
+  if(needUnit==='m' && sale==='Pièce'){
+    const length=parseLengthM(text);
+    if(length>0){const packs=Math.ceil(need/length);return {compatible:true,billingNeed,orderQty:packs,orderUnit:'pièce',packContent:length,packContentUnit:'m',orderLabel:`${packs} pièce(s) × ${length.toFixed(2)} m`};}
+  }
+  if(needUnit==='m³' && sale==='Mètre cube')return {compatible:true,billingNeed,orderQty:need,orderUnit:'m³',orderLabel:`${need.toFixed(3)} m³`};
+  return {compatible:false,reason:`Conversion automatique indisponible entre besoin « ${line?.catalogNeedUnit??line?.unit} » et vente « ${sale} ».`};
+}
+
+export function catalogueCandidatesForLine(line,limit=8){
+  const families=familyHints(line);
+  const kws=queryKeywords(line);
+  const thick=thicknessMm(line);
+  return CATALOGUE_MACON
+    .filter(product=>!families.length || families.includes(product.famille))
+    .filter(product=>productRoleCompatible(line,product))
+    .map(product=>{
+      const plan=conversionPlan(line,product);
+      if(!plan.compatible)return null;
+      let score=100; // famille + rôle + unité déjà validés : ce sont des barrières, pas de simples bonus.
+      const txt=PRODUCT_TEXT.get(product.referenceCatalogue)||'';
+      for(const kw of kws)if(txt.includes(normalize(kw)))score+=8;
+      if(thick){
+        const pt=productThicknessMm(product);
+        if(pt===thick)score+=35;
+        else if(pt)score-=15;
+      }
+      if(product.prixArtisanHt>0)score+=5;
+      return {product,score};
+    })
+    .filter(Boolean)
+    .sort((a,b)=>b.score-a.score || String(a.product.marque).localeCompare(String(b.product.marque)))
+    .slice(0,limit)
+    .map(x=>({...x.product,matchScore:x.score}));
 }
 
 export function resolveCatalogueProduct(line,referenceCatalogue){
   const product=CATALOGUE_BY_REF[referenceCatalogue];
   if(!product)return {compatible:false,reason:'Article catalogue introuvable.'};
+  const families=familyHints(line);
+  if(families.length&&!families.includes(product.famille))return {compatible:false,product,reason:'Article incompatible avec la famille métier calculée.'};
+  if(!productRoleCompatible(line,product))return {compatible:false,product,reason:'Article incompatible avec le type d’ouvrage calculé.'};
+  const plan=conversionPlan(line,product);
+  if(!plan.compatible)return {compatible:false,product,reason:`${plan.reason} Saisir un prix personnel ou choisir un autre article.`};
   if(!(Number(product.prixArtisanHt)>0))return {compatible:false,product,reason:'Prix artisan moyen absent : saisir un prix personnel.'};
-
-  const need=Number(line?.qty||0), needUnit=normUnit(line?.unit);
-  const sale=product.uniteVente;
-  const price=Number(product.prixArtisanHt);
-  const text=`${product.produit||''} ${product.variante||''}`;
-  if(!(need>0))return {compatible:false,product,reason:'Quantité métier nulle.'};
-
-  if(needUnit==='u' && sale==='Cent'){
-    const total=need*(price/100);
-    return {compatible:true,product,total,lineUnitPrice:price/100,orderQty:need/100,orderUnit:'cent',orderLabel:`${need.toFixed(2)} unité(s) · tarif catalogue au cent`};
-  }
-  if(needUnit==='u' && ['Pièce','Unité'].includes(sale)){
-    const count=Math.ceil(need);
-    const total=count*price;
-    return {compatible:true,product,total,lineUnitPrice:total/need,orderQty:count,orderUnit:'pièce',orderLabel:`${count} pièce(s)`};
-  }
-  if(needUnit==='kg' && ['Sac-sachet','Boîte','Pièce'].includes(sale)){
-    const mass=parseMassKg(text);
-    if(mass>0){
-      const packs=Math.ceil(need/mass), total=packs*price;
-      return {compatible:true,product,total,lineUnitPrice:total/need,orderQty:packs,orderUnit:sale,packContent:mass,packContentUnit:'kg',orderLabel:`${packs} conditionnement(s) × ${mass.toFixed(3)} kg`};
-    }
-  }
-  if(needUnit==='m²' && sale==='Mètre carré'){
-    return {compatible:true,product,total:need*price,lineUnitPrice:price,orderQty:need,orderUnit:'m²',orderLabel:`${need.toFixed(2)} m²`};
-  }
-  if(needUnit==='m²' && ['Rouleau','Panneau plaque','Pièce'].includes(sale)){
-    const area=parseAreaM2(text);
-    if(area>0){
-      const packs=Math.ceil(need/area), total=packs*price;
-      return {compatible:true,product,total,lineUnitPrice:total/need,orderQty:packs,orderUnit:sale,packContent:area,packContentUnit:'m²',orderLabel:`${packs} conditionnement(s) × ${area.toFixed(2)} m²`};
-    }
-  }
-  if(needUnit==='m' && sale==='Mètre'){
-    return {compatible:true,product,total:need*price,lineUnitPrice:price,orderQty:need,orderUnit:'m',orderLabel:`${need.toFixed(2)} m`};
-  }
-  if(needUnit==='m' && sale==='Pièce'){
-    const length=parseLengthM(text);
-    if(length>0){
-      const packs=Math.ceil(need/length), total=packs*price;
-      return {compatible:true,product,total,lineUnitPrice:total/need,orderQty:packs,orderUnit:'pièce',packContent:length,packContentUnit:'m',orderLabel:`${packs} pièce(s) × ${length.toFixed(2)} m`};
-    }
-  }
-  if(needUnit==='m³' && sale==='Mètre cube'){
-    return {compatible:true,product,total:need*price,lineUnitPrice:price,orderQty:need,orderUnit:'m³',orderLabel:`${need.toFixed(3)} m³`};
-  }
-
-  return {compatible:false,product,reason:`Conversion automatique indisponible entre besoin « ${line.unit} » et vente « ${sale} ». Saisir un prix personnel ou choisir un autre article.`};
+  const price=Number(product.prixArtisanHt),total=plan.orderQty*price;
+  return {...plan,compatible:true,product,total,lineUnitPrice:total/plan.billingNeed};
 }
 
 export function catalogueLabel(product){
