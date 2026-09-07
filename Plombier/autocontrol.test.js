@@ -5,7 +5,7 @@ for(const f of ['catalogue-data.js','catalogue-service.js','engine-current.js'])
 const CAT=global.SpeedArtiCatalogueService,API=global.SpeedArtiPlombierCurrent,DB=global.SpeedArtiCataloguePlombier;
 let ok=0;function assert(cond,msg){if(!cond)throw new Error(`ASSERT ${ok+1}: ${msg}`);ok++}
 function approx(a,b,t=.011){return Math.abs(Number(a)-Number(b))<=t}
-function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.3.1',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{}}}}
+function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.5.2',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{}}}}
 function selectFirst(ctx,pred=()=>true){const a=CAT.search({context:ctx,limit:100}).find(x=>x.prix>0&&x.code&&pred(x));assert(!!a,`Référence exploitable contexte ${ctx}`);return CAT.selection(a)}
 function netRefs(d){const ctx=d.options.type_tuyau==='cuivre'?'raccord_cuivre':d.options.type_tuyau==='multicouche'?'raccord_multicouche':'raccord_per';d.installation.network.fitting_catalogue=selectFirst(ctx);d.installation.network.stop_valve_catalogue=selectFirst('robinet_arret');}
 
@@ -45,7 +45,7 @@ assert(wcLine.catalogue_version==='Téréva 2026 -20%','Version catalogue balis�
 assert(!!wcLine.catalogue_source_page,'Page source catalogue balisée');
 assert(String(wcLine.source).includes('Catalogue Téréva 2026 -20%'),'Source catalogue visible');
 assert(r1.controle_balises.ok===true,'Balises scénario WC OK');
-assert(r1.controle_balises.version==='BALISES-ABSOLUES-v1.1','Version balises v1.1');
+assert(r1.controle_balises.version==='BALISES-ABSOLUES-v1.5','Version balises v1.5');
 assert(r1.finalisation_bloquee===false,'WC complet finalisable');
 assert(r1.surfaces.detail_par_face.EF_ml===8,'WC = 8 ml EF');
 assert(r1.surfaces.detail_par_face.EC_ml===0,'WC = 0 ml EC');
@@ -189,7 +189,7 @@ assert(approx(r1.controle_balises.tva_controlee,r1.totaux.tva),'Contrôle TVA = 
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const posData=html.indexOf('catalogue-data.js'),posService=html.indexOf('catalogue-service.js'),posEngine=html.indexOf('engine-current.js'),posApp=html.indexOf('app.js');
 assert(posData>0&&posData<posService&&posService<posEngine&&posEngine<posApp,'Ordre de chargement catalogue -> service -> moteur -> app');
-assert(/v0\.3\.1/.test(html),'HTML annonce v0.3.1');
+assert(/v0\.5\.2/.test(html),'HTML annonce v0.5.2');
 
 // 22. Contrôles statiques UI / absence de règles cachées
 const appSrc=fs.readFileSync(path.join(root,'app.js'),'utf8'),engSrc=fs.readFileSync(path.join(root,'engine-current.js'),'utf8'),catSrc=fs.readFileSync(path.join(root,'catalogue-service.js'),'utf8');
@@ -201,5 +201,146 @@ assert(!/reparation:\{[^}]*price:120/.test(engSrc),'Ancien 120 € réparation c
 assert(!/(?:\*\s*\.15|\*\s*0\.15)/.test(engSrc),'Ancien rendement réseau 0,15 h/ml absent');
 assert(catSrc.includes("raccord_per")&&catSrc.includes("raccord_multicouche")&&catSrc.includes("raccord_cuivre"),'Trois contextes raccord matériau présents');
 assert(appSrc.includes("d.options.type_projet==='petits_travaux'?") ,'Affichage déplacement conditionné au mode petits travaux');
+
+
+// 23. Annexe 2 — nomenclature source Guillaume et articles complémentaires explicites
+assert(Array.isArray(API.annexe2For('lavabo'))&&API.annexe2For('lavabo').length===15,'Annexe 2 lavabo = 15 postes de référence');
+assert(API.annexe2For('meuble_vasque').length===API.annexe2For('lavabo').length,'Meuble vasque réutilise la composition lavabo/vasque');
+assert(API.annexe2For('douche').some(x=>x.label==='Bonde de douche'),'Annexe 2 douche contient la bonde');
+assert(API.annexe2For('baignoire').some(x=>x.label==='Vidage baignoire'),'Annexe 2 baignoire contient le vidage');
+assert(API.annexe2For('evier').some(x=>x.label==='Raccordement lave-vaisselle si prévu'),'Annexe 2 évier conserve le raccordement LV conditionnel');
+assert(API.annexe2For('wc','poser').length===16&&API.annexe2For('wc','poser').some(x=>x.label==='Mécanisme de chasse'),'Annexe 2 WC à poser = 16 postes et contient le mécanisme');
+assert(API.annexe2For('wc','suspendu').length===15&&API.annexe2For('wc','suspendu').some(x=>x.label==='Plaque de commande'),'Annexe 2 WC suspendu = 15 postes et contient la plaque de commande');
+assert(API.annexe2For('wc','urinoir').length===0,'Aucune composition Annexe 2 inventée pour urinoir');
+const a2Defs=[['lavabo',''],['meuble_vasque',''],['douche',''],['baignoire',''],['evier',''],['wc','poser'],['wc','suspendu'],['lave_main',''],['lave_linge',''],['lave_vaisselle','']];
+for(const [kind,sub] of a2Defs){const defs=API.annexe2For(kind,sub),keys=defs.map(x=>x.key);assert(new Set(keys).size===keys.length,`Clés Annexe 2 uniques — ${kind} ${sub}`);for(const def of defs.filter(x=>x.role==='selectable'))assert(CAT.search({context:def.context||'all',q:def.q||'',limit:1}).length>0,`Recherche préremplie exploitable — ${kind}/${def.key}`)}
+assert(API.annexe2For('lave_linge').some(x=>x.label==='Robinet machine à laver'),'Annexe 2 lave-linge contient le robinet machine');
+assert(API.annexe2For('lave_vaisselle').some(x=>x.label.includes('siphon')),'Annexe 2 lave-vaisselle contient le raccordement siphon');
+
+const dA2Base=base();netRefs(dA2Base);dA2Base.installation.equipments.push({id:'lava2base',kind:'lavabo',catalogue:lavSel,price_ht:lavSel.prix,time_h:2});
+const rA2Base=API.calculate(dA2Base);
+assert(!rA2Base.materiaux.some(x=>x.annexe2_slot),'Aucun composant Annexe 2 n’est facturé sans sélection explicite');
+assert(rA2Base.nomenclature_annexe2.length===1,'Nomenclature Annexe 2 produite par appareil');
+assert(rA2Base.nomenclature_annexe2[0].components.find(x=>x.key==='ef').status==='géré par réseau','Alimentation EF balisée réseau sans doublon');
+assert(rA2Base.nomenclature_annexe2[0].components.find(x=>x.key==='appareil').status==='article principal sélectionné','Article principal balisé dans nomenclature');
+
+const bondeRaw=CAT.search({context:'evacuation',q:'bonde',limit:100}).find(a=>a.prix>0&&a.code);assert(!!bondeRaw,'Référence bonde exploitable trouvée');const bondeSel=CAT.selection(bondeRaw);
+const dA2=base();netRefs(dA2);dA2.installation.equipments.push({id:'lava2',kind:'lavabo',catalogue:lavSel,price_ht:lavSel.prix,time_h:2,annexe2_items:{bonde:{catalogue:bondeSel,price_ht:bondeSel.prix,quantite:2,note:'Non comprise dans le lavabo'}}});
+const rA2=API.calculate(dA2),a2Line=rA2.materiaux.find(x=>x.annexe2_slot==='bonde');
+assert(!!a2Line,'Composant Annexe 2 sélectionné devient une ligne réelle');
+assert(a2Line.categorie==='Fourniture Annexe 2','Catégorie dédiée Annexe 2');
+assert(a2Line.parent_equipment_id==='lava2','Balise parent équipement conservée');
+assert(a2Line.annexe2_source==='Annexe 2 Guillaume','Source Annexe 2 balisée');
+assert(a2Line.catalogue_code===bondeSel.code,'Code Téréva composant conservé');
+assert(a2Line.quantite_finale===2,'Quantité composant visible appliquée');
+assert(approx(a2Line.total_ht,bondeSel.prix*2),'Quantité × prix exact composant cohérent');
+assert(rA2.nomenclature_annexe2[0].components.find(x=>x.key==='bonde').status==='référence associée','Nomenclature reflète la référence associée');
+assert(rA2.controle_balises.ok===true,'Balises v1.2 valides avec composant Annexe 2');
+assert(rA2.finalisation_bloquee===false,'Scénario Annexe 2 complet finalisable');
+
+const dA2Qty=base();netRefs(dA2Qty);dA2Qty.installation.equipments.push({id:'a2q',kind:'lavabo',catalogue:lavSel,price_ht:lavSel.prix,time_h:2,annexe2_items:{bonde:{catalogue:bondeSel,price_ht:bondeSel.prix,quantite:0}}});
+const rA2Qty=API.calculate(dA2Qty);assert(rA2Qty.finalisation_bloquee===true,'Composant Annexe 2 sélectionné avec quantité nulle bloque');assert(rA2Qty.blocages.some(x=>/QUANTITÉ ANNEXE 2/.test(x)),'Blocage quantité Annexe 2 explicite');
+
+const noPriceRaw=DB.articles.find(a=>a.prix==null&&a.code);assert(!!noPriceRaw,'Référence Téréva sans prix disponible pour test');const noPriceSel=CAT.selection({...noPriceRaw,__index:DB.articles.indexOf(noPriceRaw)});
+const dA2NoPrice=base();netRefs(dA2NoPrice);dA2NoPrice.installation.equipments.push({id:'a2np',kind:'lavabo',catalogue:lavSel,price_ht:lavSel.prix,time_h:2,annexe2_items:{bonde:{catalogue:noPriceSel,quantite:1}}});
+const rA2NoPrice=API.calculate(dA2NoPrice);assert(rA2NoPrice.finalisation_bloquee===true,'Composant Annexe 2 Téréva sans prix bloque');assert(rA2NoPrice.blocages.some(x=>/PRIX ANNEXE 2|référence catalogue/.test(x)),'Blocage prix composant Annexe 2 explicite');
+
+const manualA2={...bondeSel,price_overridden:true,manual_price_ht:bondeSel.prix+12};const dA2Man=base();netRefs(dA2Man);dA2Man.installation.equipments.push({id:'a2m',kind:'lavabo',catalogue:lavSel,price_ht:lavSel.prix,time_h:2,annexe2_items:{bonde:{catalogue:manualA2,price_ht:manualA2.manual_price_ht,quantite:1}}});const rA2Man=API.calculate(dA2Man),a2m=rA2Man.materiaux.find(x=>x.annexe2_slot==='bonde');
+assert(approx(a2m.prix_unitaire_ht,bondeSel.prix+12),'Override manuel composant Annexe 2 utilisé');assert(String(a2m.source).includes('Prix manuel sur référence Téréva'),'Override composant Annexe 2 tracé');
+
+// 24. Annexe 2 également sur remplacement petits travaux
+const ptA2=base();ptA2.options.type_projet='petits_travaux';ptA2.petits_travaux.prestations=[{id:'rep1',type:'remplacement',equipment:{id:'repLav',kind:'lavabo',catalogue:lavSel,price_ht:lavSel.prix,time_h:2,annexe2_items:{bonde:{catalogue:bondeSel,price_ht:bondeSel.prix,quantite:1}}}}];const rptA2=API.calculate(ptA2);
+assert(rptA2.nomenclature_annexe2.length===1,'Remplacement réutilise nomenclature Annexe 2');assert(rptA2.materiaux.some(x=>x.annexe2_slot==='bonde'),'Remplacement réutilise article complémentaire Annexe 2');assert(rptA2.controle_balises.ok===true,'Balises remplacement + Annexe 2 OK');
+
+// 25. Contrôles statiques v0.5.2
+assert(appSrc.includes('Composition Annexe 2'),'UI expose la composition Annexe 2');
+assert(appSrc.includes('data-catalogue-q'),'Recherche composant peut préremplir la barre catalogue');
+assert(appSrc.includes('nomenclature_annexe2'),'Résultat UI affiche la nomenclature Annexe 2');
+assert(engSrc.includes("annexe2_source:'Annexe 2 Guillaume'"),'Moteur balise explicitement la source Annexe 2');
+assert(engSrc.includes('parent_equipment_id'),'Moteur conserve le parent équipement des composants');
+assert(appSrc.includes('eq.annexe2_items={}'),'Changement de sous-type WC nettoie la nomenclature associée devenue obsolète');
+assert(engSrc.includes("version:'BALISES-ABSOLUES-v1.5'"),'Moteur balises v1.5');
+
+
+// 26. Stock réel : aucune disponibilité ni quantité à commander ne doit être inventée
+assert(r1.stock_status.connecte===false,'Stock réel non connecté explicitement');
+assert(r1.stock_status.disponible===null,'Disponibilité stock inconnue = null, pas faux booléen');
+const stockLines=r1.materiaux.filter(x=>x.stockable);
+assert(stockLines.length>0,'Scénario WC contient des lignes stockables');
+for(const l of stockLines){
+  assert(l.stock_status==='non_connecte',`Stock non connecté balisé — ${l.article_id}`);
+  assert(l.stock_disponible===null,`Aucun stock disponible inventé — ${l.article_id}`);
+  assert(l.quantite_a_commander===null&&l.a_commander===null,`Aucune quantité à commander inventée — ${l.article_id}`);
+  assert(approx(l.quantite_besoin,l.quantite_finale),`Besoin chantier = quantité calculée — ${l.article_id}`);
+}
+assert(!engSrc.includes('stock_disponible:0'),'Ancien stock disponible = 0 supprimé du moteur');
+assert(!engSrc.includes('a_commander:extra.stockable?q:0'),'Ancienne commande automatique supprimée');
+
+// 27. Approvisionnement fournisseur : payload structuré sans prétendre commander
+const appro=rA2.approvisionnement;
+assert(!!appro&&appro.stock_connecte===false,'Approvisionnement déclare stock non connecté');
+assert(appro.statut_stock==='non_connecte','Statut approvisionnement non connecté');
+assert(appro.nombre_lignes===rA2.materiaux.filter(x=>x.stockable).length,'Liste besoins = lignes stockables');
+assert(approx(appro.total_besoins_ht,appro.items.reduce((s,x)=>s+x.total_ht,0)),'Total besoins fournisseur cohérent');
+assert(appro.payload_fournisseur.version==='PLB-APPRO-V1','Version payload fournisseur stable');
+assert(appro.payload_fournisseur.metier==='plombier','Payload fournisseur métier plombier');
+assert(appro.payload_fournisseur.items.length===appro.items.length,'Payload fournisseur reprend tous les besoins');
+assert(appro.items.some(x=>x.article_id==='equip_lava2'),'Appareil sanitaire principal présent dans les besoins fournisseur');
+assert(!appro.items.some(x=>/Forfait complet|Prestation fourniture \+ MO/.test(x.categorie)),'Forfaits et prestations mixtes exclus du stock fournisseur');
+assert(rA2.materiaux.find(x=>x.article_id==='equip_lava2').stockable===true,'Appareil sanitaire physique classé stockable');
+assert(rA2.materiaux.filter(x=>x.includes_labor).every(x=>!x.stockable),'Prestations incluant la MO non classées stockables');
+const payloadBonde=appro.payload_fournisseur.items.find(x=>x.code_tereva===bondeSel.code);
+assert(!!payloadBonde,'Composant Annexe 2 présent dans payload fournisseur');
+assert(payloadBonde.quantite===2,'Quantité besoin composant conservée dans payload');
+assert(payloadBonde.source_page,'Page source Téréva conservée dans payload');
+assert(!JSON.stringify(appro).includes('commande_créée'),'Aucune commande fournisseur fictive produite');
+
+// 28. UI approvisionnement / export
+assert(appSrc.includes('Besoins matériaux / fournisseur'),'Résultat affiche le bloc besoins fournisseur');
+assert(appSrc.includes('data-export-appro-csv'),'Export CSV besoins présent');
+assert(appSrc.includes('data-export-appro-json'),'Export JSON fournisseur présent');
+assert(appSrc.includes('data-copy-appro-json'),'Copie payload fournisseur présente');
+assert(appSrc.includes('Stock : non connecté'),'UI ne prétend pas connaître le stock');
+assert(appSrc.includes('ne prétend pas connaître le stock ni créer une commande'),'Garde-fou commande explicite dans UI');
+assert(engSrc.includes("version:'BALISES-ABSOLUES-v1.5'"),'Moteur balises v1.5');
+
+
+// 29. Correctifs v0.5.2 issus du contrôle humain
+assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v052'"),'Clé de sauvegarde propre v0.5.2');
+assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v051','speedarti-plombier-demo-v040','speedarti-plombier-demo-v031']"),'Migration des anciens brouillons prévue');
+assert(appSrc.includes('function migrateLegacyDraft'),'Fonction de migration brouillon présente');
+assert(appSrc.includes("delete p.duration_h"),'Migration supprime les anciennes durées CE non validées');
+assert(appSrc.includes("catalogueRenderTimer=setTimeout"),'Recherche catalogue saisie rapide temporisée');
+assert(catSrc.includes("wc_suspendu_main"),'Contexte cuvette WC suspendue séparé du bâti-support');
+assert(catSrc.includes("wc_suspendu_bati"),'Contexte bâti-support WC suspendu séparé');
+assert(CAT.search({context:'wc_suspendu_main',limit:100}).length>0,'Contexte WC suspendu principal retourne des références');
+assert(CAT.search({context:'wc_suspendu_main',limit:100}).every(a=>a.type!=='Bâti-support'),'WC suspendu principal exclut les bâtis-supports');
+assert(CAT.search({context:'wc_suspendu_bati',limit:100}).every(a=>a.type==='Bâti-support'),'Contexte bâti-support ne retourne que des bâtis-supports');
+assert(appSrc.includes("eq.annexe2_items={}"),'Changement de sous-type WC nettoie les anciens composants Annexe 2');
+assert(appSrc.includes("poser:[300,2],suspendu:[700,5],urinoir:[300,2],urinoir_bati:[600,5]"),'Changement sous-type WC remet prix/temps validés');
+assert(appSrc.includes("'installation.annexe1.aleas','Aléas — 4 %','Calculés uniquement sur la main-d’œuvre HT, avant TVA'"),'UI aléas annonce la règle métier validée');
+const da=base();da.installation.annexe1.aleas=true;da.installation.network.ef_only=1;da.installation.network.fitting_catalogue=selectFirst('raccord_per');const ra=API.calculate(da);
+assert(ra.finalisation_bloquee===false,'Aléas 4 % ne bloque plus après validation métier');
+const expectedAleas=Math.round(ra.totaux.main_oeuvre_ht_avant_aleas*.04*100)/100;
+assert(Math.abs(ra.totaux.aleas_ht-expectedAleas)<.011,'Aléas = exactement 4 % de la main-d’œuvre HT');
+assert(Math.abs(ra.totaux.main_oeuvre_ht-(ra.totaux.main_oeuvre_ht_avant_aleas+ra.totaux.aleas_ht))<.011,'Main-d’œuvre HT totale inclut les aléas');
+assert(Math.abs(ra.totaux.total_ht-(ra.totaux.materiaux_ht+ra.totaux.main_oeuvre_ht))<.011,'Total HT inclut matériaux + MO totale avec aléas');
+assert(Math.abs(ra.totaux.tva-(ra.totaux.total_ht*ra.totaux.taux_tva/100))<.011,'TVA calculée après ajout des aléas');
+assert(!ra.materiaux.some(x=>x.article_id==='ann1_aleas'),'Aléas ne sont pas classés comme matériau/fourniture');
+assert(ra.controle_balises.aleas_ht_controle===ra.totaux.aleas_ht,'Balise contrôle vérifie le montant des aléas');
+const daMat=base();daMat.installation.annexe1.aleas=true;daMat.installation.annexe1.arret_general=true;daMat.installation.network.ef_only=1;daMat.installation.network.fitting_catalogue=selectFirst('raccord_per');const raMat=API.calculate(daMat);
+assert(raMat.totaux.materiaux_ht>ra.totaux.materiaux_ht,'Ajout d’un forfait matière/prestation augmente le hors MO');
+assert(Math.abs(raMat.totaux.aleas_ht-ra.totaux.aleas_ht)<.011,'Aléas 4 % ne varient pas avec les matériaux/forfaits');
+const daComplex=base();daComplex.options.complexite='complexe';daComplex.installation.annexe1.aleas=true;daComplex.installation.network.ef_only=1;daComplex.installation.network.fitting_catalogue=selectFirst('raccord_per');const raComplex=API.calculate(daComplex);
+assert(Math.abs(raComplex.totaux.aleas_ht-(raComplex.totaux.main_oeuvre_ht_avant_aleas*.04))<.011,'Aléas suivent la MO après coefficient de complexité');
+const da10=base();da10.options.taux_tva=10;da10.installation.annexe1.aleas=true;da10.installation.network.ef_only=1;da10.installation.network.fitting_catalogue=selectFirst('raccord_per');const ra10=API.calculate(da10);
+assert(Math.abs(ra10.totaux.aleas_ht-ra.totaux.aleas_ht)<.011,'Taux de TVA ne modifie pas le montant HT des aléas');
+assert(Math.abs(ra10.totaux.tva-(ra10.totaux.total_ht*.10))<.011,'TVA 10 % est appliquée après ajout des aléas');
+const des=base();netRefs(des);des.installation.equipments.push({id:'es1',kind:'element_specifique',ef:true,ec:true,evac:false,stop_valves:3,price_ht:50,time_h:1});const res=API.calculate(des);
+assert(res.materiaux.find(x=>x.article_id==='robinets_arret').quantite_finale===3,'Élément spécifique utilise son nombre réel de robinets d’arrêt');
+assert(appSrc.includes("stop_valves"),'Champ robinets d’arrêt élément spécifique exposé dans UI');
+assert(!/changement_200l_elec[^\n]{0,180}duration_h\s*[:=]\s*[0-9]/.test(appSrc+engSrc),'Aucune durée CE cachée codée pour changement 200 L');
+assert(!/changement_300l_elec[^\n]{0,180}duration_h\s*[:=]\s*[0-9]/.test(appSrc+engSrc),'Aucune durée CE cachée codée pour changement 300 L');
+assert(r1.controle_balises.version==='BALISES-ABSOLUES-v1.5','Version finale balises v1.5');
 
 console.log(JSON.stringify({status:'OK',assertions:ok,catalogueCount:CAT.count,priceCount:CAT.priceCount,knownPrice117_19:known[0].prix,balisesVersion:r1.controle_balises.version,networkOnly:{ef:r2.surfaces.detail_par_face.EF_ml,ec:r2.surfaces.detail_par_face.EC_ml},fittingsOneFixture:fittingsWC.quantite_finale},null,2));

@@ -30,12 +30,141 @@
   const HOT_KINDS=new Set(['lavabo','meuble_vasque','douche','baignoire','evier']);
   const EF_KINDS=new Set(['lavabo','meuble_vasque','douche','baignoire','evier','wc','lave_main','lave_linge','lave_vaisselle']);
   const EVAC_KINDS=new Set(['lavabo','meuble_vasque','douche','baignoire','evier','wc','lave_main','lave_linge','lave_vaisselle']);
+  // Annexe 2 Guillaume : nomenclature de référence par appareil.
+  // Aucun composant complémentaire n'est ajouté/prixé automatiquement : l'artisan choisit explicitement une référence exacte.
+  const ANNEXE2_COMPONENTS={
+    lavabo:[
+      {key:'ef',label:'Alimentation eau froide',role:'network'},{key:'ec',label:'Alimentation eau chaude',role:'network'},
+      {key:'mitigeur',label:'Robinet mitigeur',role:'selectable',context:'lavabo',q:'mitigeur lavabo'},
+      {key:'flexibles',label:'Flexibles de raccordement',role:'selectable',context:'all',q:'flexible'},
+      {key:'robinets_arret',label:"Robinets d’arrêt",role:'network'},{key:'appareil',label:'Vasque / lavabo',role:'main'},
+      {key:'bonde',label:'Bonde de lavabo',role:'selectable',context:'evacuation',q:'bonde'},
+      {key:'trop_plein',label:'Trop-plein si intégré',role:'selectable',optional:true,context:'all',q:'trop plein'},
+      {key:'siphon',label:'Siphon',role:'selectable',context:'evacuation',q:'siphon'},
+      {key:'tube_pvc',label:"Tube PVC d’évacuation",role:'network'},{key:'raccords_pvc',label:'Raccords PVC',role:'network'},
+      {key:'colliers',label:'Colliers de fixation',role:'selectable',context:'all',q:'collier'},
+      {key:'joints',label:'Joints et petites fournitures',role:'selectable',optional:true,context:'all',q:'joint'},
+      {key:'fixations',label:'Fixations murales / consoles selon modèle',role:'selectable',optional:true,context:'all',q:'fixation'},
+      {key:'meuble',label:'Meuble sous vasque si prévu',role:'selectable',optional:true,context:'meuble_vasque',q:'meuble'}
+    ],
+    meuble_vasque:'lavabo',
+    douche:[
+      {key:'ef',label:'Alimentation eau froide',role:'network'},{key:'ec',label:'Alimentation eau chaude',role:'network'},{key:'robinets_arret',label:"Robinets d’arrêt",role:'network'},
+      {key:'mitigeur',label:'Mitigeur de douche',role:'dedicated',dedicated:'mitigeur'},
+      {key:'flexible',label:'Flexible de douche',role:'selectable',context:'all',q:'flexible douche'},
+      {key:'douchette',label:'Douchette / pommeau',role:'selectable',context:'colonne_douche',q:'douchette'},
+      {key:'support',label:'Support de douche',role:'selectable',context:'colonne_douche',q:'support douche'},
+      {key:'appareil',label:'Receveur',role:'main'},
+      {key:'bonde',label:'Bonde de douche',role:'selectable',context:'evacuation',q:'bonde douche'},
+      {key:'siphon',label:'Siphon de douche',role:'selectable',context:'evacuation',q:'siphon douche'},
+      {key:'tube_pvc',label:"Tube PVC d’évacuation",role:'network'},{key:'raccords_pvc',label:'Raccords PVC',role:'network'},
+      {key:'etancheite',label:'Étanchéité sous carrelage / SPEC ou système adapté',role:'dedicated',dedicated:'spec'},
+      {key:'joints',label:"Joints d’étanchéité",role:'selectable',optional:true,context:'all',q:'joint douche'},
+      {key:'paroi',label:'Paroi de douche',role:'dedicated',dedicated:'paroi'},
+      {key:'profiles',label:'Profilés de finition',role:'selectable',optional:true,context:'paroi_douche',q:'profil'},
+      {key:'fixations',label:'Fixations',role:'selectable',optional:true,context:'all',q:'fixation douche'}
+    ],
+    baignoire:[
+      {key:'ef',label:'Alimentation eau froide',role:'network'},{key:'ec',label:'Alimentation eau chaude',role:'network'},{key:'robinets_arret',label:"Robinets d’arrêt",role:'network'},
+      {key:'mitigeur',label:'Robinetterie / mitigeur',role:'selectable',context:'all',q:'mitigeur'},
+      {key:'flexibles',label:'Flexibles',role:'selectable',context:'all',q:'flexible'},
+      {key:'appareil',label:'Baignoire',role:'main'},
+      {key:'vidage',label:'Vidage baignoire',role:'selectable',context:'all',q:'vidage'},
+      {key:'bonde',label:'Bonde',role:'selectable',context:'all',q:'bonde'},
+      {key:'trop_plein',label:'Trop-plein',role:'selectable',optional:true,context:'all',q:'trop plein'},
+      {key:'siphon',label:'Siphon',role:'selectable',context:'all',q:'siphon'},
+      {key:'tube_pvc',label:"Tube PVC d’évacuation",role:'network'},{key:'raccords_pvc',label:'Raccords PVC',role:'network'},
+      {key:'supports',label:'Pieds / support de baignoire',role:'selectable',optional:true,context:'all',q:'support'},
+      {key:'tablier',label:'Tablier',role:'selectable',optional:true,context:'baignoire',q:'tablier baignoire'},
+      {key:'trappe',label:'Trappe de visite',role:'selectable',optional:true,context:'all',q:'trappe visite'},
+      {key:'silicone',label:'Joints silicone',role:'selectable',optional:true,context:'all',q:'silicone'},
+      {key:'fixations',label:'Fixations',role:'selectable',optional:true,context:'all',q:'fixation baignoire'}
+    ],
+    evier:[
+      {key:'ef',label:'Alimentation eau froide',role:'network'},{key:'ec',label:'Alimentation eau chaude',role:'network'},{key:'robinets_arret',label:"Robinets d’arrêt",role:'network'},
+      {key:'mitigeur',label:"Mitigeur d’évier",role:'selectable',context:'all',q:'mitigeur evier'},
+      {key:'flexibles',label:'Flexibles',role:'selectable',context:'all',q:'flexible'},
+      {key:'appareil',label:'Évier 1 ou 2 bacs',role:'main'},
+      {key:'bonde',label:'Bonde',role:'selectable',context:'all',q:'bonde'},
+      {key:'trop_plein',label:'Trop-plein',role:'selectable',optional:true,context:'all',q:'trop plein evier'},
+      {key:'siphon',label:'Siphon',role:'selectable',context:'all',q:'siphon'},
+      {key:'raccord_lave_vaisselle',label:'Raccordement lave-vaisselle si prévu',role:'selectable',optional:true,context:'all',q:'vaisselle'},
+      {key:'raccord_lave_linge',label:'Raccordement lave-linge si prévu',role:'selectable',optional:true,context:'all',q:'lave linge'},
+      {key:'tube_pvc',label:"Tube PVC d’évacuation",role:'network'},{key:'raccords_pvc',label:'Raccords PVC',role:'network'},
+      {key:'colliers',label:'Colliers',role:'selectable',optional:true,context:'all',q:'collier'},
+      {key:'joints',label:'Joints',role:'selectable',optional:true,context:'all',q:'joint'},
+      {key:'fixations',label:'Fixations',role:'selectable',optional:true,context:'all',q:'fixation evier'}
+    ],
+    wc_poser:[
+      {key:'ef',label:'Alimentation eau froide',role:'network'},{key:'robinet_arret',label:"Robinet d’arrêt",role:'network'},
+      {key:'flexible',label:"Flexible d’alimentation",role:'selectable',context:'all',q:'flexible'},
+      {key:'appareil',label:'WC',role:'main'},
+      {key:'reservoir',label:'Réservoir',role:'selectable',optional:true,context:'wc_poser',q:'reservoir wc'},
+      {key:'mecanisme',label:'Mécanisme de chasse',role:'selectable',optional:true,context:'wc',q:'mecanisme'},
+      {key:'flotteur',label:'Robinet flotteur',role:'selectable',optional:true,context:'wc',q:'robinet flotteur'},
+      {key:'abattant',label:'Abattant',role:'selectable',optional:true,context:'wc',q:'abattant'},
+      {key:'joint_sortie',label:'Joint de sortie',role:'selectable',optional:true,context:'all',q:'joint wc'},
+      {key:'pipe_wc',label:'Pipe WC',role:'selectable',optional:true,context:'wc',q:'pipe wc'},
+      {key:'raccord_evac100',label:"Raccordement à l’évacuation Ø100",role:'network'},
+      {key:'tube_pvc100',label:'Tube PVC Ø100 si nécessaire',role:'network',optional:true},
+      {key:'raccords',label:'Coudes / raccords',role:'network'},
+      {key:'colliers',label:'Colliers',role:'selectable',optional:true,context:'all',q:'collier'},
+      {key:'fixations_sol',label:'Fixations au sol',role:'selectable',optional:true,context:'all',q:'fixation wc'},
+      {key:'silicone',label:'Silicone',role:'selectable',optional:true,context:'all',q:'silicone'}
+    ],
+    wc_suspendu:[
+      {key:'ef',label:'Alimentation eau froide',role:'network'},{key:'robinet_arret',label:"Robinet d’arrêt",role:'network'},
+      {key:'bati_support',label:'Bâti-support',role:'selectable',optional:true,context:'wc_suspendu_bati',q:'bati support'},
+      {key:'reservoir_integre',label:'Réservoir intégré',role:'selectable',optional:true,context:'wc_suspendu',q:'reservoir'},
+      {key:'mecanisme',label:'Mécanisme de chasse',role:'selectable',optional:true,context:'wc',q:'mecanisme'},
+      {key:'plaque_commande',label:'Plaque de commande',role:'selectable',optional:true,context:'wc_suspendu',q:'plaque commande'},
+      {key:'appareil',label:'Cuvette suspendue',role:'main'},
+      {key:'abattant',label:'Abattant',role:'selectable',optional:true,context:'wc',q:'abattant'},
+      {key:'manchon_evacuation',label:"Manchon d’évacuation",role:'selectable',optional:true,context:'all',q:'manchon'},
+      {key:'manchon_alimentation',label:"Manchon d’alimentation",role:'selectable',optional:true,context:'all',q:'manchon'},
+      {key:'raccord_pvc100',label:'Raccordement PVC Ø100',role:'network'},
+      {key:'habillage',label:'Habillage du bâti',role:'selectable',optional:true,context:'wc_suspendu',q:'habillage bati'},
+      {key:'plaques_finition',label:'Plaques de finition',role:'selectable',optional:true,context:'wc_suspendu',q:'plaque'},
+      {key:'fixations',label:'Fixations',role:'selectable',optional:true,context:'all',q:'fixation wc'},
+      {key:'silicone',label:'Silicone / joints',role:'selectable',optional:true,context:'all',q:'silicone'}
+    ],
+    lave_main:[
+      {key:'ef',label:'Alimentation eau froide',role:'network'},{key:'ec',label:'Alimentation eau chaude si prévue',role:'network',optional:true},
+      {key:'robinet',label:'Robinet',role:'selectable',context:'lavabo',q:'robinet'},
+      {key:'flexibles',label:'Flexibles',role:'selectable',context:'all',q:'flexible'},
+      {key:'robinet_arret',label:"Robinet d’arrêt",role:'network'},{key:'appareil',label:'Petit lavabo / lave-mains',role:'main'},
+      {key:'bonde',label:'Bonde',role:'selectable',context:'evacuation',q:'bonde lavabo'},
+      {key:'siphon',label:'Siphon',role:'selectable',context:'evacuation',q:'siphon lavabo'},
+      {key:'tube_pvc',label:'Évacuation PVC',role:'network'},{key:'raccords',label:'Raccords',role:'network'},
+      {key:'fixations',label:'Fixations',role:'selectable',optional:true,context:'all',q:'fixation lavabo'},
+      {key:'joints',label:'Joints',role:'selectable',optional:true,context:'all',q:'joint'}
+    ],
+    lave_linge:[
+      {key:'ef',label:'Alimentation eau froide',role:'network'},{key:'robinet',label:'Robinet machine à laver',role:'service'},
+      {key:'flexible',label:"Flexible d’alimentation",role:'selectable',optional:true,context:'all',q:'flexible'},
+      {key:'evac',label:'Évacuation',role:'network'},{key:'siphon',label:'Siphon machine à laver / raccordement sur évacuation',role:'service'},
+      {key:'tube_pvc',label:'Tube PVC',role:'network'},{key:'raccords',label:'Raccords',role:'network'},
+      {key:'colliers',label:'Colliers',role:'selectable',optional:true,context:'all',q:'collier'},
+      {key:'joints',label:'Joints',role:'selectable',optional:true,context:'all',q:'joint'}
+    ],
+    lave_vaisselle:[
+      {key:'ef',label:'Alimentation eau froide',role:'network'},{key:'robinet',label:"Robinet d’arrêt / robinet machine",role:'service'},
+      {key:'flexible',label:"Flexible d’alimentation",role:'selectable',optional:true,context:'all',q:'flexible'},
+      {key:'evac',label:'Évacuation',role:'network'},{key:'siphon',label:"Raccordement sur siphon d’évier ou évacuation dédiée",role:'service'},
+      {key:'tube_pvc',label:'Tube PVC',role:'network'},{key:'raccords',label:'Raccords',role:'network'},
+      {key:'colliers',label:'Colliers',role:'selectable',optional:true,context:'all',q:'collier'},
+      {key:'joints',label:'Joints',role:'selectable',optional:true,context:'all',q:'joint'}
+    ]
+  };
+  function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='suspendu')key='wc_suspendu';else if(subtype==='poser'||!subtype)key='wc_poser';else return []}const x=ANNEXE2_COMPONENTS[key];return typeof x==='string'?ANNEXE2_COMPONENTS[x]||[]:x||[]}
 
   function r2(n){return Math.round((Number(n)||0)*100)/100}
   function n(v,d=0){const x=Number(v);return Number.isFinite(x)?x:d}
   function line(id,nom,price,qty=1,unit='unité',category='Prestation',extra={}){
     const p=r2(price),q=r2(qty);const source=extra.source||'règle métier SpeedArti';
-    return {article_id:id,nom,categorie:category,quantite_theorique:q,quantite_avec_perte:q,quantite_finale:q,unite:unit,prix_unitaire_ht:p,total_ht:r2(p*q),stock_disponible:0,a_commander:extra.stockable?q:0,coef_perte_applique:1,source,balise_ui:extra.balise_ui||`moteur:${id}`,balise_quantite:`${q} ${unit}`,balise_prix:extra.balise_prix||'règle_métier',balise_calcul:`${q} × ${p}`,...extra};
+    const stockable=!!extra.stockable;
+    // Démo métier : aucune donnée de stock réelle n'est connectée. Ne jamais transformer l'absence de prix en faux état de stock.
+    return {article_id:id,nom,categorie:category,quantite_theorique:q,quantite_avec_perte:q,quantite_finale:q,unite:unit,prix_unitaire_ht:p,total_ht:r2(p*q),stockable,stock_status:stockable?'non_connecte':'non_applicable',stock_disponible:null,quantite_besoin:stockable?q:0,quantite_a_commander:null,a_commander:null,coef_perte_applique:1,source,balise_ui:extra.balise_ui||`moteur:${id}`,balise_quantite:`${q} ${unit}`,balise_prix:extra.balise_prix||'règle_métier',balise_calcul:`${q} × ${p}`,...extra};
   }
   function defaults(d,key,fallback){return n(d.settings?.[key],fallback)}
   function annexPrice(d,key){return n(d.settings?.annexe1?.[key],ANNEXE1_DEFAULTS[key]?.price||0)}
@@ -107,6 +236,38 @@
     return {ef:EF_KINDS.has(eq.kind),ec:HOT_KINDS.has(eq.kind)||(eq.kind==='lave_main'&&!!eq.ec),evac:EVAC_KINDS.has(eq.kind)};
   }
 
+  function addAnnexe2SelectedItems(eq,uiPath,alerts){
+    const out=[];const items=eq.annexe2_items||{};const allowed=new Map(annexe2For(eq.kind,eq.subtype).filter(x=>x.role==='selectable').map(x=>[x.key,x]));
+    Object.entries(items).forEach(([key,item])=>{
+      const def=allowed.get(key);if(!def)return;
+      const sel=item?.catalogue;const qty=n(item?.quantite,0);const manual=n(item?.price_ht,0);
+      if(!hasCatalogue(sel)){if(qty>0||manual>0)alerts.push(`BALISE ANNEXE 2 : « ${def.label} » est renseigné sans référence catalogue.`);return}
+      checkCatalogueSelection(sel,manual,def.label,alerts);
+      if(qty<=0){alerts.push(`BALISE QUANTITÉ ANNEXE 2 : quantité manquante pour « ${def.label} ».`);return}
+      const pr=pricedSelection(sel,manual);
+      if(pr.price<=0){alerts.push(`BALISE PRIX ANNEXE 2 : prix manquant pour « ${def.label} » (${sel.code}).`);return}
+      out.push(line(`annexe2_${eq.id}_${key}`,sel.produit||def.label,pr.price,qty,'unité','Fourniture Annexe 2',{stockable:true,parent_equipment_id:eq.id,annexe2_slot:key,annexe2_label:def.label,annexe2_source:'Annexe 2 Guillaume',...catalogueExtra(sel,`${uiPath}.annexe2_items.${key}.catalogue`,pr.manual)}));
+    });
+    return out;
+  }
+  function annexe2Nomenclature(eq){
+    const items=eq.annexe2_items||{};
+    return annexe2For(eq.kind,eq.subtype).map(def=>{
+      let status='à vérifier',selected=null;
+      if(def.role==='network')status='géré par réseau';
+      else if(def.role==='main')status=hasCatalogue(eq.catalogue)?'article principal sélectionné':'article principal à vérifier';
+      else if(def.role==='service')status='compris dans prestation unitaire';
+      else if(def.role==='dedicated'){
+        if(def.dedicated==='mitigeur')status=eq.mitigeur?(hasCatalogue(eq.mitigeur_catalogue)?'option catalogue sélectionnée':'option activée à renseigner'):'non activé';
+        else if(def.dedicated==='paroi')status=eq.paroi?(hasCatalogue(eq.paroi_catalogue)?'option catalogue sélectionnée':'option activée à renseigner'):'non activé';
+        else if(def.dedicated==='spec')status=eq.spec_mode?'prestation étanchéité sélectionnée':'non activé';
+      }else if(def.role==='selectable'){
+        selected=items[def.key]?.catalogue||null;status=hasCatalogue(selected)?'référence associée':(def.optional?'conditionnel / non renseigné':'non renseigné');
+      }
+      return {key:def.key,label:def.label,role:def.role,optional:!!def.optional,status,catalogue_code:selected?.code||'',catalogue_marque:selected?.marque||''};
+    });
+  }
+
   function buildEquipment(eq,d,alerts,reco,uiPath='equipment'){
     const out=[]; const def=equipmentDefaults(eq); const coef=gammeCoef(d);
     const isUnitForfait=eq.kind==='lave_linge'||eq.kind==='lave_vaisselle';
@@ -127,7 +288,7 @@
     if(time<=0 && !isUnitForfait){alerts.push(`Temps de pose manquant pour « ${label} ». Le traceur doit remonter cette donnée.`)}
     if(price>0){
       const extra=catalogueSelected?catalogueExtra(eq.catalogue,`${uiPath}.catalogue`,manualOverride):isUnitForfait?{source:'Paramètres entreprise — Annexe 1 Guillaume',balise_ui:eq.kind==='lave_linge'?'settings.annexe1.robinet_mll':'settings.annexe1.robinet_mlv',balise_prix:'parametre_entreprise'}:{source:basePrice===def.price?'défaut SpeedArti / Guillaume':'saisie artisan',balise_ui:`${uiPath}.price_ht`,balise_prix:basePrice===def.price?'defaut_guillaume':'manuel'};
-      out.push(line(`equip_${eq.id}`,catalogueSelected?(eq.catalogue.produit||label):label,price,1,'unité',isUnitForfait?'Prestation unitaire':'Sanitaire',extra));
+      out.push(line(`equip_${eq.id}`,catalogueSelected?(eq.catalogue.produit||label):label,price,1,'unité',isUnitForfait?'Prestation unitaire':'Sanitaire',{...extra,stockable:!isUnitForfait}));
     }
     if(eq.kind==='douche'){
       [['mitigeur','Mitigeur de douche'],['colonne','Colonne de douche'],['paroi','Paroi de douche']].forEach(([key,name])=>{
@@ -135,7 +296,7 @@
           const sel=eq[`${key}_catalogue`];const pth=`${uiPath}.${key}`;checkCatalogueSelection(sel,eq[`${key}_price_ht`],name,alerts);
           const overridden=hasCatalogue(sel)&&!!sel.price_overridden;
           const op=hasCatalogue(sel)&&!overridden?cataloguePrice(sel,0):n(eq[`${key}_price_ht`],0),ot=n(eq[`${key}_time_h`],0);
-          if(op>0)out.push(line(`douche_${eq.id}_${key}`,hasCatalogue(sel)?(sel.produit||name):name,op,1,'unité','Option sanitaire',hasCatalogue(sel)?catalogueExtra(sel,`${pth}_catalogue`,overridden):{source:'catalogue / saisie',balise_ui:`${pth}_price_ht`,balise_prix:'manuel'})); else alerts.push(`Prix catalogue manquant pour « ${name} ».`);
+          if(op>0)out.push(line(`douche_${eq.id}_${key}`,hasCatalogue(sel)?(sel.produit||name):name,op,1,'unité','Option sanitaire',{...(hasCatalogue(sel)?catalogueExtra(sel,`${pth}_catalogue`,overridden):{source:'catalogue / saisie',balise_ui:`${pth}_price_ht`,balise_prix:'manuel'}),stockable:true})); else alerts.push(`Prix catalogue manquant pour « ${name} ».`);
           if(ot>0)time+=ot; else alerts.push(`Temps de pose manquant pour « ${name} ».`);
         }
       });
@@ -144,7 +305,7 @@
       const sel=eq.colonne_catalogue;checkCatalogueSelection(sel,eq.colonne_price_ht,'Colonne / ensemble douche baignoire',alerts);
       const overridden=hasCatalogue(sel)&&!!sel.price_overridden;
       const op=hasCatalogue(sel)&&!overridden?cataloguePrice(sel,0):n(eq.colonne_price_ht,0),ot=n(eq.colonne_time_h,0);
-      if(op>0)out.push(line(`baignoire_${eq.id}_colonne`,hasCatalogue(sel)?(sel.produit||'Colonne / ensemble douche baignoire'):'Colonne / ensemble douche baignoire',op,1,'unité','Option sanitaire',hasCatalogue(sel)?catalogueExtra(sel,`${uiPath}.colonne_catalogue`,overridden):{source:'catalogue / saisie',balise_ui:`${uiPath}.colonne_price_ht`,balise_prix:'manuel'})); else alerts.push('Prix catalogue manquant pour la colonne de baignoire.');
+      if(op>0)out.push(line(`baignoire_${eq.id}_colonne`,hasCatalogue(sel)?(sel.produit||'Colonne / ensemble douche baignoire'):'Colonne / ensemble douche baignoire',op,1,'unité','Option sanitaire',{...(hasCatalogue(sel)?catalogueExtra(sel,`${uiPath}.colonne_catalogue`,overridden):{source:'catalogue / saisie',balise_ui:`${uiPath}.colonne_price_ht`,balise_prix:'manuel'}),stockable:true})); else alerts.push('Prix catalogue manquant pour la colonne de baignoire.');
       if(ot>0)time+=ot; else alerts.push('Temps de pose manquant pour la colonne de baignoire.');
     }
     if(eq.pmr_wc&&eq.kind==='wc')out.push(line(`pmr_wc_${eq.id}`,'Forfait PMR WC',300,1,'forfait','Forfait complet',{source:'Guillaume',balise_ui:`${uiPath}.pmr_wc`,balise_prix:'forfait_guillaume'}));
@@ -157,7 +318,8 @@
       if(surface>0&&rate>0)out.push(line(`douche_${eq.id}_${eq.spec_mode}`,names[eq.spec_mode],rate,surface,'m²','Prestation fourniture + MO',{includes_labor:true,source:'Guillaume',balise_ui:`${uiPath}.spec_mode`,balise_prix:'forfait_guillaume'}));
       else alerts.push(`BALISE SURFACE : surface manquante pour la prestation ${names[eq.spec_mode]||'douche italienne'}.`);
     }
-    return {lines:out,time,profile:connectionProfile(eq)};
+    out.push(...addAnnexe2SelectedItems(eq,uiPath,alerts));
+    return {lines:out,time,profile:connectionProfile(eq),nomenclature:annexe2Nomenclature(eq)};
   }
 
   function computeNetwork(d,equipments){
@@ -210,14 +372,14 @@
       if(qty<=0){alerts.push(`BALISE QUANTITÉ : article libre « ${sel.produit||sel.code} » avec quantité nulle.`);return}
       if(price<=0){alerts.push(`Prix catalogue manquant pour « ${sel.produit||sel.code} ».`);return}
       const overridden=!!sel.price_overridden;
-      lines.push(line(`libre_${sel.code}_${i}`,sel.produit||`Article Téréva ${sel.code}`,price,qty,'unité','Article libre',catalogueExtra(sel,`options.articles_libres.${i}.catalogue`,overridden)));
+      lines.push(line(`libre_${sel.code}_${i}`,sel.produit||`Article Téréva ${sel.code}`,price,qty,'unité','Article libre',{...catalogueExtra(sel,`options.articles_libres.${i}.catalogue`,overridden),stockable:true}));
     });
   }
 
   function complete(d){
     const lines=[],alerts=[],reco=[]; const equipments=d.installation?.equipments||[];
-    let laborHours=0;
-    equipments.forEach((eq,i)=>{const b=buildEquipment(eq,d,alerts,reco,`installation.equipments.${i}`);lines.push(...b.lines);laborHours+=b.time});
+    let laborHours=0;const nomenclature=[];
+    equipments.forEach((eq,i)=>{const b=buildEquipment(eq,d,alerts,reco,`installation.equipments.${i}`);lines.push(...b.lines);laborHours+=b.time;nomenclature.push({equipment_id:eq.id,equipment:labelFor(eq),components:b.nomenclature||[]})});
 
     const network=computeNetwork(d,equipments);
     const net=d.installation?.network||{};
@@ -265,7 +427,7 @@
       const hm=heaterMeta(ce.catalogue);if(hm.capacity&&n(ce.capacity,0)>0&&hm.capacity!==n(ce.capacity))alerts.push(`BALISE COMPATIBILITÉ : la référence chauffe-eau ${ce.catalogue.code} semble être ${hm.capacity} L alors que ${ce.capacity} L est sélectionné.`);if(hm.type&&ce.type&&hm.type!==ce.type)alerts.push(`BALISE COMPATIBILITÉ : le type de la référence chauffe-eau ${ce.catalogue.code} ne correspond pas au type sélectionné.`);
       const selected=hasCatalogue(ce.catalogue),overridden=selected&&!!ce.catalogue.price_overridden;
       const base=selected&&!overridden?cataloguePrice(ce.catalogue,0):n(ce.price_ht,0); const c=gammeCoef(d);const price=selected?base:base*c;
-      if(price>0)lines.push(line('chauffe_eau',selected?(ce.catalogue.produit||`Chauffe-eau ${ce.type||''} ${ce.capacity||''} L`):`Chauffe-eau ${ce.type||''} ${ce.capacity||''} L`,price,1,'unité','Équipement',selected?catalogueExtra(ce.catalogue,'options.chauffe_eau.catalogue',overridden):{source:'catalogue / saisie',balise_ui:'options.chauffe_eau.price_ht',balise_prix:'manuel'}));
+      if(price>0)lines.push(line('chauffe_eau',selected?(ce.catalogue.produit||`Chauffe-eau ${ce.type||''} ${ce.capacity||''} L`):`Chauffe-eau ${ce.type||''} ${ce.capacity||''} L`,price,1,'unité','Équipement',{...(selected?catalogueExtra(ce.catalogue,'options.chauffe_eau.catalogue',overridden):{source:'catalogue / saisie',balise_ui:'options.chauffe_eau.price_ht',balise_prix:'manuel'}),stockable:true}));
       else alerts.push('Prix catalogue du chauffe-eau manquant.');
       const t=n(ce.time_h,0); laborHours+=t;if(t<=0)alerts.push('Temps de pose du chauffe-eau manquant.');
     }
@@ -274,7 +436,7 @@
       const selected=hasCatalogue(ad.catalogue),overridden=selected&&!!ad.catalogue.price_overridden;
       let base=selected&&!overridden?cataloguePrice(ad.catalogue,0):n(ad.price_ht,1000);if(!selected)base=Math.max(base,1000);
       const price=selected?base:base*gammeCoef(d);
-      if(price>0)lines.push(line('adoucisseur',selected?(ad.catalogue.produit||"Adoucisseur d'eau"):"Adoucisseur d'eau",price,1,'unité','Équipement',selected?catalogueExtra(ad.catalogue,'options.adoucisseur.catalogue',overridden):{source:'base Guillaume / catalogue',balise_ui:'options.adoucisseur.price_ht',balise_prix:'defaut_ou_manuel'})); else alerts.push("Prix catalogue de l'adoucisseur manquant.");
+      if(price>0)lines.push(line('adoucisseur',selected?(ad.catalogue.produit||"Adoucisseur d'eau"):"Adoucisseur d'eau",price,1,'unité','Équipement',{...(selected?catalogueExtra(ad.catalogue,'options.adoucisseur.catalogue',overridden):{source:'base Guillaume / catalogue',balise_ui:'options.adoucisseur.price_ht',balise_prix:'defaut_ou_manuel'}),stockable:true})); else alerts.push("Prix catalogue de l'adoucisseur manquant.");
       const t=n(ad.time_h,0);laborHours+=t;if(t<=0)alerts.push("Temps de pose de l'adoucisseur manquant.");
     }
 
@@ -285,9 +447,9 @@
     const laborCoef=complexiteCoef(d);
     const laborBase=laborHours*n(d.options?.taux_horaire,52);
     const laborTotal=laborBase*laborCoef;
+    const aleasHt=aleas?laborTotal*.04:0;
     let materials=lines.reduce((s,l)=>s+l.total_ht,0);
-    if(aleas){const value=materials+laborTotal;lines.push(line('ann1_aleas','Aléas 4 %',value*.04,1,'forfait','Forfait complet',{source:'Annexe 1 Guillaume',balise_ui:'installation.annexe1.aleas',balise_prix:'pourcentage_guillaume'}));materials=lines.reduce((s,l)=>s+l.total_ht,0)}
-    const ht=materials+laborTotal;
+    const ht=materials+laborTotal+aleasHt;
     const tvaRate=n(d.options?.taux_tva,20);
     const tva=ht*tvaRate/100;
     const workers=Math.max(1,n(d.options?.nb_ouvriers,1));
@@ -295,7 +457,7 @@
     if(surface>0)reco.push(`Surface maison renseignée : ${surface} m². Le code original Plombier ne contient pas encore de coefficient surface explicite ; aucune formule de surface n’a été inventée.`);
     if(!equipments.length&&(network.efPoints+network.ecPoints+network.evacPoints)===0)alerts.push('Installation complète sans sanitaire autorisée, mais aucun point réseau n’est encore renseigné.');
 
-    return finish({d,lines,alerts,reco,laborHours,laborTotal,ht,tva,tvaRate,workers,network,mode:'Installation complète'});
+    return finish({d,lines,alerts,reco,laborHours,laborTotal,aleasHt,ht,tva,tvaRate,workers,network,nomenclature,mode:'Installation complète'});
   }
 
   function smallWorkLine(p,d,alerts,reco){
@@ -316,31 +478,31 @@
       else {
         checkCatalogueSelection(p.catalogue,p.price_ht,c.label,alerts);const selected=hasCatalogue(p.catalogue),overridden=selected&&!!p.catalogue.price_overridden;
         const price=selected&&!overridden?cataloguePrice(p.catalogue,c.price):n(p.price_ht,c.price);
-        lines.push(line(`ce_${p.id}`,selected?(p.catalogue.produit||c.label):c.label,price,1,'unité','Fourniture',selected?catalogueExtra(p.catalogue,'petits_travaux.prestations.chauffe_eau.catalogue',overridden):{source:'Guillaume / saisie',balise_ui:'petits_travaux.prestations.chauffe_eau.price_ht',balise_prix:'defaut_guillaume'}));
-        labor=n(p.duration_h,3);
+        lines.push(line(`ce_${p.id}`,selected?(p.catalogue.produit||c.label):c.label,price,1,'unité','Fourniture',{...(selected?catalogueExtra(p.catalogue,'petits_travaux.prestations.chauffe_eau.catalogue',overridden):{source:'Guillaume / saisie',balise_ui:'petits_travaux.prestations.chauffe_eau.price_ht',balise_prix:'defaut_guillaume'}),stockable:true}));
+        labor=n(p.duration_h,0);if(labor<=0)alerts.push(`BALISE TEMPS : durée de pose manquante pour « ${c.label} ». Aucun temps automatique non validé n’est inventé.`);
       }
     } else if(type==='remplacement'){
       if(!p.equipment){alerts.push('Sélectionner un élément sanitaire à remplacer.');return {lines,labor}}
-      const pIndex=(d.petits_travaux?.prestations||[]).findIndex(x=>x.id===p.id);const b=buildEquipment(p.equipment,d,alerts,reco,`petits_travaux.prestations.${pIndex}.equipment`);lines.push(...b.lines);labor=b.time;
+      const pIndex=(d.petits_travaux?.prestations||[]).findIndex(x=>x.id===p.id);const b=buildEquipment(p.equipment,d,alerts,reco,`petits_travaux.prestations.${pIndex}.equipment`);lines.push(...b.lines);labor=b.time;return {lines,labor,nomenclature:{equipment_id:p.equipment.id,equipment:labelFor(p.equipment),components:b.nomenclature||[]}};
     } else alerts.push('Choisir le type de prestation.');
     if(type==='chauffe_eau'&&p.ce_type!=='reparation'&&p.duration_h!==undefined&&p.duration_h!==null&&p.duration_h!=='')labor=n(p.duration_h,labor);
     return {lines,labor};
   }
 
   function petits(d){
-    const lines=[],alerts=[],reco=[]; const prestations=d.petits_travaux?.prestations||[]; let laborHours=0; let includesTravel=false;
+    const lines=[],alerts=[],reco=[]; const prestations=d.petits_travaux?.prestations||[]; let laborHours=0; let includesTravel=false;const nomenclature=[];
     if(!prestations.length)alerts.push('BALISE PRESTATION : ajouter au moins une prestation.');
-    prestations.forEach(p=>{const r=smallWorkLine(p,d,alerts,reco);lines.push(...r.lines);laborHours+=r.labor;if(r.lines.some(x=>x.includes_travel))includesTravel=true});
+    prestations.forEach(p=>{const r=smallWorkLine(p,d,alerts,reco);lines.push(...r.lines);laborHours+=r.labor;if(r.nomenclature)nomenclature.push(r.nomenclature);if(r.lines.some(x=>x.includes_travel))includesTravel=true});
     const f=d.options?.forfaits||{};
     if(f.deplacement&&!includesTravel)lines.push(line('forfait_deplacement','Déplacement',forfaitPrice(d,'deplacement'),1,'forfait','Forfait complet',{source:'Paramètres entreprise',balise_ui:'options.forfaits.deplacement',balise_prix:'parametre_entreprise'}));
     addGeneralForfaits(d,lines);
     addFreeCatalogueArticles(d,lines,alerts);
     const laborTotal=laborHours*n(d.options?.taux_horaire,52)*complexiteCoef(d);
     const materials=lines.reduce((s,l)=>s+l.total_ht,0); const ht=materials+laborTotal; const rate=n(d.options?.taux_tva,20);const tva=ht*rate/100;const workers=Math.max(1,n(d.options?.nb_ouvriers,1));
-    return finish({d,lines,alerts,reco,laborHours,laborTotal,ht,tva,tvaRate:rate,workers,network:null,mode:'Petits travaux'});
+    return finish({d,lines,alerts,reco,laborHours,laborTotal,aleasHt:0,ht,tva,tvaRate:rate,workers,network:null,nomenclature,mode:'Petits travaux'});
   }
 
-  function autoControlBalises(d,lines,laborHours,laborTotal,ht,tva,tvaRate){
+  function autoControlBalises(d,lines,laborHours,laborTotal,aleasHt,ht,tva,tvaRate){
     const issues=[];let catalogueLines=0;
     lines.forEach((l,i)=>{
       const tag=`ligne ${i+1} « ${l.nom||l.article_id||'?'} »`;
@@ -359,29 +521,63 @@
         if(!l.catalogue_version)issues.push(`BALISE CATALOGUE version absente — ${tag}`);
         if(!l.catalogue_source_page)issues.push(`BALISE CATALOGUE page source absente — ${tag}`);
       }
+      if(l.annexe2_slot){if(!l.parent_equipment_id)issues.push(`BALISE ANNEXE 2 parent absent — ${tag}`);if(l.annexe2_source!=='Annexe 2 Guillaume')issues.push(`BALISE ANNEXE 2 source absente — ${tag}`)}
+      if(l.stockable){
+        if(l.stock_status!=='non_connecte')issues.push(`BALISE STOCK invalide — ${tag} : la démo ne possède pas de stock réel connecté.`);
+        if(l.stock_disponible!==null)issues.push(`BALISE STOCK disponible inventé — ${tag}`);
+        if(l.quantite_a_commander!==null||l.a_commander!==null)issues.push(`BALISE COMMANDE inventée — ${tag} : stock réel requis avant calcul à commander.`);
+        if(!Number.isFinite(Number(l.quantite_besoin))||Number(l.quantite_besoin)<0)issues.push(`BALISE BESOIN invalide — ${tag}`);
+      }
     });
     const materials=r2(lines.reduce((sum,l)=>sum+n(l.total_ht),0));
     const laborExpected=r2(n(laborHours)*n(d.options?.taux_horaire,52)*complexiteCoef(d));
     if(Math.abs(laborExpected-r2(laborTotal))>.011)issues.push(`BALISE MAIN-D’ŒUVRE incohérente : heures × taux × complexité = ${laborExpected}, moteur = ${r2(laborTotal)}.`);
-    const htExpected=r2(materials+n(laborTotal));
-    if(Math.abs(htExpected-r2(ht))>.011)issues.push(`BALISE TOTAL HT incohérente : matériaux + main-d’œuvre = ${htExpected}, moteur = ${r2(ht)}.`);
+    const aleasExpected=d.installation?.annexe1?.aleas?r2(n(laborTotal)*.04):0;
+    if(Math.abs(aleasExpected-r2(aleasHt))>.011)issues.push(`BALISE ALÉAS incohérente : 4 % de la main-d’œuvre HT = ${aleasExpected}, moteur = ${r2(aleasHt)}.`);
+    const htExpected=r2(materials+n(laborTotal)+n(aleasHt));
+    if(Math.abs(htExpected-r2(ht))>.011)issues.push(`BALISE TOTAL HT incohérente : matériaux + main-d’œuvre + aléas = ${htExpected}, moteur = ${r2(ht)}.`);
     const tvaExpected=r2(n(ht)*n(tvaRate)/100);
     if(Math.abs(tvaExpected-r2(tva))>.011)issues.push(`BALISE TVA incohérente : ${tvaExpected} attendu, moteur = ${r2(tva)}.`);
-    return {ok:issues.length===0,issues,lignes_controlees:lines.length,lignes_catalogue:catalogueLines,materiaux_ht_controles:materials,main_oeuvre_ht_controlee:laborExpected,total_ht_controle:htExpected,tva_controlee:tvaExpected,version:'BALISES-ABSOLUES-v1.1'};
+    return {ok:issues.length===0,issues,lignes_controlees:lines.length,lignes_catalogue:catalogueLines,materiaux_ht_controles:materials,main_oeuvre_ht_avant_aleas_controlee:laborExpected,aleas_ht_controle:aleasExpected,main_oeuvre_ht_controlee:r2(laborExpected+aleasExpected),total_ht_controle:htExpected,tva_controlee:tvaExpected,version:'BALISES-ABSOLUES-v1.5'};
   }
 
-  function finish({d,lines,alerts,reco,laborHours,laborTotal,ht,tva,tvaRate,workers,network,mode}){
-    const controle=autoControlBalises(d,lines,laborHours,laborTotal,ht,tva,tvaRate);
+  function buildApprovisionnement(lines){
+    const items=lines.filter(l=>l.stockable).map(l=>({
+      article_id:l.article_id,designation:l.nom,categorie:l.categorie,quantite_besoin:r2(l.quantite_finale),unite:l.unite,
+      prix_unitaire_ht:r2(l.prix_unitaire_ht),total_ht:r2(l.total_ht),source_prix:l.source||'',
+      catalogue_code:l.catalogue_code||'',catalogue_marque:l.catalogue_marque||'',catalogue_ref_fabricant:l.catalogue_ref_fabricant||'',
+      catalogue_version:l.catalogue_version||'',catalogue_source_page:l.catalogue_source_page||'',
+      stock_status:'non_connecte',stock_disponible:null,quantite_a_commander:null,
+      statut_prix:r2(l.prix_unitaire_ht)>0?'prix_renseigne':'prix_manquant',
+      action:'verifier_stock_et_fournisseur'
+    }));
+    const catalogue=items.filter(x=>x.catalogue_code);
+    const horsCatalogue=items.filter(x=>!x.catalogue_code);
+    const prixManquants=items.filter(x=>x.statut_prix==='prix_manquant');
+    return {
+      stock_connecte:false,statut_stock:'non_connecte',
+      message_stock:'Aucune donnée de stock réelle n’est connectée dans la démo. Les quantités ci-dessous sont des besoins chantier, pas des quantités à commander.',
+      items,articles_catalogue:catalogue,articles_hors_catalogue:horsCatalogue,prix_manquants:prixManquants,
+      nombre_lignes:items.length,total_besoins_ht:r2(items.reduce((s,x)=>s+n(x.total_ht),0)),
+      payload_fournisseur:{version:'PLB-APPRO-V1',metier:'plombier',items:items.map(x=>({code_tereva:x.catalogue_code,reference_fabricant:x.catalogue_ref_fabricant,marque:x.catalogue_marque,designation:x.designation,quantite:x.quantite_besoin,unite:x.unite,prix_unitaire_ht:x.prix_unitaire_ht,source_prix:x.source_prix,source_page:x.catalogue_source_page}))}
+    };
+  }
+
+  function finish({d,lines,alerts,reco,laborHours,laborTotal,aleasHt=0,ht,tva,tvaRate,workers,network,nomenclature=[],mode}){
+    const controle=autoControlBalises(d,lines,laborHours,laborTotal,aleasHt,ht,tva,tvaRate);
     if(!controle.ok)alerts.push(...controle.issues);
     const blocking=alerts.filter(a=>/Prix catalogue manquant|Temps de pose.*manquant|Choisir|Sélectionner|aucun point réseau|BALISE/i.test(a));
+    const approvisionnement=buildApprovisionnement(lines);
     return {
       mode,
       surfaces:{totale:n(d.installation?.surface_maison_m2,0),nette:0,avec_pertes:0,detail_par_face:network?{EF_ml:r2(network.ef),EC_ml:r2(network.ec),evac_ml:r2(network.evac),points_EF:network.efPoints,points_EC:network.ecPoints,points_evac:network.evacPoints}:{}},
       materiaux:lines,
-      main_oeuvre:{temps_estime_heures:r2(laborHours/workers),heures_homme:r2(laborHours),decomposition:[{poste:'Main-d’œuvre calculée',temps_heures:r2(laborHours)}],taux_horaire:n(d.options?.taux_horaire,52),nombre_ouvriers:workers,coefficient_complexite:complexiteCoef(d),cout_total:r2(laborTotal),balises:{heures_homme:r2(laborHours),taux_horaire:n(d.options?.taux_horaire,52),complexite:complexiteCoef(d),formule:`${r2(laborHours)} × ${n(d.options?.taux_horaire,52)} × ${complexiteCoef(d)}`}},
-      totaux:{materiaux_ht:r2(lines.reduce((s,l)=>s+l.total_ht,0)),main_oeuvre_ht:r2(laborTotal),total_ht:r2(ht),taux_tva:tvaRate,tva:r2(tva),total_ttc:r2(ht+tva)},
-      stock_status:{disponible:!lines.some(l=>l.stockable&&l.prix_unitaire_ht<=0),articles_manquants:lines.filter(l=>l.stockable&&l.prix_unitaire_ht<=0)},
+      main_oeuvre:{temps_estime_heures:r2(laborHours/workers),heures_homme:r2(laborHours),decomposition:[{poste:'Main-d’œuvre calculée',temps_heures:r2(laborHours),montant_ht:r2(laborTotal)},...(aleasHt>0?[{poste:'Aléas — 4 % de la main-d’œuvre HT',taux:4,montant_ht:r2(aleasHt)}]:[])],taux_horaire:n(d.options?.taux_horaire,52),nombre_ouvriers:workers,coefficient_complexite:complexiteCoef(d),cout_avant_aleas:r2(laborTotal),aleas_taux:aleasHt>0?4:0,aleas_ht:r2(aleasHt),cout_total:r2(laborTotal+aleasHt),balises:{heures_homme:r2(laborHours),taux_horaire:n(d.options?.taux_horaire,52),complexite:complexiteCoef(d),aleas_taux:aleasHt>0?4:0,aleas_ht:r2(aleasHt),formule:`${r2(laborHours)} × ${n(d.options?.taux_horaire,52)} × ${complexiteCoef(d)}${aleasHt>0?' + 4 % aléas MO':''}`}},
+      totaux:{materiaux_ht:r2(lines.reduce((s,l)=>s+l.total_ht,0)),main_oeuvre_ht_avant_aleas:r2(laborTotal),aleas_ht:r2(aleasHt),main_oeuvre_ht:r2(laborTotal+aleasHt),total_ht:r2(ht),taux_tva:tvaRate,tva:r2(tva),total_ttc:r2(ht+tva)},
+      stock_status:{connecte:false,disponible:null,statut:'non_connecte',message:approvisionnement.message_stock},
+      approvisionnement,
       recommandations:reco,
+      nomenclature_annexe2:nomenclature,
       alertes:alerts,
       finalisation_bloquee:blocking.length>0,
       blocages:blocking,
@@ -394,5 +590,5 @@
     if(!d.nom_calcul)throw new Error('Le nom du calcul est requis');
     return d.options?.type_projet==='petits_travaux'?petits(d):complete(d);
   }
-  window.SpeedArtiPlombierCurrent={calculate,ANNEXE1_DEFAULTS,FORFAITS_DEFAULTS,PIPE_FALLBACK};
+  window.SpeedArtiPlombierCurrent={calculate,ANNEXE1_DEFAULTS,FORFAITS_DEFAULTS,PIPE_FALLBACK,ANNEXE2_COMPONENTS,annexe2For};
 })();

@@ -11,19 +11,21 @@ const steps=[
   ['Options','Configuration métier'],
   ['Résultats','Contrôle avant devis']
 ];
-const storeKey='speedarti-plombier-demo-v031';
+const storeKey='speedarti-plombier-demo-v052';
+const legacyStoreKeys=['speedarti-plombier-demo-v051','speedarti-plombier-demo-v040','speedarti-plombier-demo-v031'];
 let step=0;
 let d=load()||initial();
 const q=s=>document.querySelector(s);
 const content=q('#content');
 const catalogueHost=document.createElement('div');catalogueHost.id='catalogueHost';document.body.appendChild(catalogueHost);
 let catalogueUi={open:false,target:'',pricePath:'',context:'all',label:'Catalogue Plombier',q:'',brand:'',type:'',finish:'',mode:'replace'};
+let catalogueRenderTimer=null;
 
 q('#prev').onclick=()=>go(step-1);
 q('#next').onclick=()=>step===4?run():go(step+1);
 q('#calcBtn').onclick=()=>run(true);
 q('#saveBtn').onclick=()=>save(true);
-q('#resetBtn').onclick=()=>{if(confirm('Réinitialiser le brouillon Plombier ?')){localStorage.removeItem(storeKey);d=initial();step=0;render()}};
+q('#resetBtn').onclick=()=>{if(confirm('Réinitialiser le brouillon Plombier ?')){[storeKey,...legacyStoreKeys].forEach(k=>localStorage.removeItem(k));d=initial();step=0;render()}};
 q('#steps').addEventListener('click',e=>{const b=e.target.closest('[data-step]');if(b)go(+b.dataset.step)});
 content.addEventListener('click',clickHandler);
 content.addEventListener('change',inputHandler);
@@ -51,7 +53,8 @@ function initial(){
   };
 }
 function save(show=false){localStorage.setItem(storeKey,JSON.stringify(d));if(show)flash('Brouillon enregistré','ok')}
-function load(){try{return JSON.parse(localStorage.getItem(storeKey))}catch{return null}}
+function migrateLegacyDraft(val){if(!val||typeof val!=='object')return val;const ps=val.petits_travaux?.prestations||[];ps.forEach(p=>{if(p?.type==='chauffe_eau'&&p.ce_type!=='reparation')delete p.duration_h});return val}
+function load(){for(const k of [storeKey,...legacyStoreKeys]){try{const raw=localStorage.getItem(k);if(raw){let val=JSON.parse(raw);if(k!==storeKey){val=migrateLegacyDraft(val);localStorage.setItem(storeKey,JSON.stringify(val))}return val}}catch{}}return null}
 function uid(prefix='id'){return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,7)}`}
 function go(n){const next=Math.max(0,Math.min(4,n));if(next>step&&!canLeave(step)){flash('Complète les informations obligatoires avant de continuer','warn');return}step=next;render();window.scrollTo({top:0,behavior:'smooth'})}
 function canLeave(i){if(i===0)return !!d.nom_calcul;if(i===1)return !!d.options.type_projet;if(i===2&&d.options.type_projet==='petits_travaux')return (d.petits_travaux.prestations||[]).length>0;return true}
@@ -71,12 +74,12 @@ function toggle(path,label,help=''){return `<label class="switch-row"><input cla
 function catalogueContext(eq,slot='main'){
   if(slot==='mitigeur')return'mitigeur_douche';if(slot==='colonne')return'colonne_douche';if(slot==='paroi')return'paroi_douche';
   if(!eq)return'all';
-  if(eq.kind==='wc'){if(eq.subtype==='suspendu')return'wc_suspendu';if(eq.subtype==='urinoir'||eq.subtype==='urinoir_bati')return'urinoir';return'wc_poser'}
+  if(eq.kind==='wc'){if(eq.subtype==='suspendu')return'wc_suspendu_main';if(eq.subtype==='urinoir'||eq.subtype==='urinoir_bati')return'urinoir';return'wc_poser'}
   return {douche:'receveur',baignoire:'baignoire',lavabo:'lavabo',meuble_vasque:'meuble_vasque',lave_main:'lave_main',evier:'evier',element_specifique:'all'}[eq.kind]||'all';
 }
-function cataloguePicker(target,pricePath,context,label,sel,compact=false){
+function cataloguePicker(target,pricePath,context,label,sel,compact=false,prefill=''){
   const current=sel||get(d,target);const has=!!current?.code;
-  return `<div class="catalogue-picker ${compact?'compact-picker':''}">${has?`<div class="catalogue-selected"><div><span class="catalogue-badge">${esc(current.catalogue||CATALOGUE_VERSION)}</span><strong>${esc(current.marque||'')} — ${esc(current.produit||'Référence catalogue')}</strong><small>${current.variante?esc(current.variante):''}${current.finition?` · ${esc(current.finition)}`:''}</small><small>Code Téréva ${esc(current.code)} · ${current.prix!=null?eur(current.prix):'prix manquant'}${current.price_overridden?' · prix manuel actif':''}</small></div><div class="row"><button type="button" class="btn secondary compact" data-open-catalogue data-catalogue-target="${esc(target)}" data-catalogue-price-path="${esc(pricePath||'')}" data-catalogue-context="${esc(context||'all')}" data-catalogue-label="${esc(label)}">Changer</button><button type="button" class="btn ghost compact" data-clear-catalogue="${esc(target)}" data-catalogue-price-path="${esc(pricePath||'')}">Retirer</button></div></div>`:`<button type="button" class="btn catalogue-search-btn" data-open-catalogue data-catalogue-target="${esc(target)}" data-catalogue-price-path="${esc(pricePath||'')}" data-catalogue-context="${esc(context||'all')}" data-catalogue-label="${esc(label)}">🔎 Rechercher ${esc(label)} dans Téréva</button>`}</div>`;
+  return `<div class="catalogue-picker ${compact?'compact-picker':''}">${has?`<div class="catalogue-selected"><div><span class="catalogue-badge">${esc(current.catalogue||CATALOGUE_VERSION)}</span><strong>${esc(current.marque||'')} — ${esc(current.produit||'Référence catalogue')}</strong><small>${current.variante?esc(current.variante):''}${current.finition?` · ${esc(current.finition)}`:''}</small><small>Code Téréva ${esc(current.code)} · ${current.prix!=null?eur(current.prix):'prix manquant'}${current.price_overridden?' · prix manuel actif':''}</small></div><div class="row"><button type="button" class="btn secondary compact" data-open-catalogue data-catalogue-target="${esc(target)}" data-catalogue-price-path="${esc(pricePath||'')}" data-catalogue-context="${esc(context||'all')}" data-catalogue-label="${esc(label)}" data-catalogue-q="${esc(prefill)}">Changer</button><button type="button" class="btn ghost compact" data-clear-catalogue="${esc(target)}" data-catalogue-price-path="${esc(pricePath||'')}">Retirer</button></div></div>`:`<button type="button" class="btn catalogue-search-btn" data-open-catalogue data-catalogue-target="${esc(target)}" data-catalogue-price-path="${esc(pricePath||'')}" data-catalogue-context="${esc(context||'all')}" data-catalogue-label="${esc(label)}" data-catalogue-q="${esc(prefill)}">🔎 Rechercher ${esc(label)} dans Téréva</button>`}</div>`;
 }
 function catalogueGlobalPanel(){
   const arr=d.options.articles_libres||[];
@@ -131,7 +134,7 @@ function prestationCard(p,i){
   const opts=[['','Choisir...'],['fuite','Recherche de fuite'],['chauffe_eau','Chauffe-eau'],['debouchage','Débouchage'],['remplacement','Remplacement sanitaire']];
   let body=`${selectField('Type de prestation',`petits_travaux.prestations.${i}.type`,opts,p.type,'c6')}`;
   if(p.type==='fuite')body+=`${selectField('Méthode',`petits_travaux.prestations.${i}.method`,[['','Choisir...'],['camera','Caméra endoscopique'],['colorant','Test au colorant'],['demolition','Démolition + recherche'],['fumee','Test à la fumée'],['exterieure','Recherche extérieure'],['circuits','Mise en évidence circuits']],p.method,'c6')}${numField('Prix méthode HT (catalogue / saisie)',`petits_travaux.prestations.${i}.method_price_ht`,p.method_price_ht,'c6',0,.01)}<div class="info c12"><b>Recherche de fuite : tout compris.</b> Le diagnostic de 150 € s’ajoute à la méthode catalogue/saisie, sans seconde main-d’œuvre.</div>`;
-  if(p.type==='chauffe_eau'){const ceType=p.ce_type||'reparation';body+=`${selectField('Intervention',`petits_travaux.prestations.${i}.ce_type`,[['reparation','Réparation / nettoyage'],['changement_200l_elec','Changement 200 L électrique'],['changement_300l_elec','Changement 300 L électrique'],['ballon_thermo_air_ext','Thermodynamique air extérieur'],['ballon_thermo_groupe_ext','Thermodynamique groupe ext. / sortie toit']],ceType,'c6')}${ceType==='reparation'?`${numField('Forfait complet HT',`petits_travaux.prestations.${i}.price_ht`,p.price_ht,'c6',0,.01,'montant à renseigner')}<div class="info c12">Réparation / nettoyage = forfait complet. Aucun prix caché et aucune seconde main-d’œuvre.</div>`:`${numField('Durée proposée / modifiable (h)',`petits_travaux.prestations.${i}.duration_h`,p.duration_h??3,'c6',0,.25)}<div class="c12">${cataloguePicker(`petits_travaux.prestations.${i}.catalogue`,`petits_travaux.prestations.${i}.price_ht`,'chauffe_eau','un chauffe-eau',p.catalogue)}</div>${numField('Prix fourniture HT utilisé',`petits_travaux.prestations.${i}.price_ht`,p.price_ht,'c6',0,.01,'catalogue ou valeur Guillaume')}`}`}
+  if(p.type==='chauffe_eau'){const ceType=p.ce_type||'reparation';body+=`${selectField('Intervention',`petits_travaux.prestations.${i}.ce_type`,[['reparation','Réparation / nettoyage'],['changement_200l_elec','Changement 200 L électrique'],['changement_300l_elec','Changement 300 L électrique'],['ballon_thermo_air_ext','Thermodynamique air extérieur'],['ballon_thermo_groupe_ext','Thermodynamique groupe ext. / sortie toit']],ceType,'c6')}${ceType==='reparation'?`${numField('Forfait complet HT',`petits_travaux.prestations.${i}.price_ht`,p.price_ht,'c6',0,.01,'montant à renseigner')}<div class="info c12">Réparation / nettoyage = forfait complet. Aucun prix caché et aucune seconde main-d’œuvre.</div>`:`${numField('Durée proposée / modifiable (h)',`petits_travaux.prestations.${i}.duration_h`,p.duration_h,'c6',0,.25,'à renseigner tant qu’aucun temps catalogue/SpeedArti n’est validé')}<div class="c12">${cataloguePicker(`petits_travaux.prestations.${i}.catalogue`,`petits_travaux.prestations.${i}.price_ht`,'chauffe_eau','un chauffe-eau',p.catalogue)}</div>${numField('Prix fourniture HT utilisé',`petits_travaux.prestations.${i}.price_ht`,p.price_ht,'c6',0,.01,'catalogue ou valeur Guillaume')}`}`}
   if(p.type==='debouchage')body+=`${numField('Forfait débouchage HT',`petits_travaux.prestations.${i}.price_ht`,p.price_ht,'c6',0,.01,'montant à renseigner')}<div class="info c12"><b>Tout compris</b> — main-d’œuvre et déplacement inclus. Aucun montant unique n’est inventé.</div>`;
   if(p.type==='remplacement')body+=`<div class="c12">${p.equipment?`<div class="mini-card"><div><strong>${labelForKind(p.equipment.kind)} — ${labelSubtype(p.equipment)||'à configurer'}</strong><span>${equipmentImpact(p.equipment)}</span></div><button class="btn secondary compact" data-edit-prestation-equipment="${p.id}">Configurer</button></div>`:`<div><p class="subtle">Choisir l’élément à remplacer :</p><div class="add-grid compact-grid">${[['wc','WC'],['douche','Douche'],['baignoire','Baignoire'],['lavabo','Lavabo / vasque'],['meuble_vasque','Meuble vasque'],['lave_main','Lave-main'],['evier','Évier'],['element_specifique','Élément spécifique']].map(([k,l])=>`<button class="btn secondary add-btn" data-create-prestation-equipment="${p.id}" data-equipment-kind="${k}">${l}</button>`).join('')}</div></div>`}</div>`;
   return `<div class="card nested"><div class="row between"><h3>Prestation ${i+1}</h3><button class="btn danger compact" data-remove-prestation="${p.id}">Supprimer</button></div><div class="grid">${body}</div></div>`;
@@ -157,6 +160,30 @@ function renderSmallOptions(){
   catalogueGlobalPanel()+
   `<div class="card"><h2>Prestations et équipements</h2>${ps.map((p,i)=>`<div class="section-left"><h4>Prestation ${i+1} — ${p.type||'à choisir'}</h4>${p.type==='remplacement'&&p.equipment?equipmentEditor(p.equipment,i,'prestation',p.id):`<p class="muted">${p.type==='remplacement'?'Équipement non configuré.':'Aucune option sanitaire spécifique.'}</p>`}</div>`).join('')}</div>${generalOptions()}${settingsEditor()}`;
 }
+function annexe2RoleStatus(def,eq){
+  if(def.role==='network')return ['Réseau automatique','auto'];
+  if(def.role==='main')return [eq.catalogue?.code?'Article principal sélectionné':'Article principal à vérifier',eq.catalogue?.code?'ok':'info'];
+  if(def.role==='service')return ['Prestation unitaire','auto'];
+  if(def.role==='dedicated'){
+    if(def.dedicated==='mitigeur')return [eq.mitigeur?(eq.mitigeur_catalogue?.code?'Option catalogue sélectionnée':'Option activée à renseigner'):'Option non activée',eq.mitigeur_catalogue?.code?'ok':'info'];
+    if(def.dedicated==='paroi')return [eq.paroi?(eq.paroi_catalogue?.code?'Option catalogue sélectionnée':'Option activée à renseigner'):'Option non activée',eq.paroi_catalogue?.code?'ok':'info'];
+    if(def.dedicated==='spec')return [eq.spec_mode?'Prestation étanchéité sélectionnée':'Option non activée',eq.spec_mode?'ok':'info'];
+  }
+  return ['À associer si nécessaire','info'];
+}
+function annexe2Panel(eq,prefix){
+  const defs=API.annexe2For?.(eq.kind,eq.subtype)||[];if(!defs.length)return'';const items=eq.annexe2_items||{};
+  const rows=defs.map(def=>{
+    if(def.role!=='selectable'){
+      const [status,kind]=annexe2RoleStatus(def,eq);return `<div class="annexe2-row"><div><strong>${esc(def.label)}</strong>${def.optional?'<small>Conditionnel</small>':''}</div><span class="annexe2-status ${kind}">${esc(status)}</span></div>`;
+    }
+    const item=items[def.key]||{};const has=!!item.catalogue?.code;
+    const picker=cataloguePicker(`${prefix}.annexe2_items.${def.key}.catalogue`,`${prefix}.annexe2_items.${def.key}.price_ht`,def.context||'all',def.label,item.catalogue,true,def.q||'');
+    return `<div class="annexe2-row selectable"><div class="annexe2-row-head"><div><strong>${esc(def.label)}</strong>${def.optional?'<small>Conditionnel / si non compris dans le produit principal</small>':'<small>Annexe 2 — à vérifier selon le pack choisi</small>'}</div><span class="annexe2-status ${has?'ok':'info'}">${has?'Référence associée':'Non renseigné'}</span></div>${picker}${has?`<div class="grid annexe2-fields">${numField('Quantité',`${prefix}.annexe2_items.${def.key}.quantite`,item.quantite??1,'c4',0,1)}${numField('Prix HT utilisé',`${prefix}.annexe2_items.${def.key}.price_ht`,item.price_ht,'c4',0,.01,'catalogue')}${textField('Note / inclusion pack',`${prefix}.annexe2_items.${def.key}.note`,item.note,'c4','optionnel')}</div>`:''}</div>`;
+  }).join('');
+  return `<details class="annexe2-panel"><summary>📋 Composition Annexe 2 — ${defs.length} poste(s)</summary><div class="annexe2-body"><p class="muted">Référence Guillaume. Les alimentations/raccords déjà calculés par le réseau ne sont pas doublés. Les composants complémentaires ne sont ajoutés au prix que si l’artisan associe explicitement une référence catalogue.</p>${rows}</div></details>`;
+}
+
 function equipmentEditor(eq,index,scope,pid=''){
   const prefix=scope==='installation'?`installation.equipments.${index}`:`petits_travaux.prestations.${findPrestationIndex(pid)}.equipment`;
   const fixedService=eq.kind==='lave_linge'||eq.kind==='lave_vaisselle';
@@ -173,8 +200,8 @@ function equipmentEditor(eq,index,scope,pid=''){
   if(eq.kind==='meuble_vasque')specific=`${selectField('Configuration',`${prefix}.subtype`,[['simple','Simple vasque'],['double','Double vasque']],eq.subtype||'simple','c4')}${textField('Dimensions',`${prefix}.dimensions`,eq.dimensions,'c4','ex. 120 cm')}`;
   if(eq.kind==='lave_main')specific=`${selectField('Format',`${prefix}.subtype`,[['standard','Standard'],['angle','D’angle']],eq.subtype||'standard','c4')}${toggle(`${prefix}.ec`,'Eau chaude prévue','Sinon EF uniquement')}`;
   if(eq.kind==='evier')specific=`${selectField('Matière',`${prefix}.subtype`,[['inox','Inox'],['resine','Résine'],['ceramique','Céramique'],['timbre','Timbre céramique']],eq.subtype||'inox','c4')}${selectField('Configuration',`${prefix}.config`,[['simple','Simple bac'],['double','Double bac'],['sous_plan_simple','Sous-plan simple'],['sous_plan_double','Sous-plan double']],eq.config||'simple','c4')}`;
-  if(eq.kind==='element_specifique')specific=`${textField('Désignation',`${prefix}.label`,eq.label,'c4','ex. broyeur / bidet / platine')}${toggle(`${prefix}.ef`,'Alimentation EF')}${toggle(`${prefix}.ec`,'Alimentation EC')}${toggle(`${prefix}.evac`,'Évacuation')}`;
-  return `<details class="accordion" open data-equipment-anchor="${esc(eq.id)}"><summary>${index+1}. ${labelForKind(eq.kind)}${eq.subtype?` — ${labelSubtype(eq)}`:''}</summary><div class="inside"><div class="grid">${specific}${common}</div>${equipmentRuleNote(eq)}</div></details>`;
+  if(eq.kind==='element_specifique')specific=`${textField('Désignation',`${prefix}.label`,eq.label,'c4','ex. broyeur / bidet / platine')}${toggle(`${prefix}.ef`,'Alimentation EF')}${toggle(`${prefix}.ec`,'Alimentation EC')}${toggle(`${prefix}.evac`,'Évacuation')}${numField('Nombre de robinets d’arrêt nécessaires',`${prefix}.stop_valves`,eq.stop_valves,'c4',0,1,'0 si aucun')}`;
+  return `<details class="accordion" open data-equipment-anchor="${esc(eq.id)}"><summary>${index+1}. ${labelForKind(eq.kind)}${eq.subtype?` — ${labelSubtype(eq)}`:''}</summary><div class="inside"><div class="grid">${specific}${common}</div>${equipmentRuleNote(eq)}${annexe2Panel(eq,prefix)}</div></details>`;
 }
 function equipmentRuleNote(eq){
   if(eq.kind==='wc')return `<div class="info compact-info">Valeurs Guillaume : WC à poser 300 € + 2 h ; suspendu + bâti 700 € + 5 h ; urinoir 300 € + 2 h ; urinoir + bâti 600 € + 5 h.</div>`;
@@ -199,7 +226,7 @@ function generalOptions(){
 function forfaitLabel(k){return {deplacement:'Déplacement',demolition:'Démolition',platrerie:'Petits travaux plâtrerie',raccordement:'Raccordement sur existant',traversee:'Traversée plancher / mur',renovation:'Rénovation',acces_difficile:'Accès difficile',boucle_ecs:'Boucle ECS',pompe_relevage:'Pompe de relevage'}[k]}
 function forfaitHelp(k){return {deplacement:'Un seul déplacement par chantier',acces_difficile:'Forfait 300 € modifiable',boucle_ecs:'Forfait complet',pompe_relevage:'Forfait complet'}[k]||'Valeur SpeedArti modifiable dans les paramètres entreprise'}
 function annexe1Editor(a){
-  return `<div class="card"><h2>Annexe 1 — grille Guillaume validée</h2><p class="muted">Toutes les lignes sont intégrées. « Unité » = quantité multipliable ; « forfait » = une ligne complète.</p><div class="grid">${numField('Attente EC/EF RDC — 143 €/u','installation.annexe1.attente_rdc',a.attente_rdc)}${numField('Attente EC/EF R+1 — 143 €/u','installation.annexe1.attente_r1',a.attente_r1)}${numField('Robinet extérieur — 83,60 €/u','installation.annexe1.robinet_exterieur',a.robinet_exterieur)}${numField('Limiteur de pression — 86,50 €/u','installation.annexe1.limiteur_pression',a.limiteur_pression)}</div><div class="choice-grid annexe-switches">${toggle('installation.annexe1.arret_general',"Alimentation + robinet d’arrêt général — 121 €")}${toggle('installation.annexe1.raccordement_exterieur','Raccordement extérieur eau — 72 €')}${toggle('installation.annexe1.ventilation_wc','Ventilation haute WC — 107 €')}${toggle('installation.annexe1.ventilation_fosse','Ventilation fosse + extracteur — 186 €')}${toggle('installation.annexe1.forfait_etage','Forfait étage canalisation + alimentation — 428 €')}${toggle('installation.annexe1.aleas','Aléas — 4 %','Appliqués au sous-total HT avant TVA dans cette version')}</div></div>`;
+  return `<div class="card"><h2>Annexe 1 — grille Guillaume validée</h2><p class="muted">Toutes les lignes sont intégrées. « Unité » = quantité multipliable ; « forfait » = une ligne complète.</p><div class="grid">${numField('Attente EC/EF RDC — 143 €/u','installation.annexe1.attente_rdc',a.attente_rdc)}${numField('Attente EC/EF R+1 — 143 €/u','installation.annexe1.attente_r1',a.attente_r1)}${numField('Robinet extérieur — 83,60 €/u','installation.annexe1.robinet_exterieur',a.robinet_exterieur)}${numField('Limiteur de pression — 86,50 €/u','installation.annexe1.limiteur_pression',a.limiteur_pression)}</div><div class="choice-grid annexe-switches">${toggle('installation.annexe1.arret_general',"Alimentation + robinet d’arrêt général — 121 €")}${toggle('installation.annexe1.raccordement_exterieur','Raccordement extérieur eau — 72 €')}${toggle('installation.annexe1.ventilation_wc','Ventilation haute WC — 107 €')}${toggle('installation.annexe1.ventilation_fosse','Ventilation fosse + extracteur — 186 €')}${toggle('installation.annexe1.forfait_etage','Forfait étage canalisation + alimentation — 428 €')}${toggle('installation.annexe1.aleas','Aléas — 4 %','Calculés uniquement sur la main-d’œuvre HT, avant TVA')}</div></div>`;
 }
 function settingsEditor(){
   const a=API.ANNEXE1_DEFAULTS||{};const f=API.FORFAITS_DEFAULTS||{};
@@ -220,7 +247,9 @@ function showResult(r){
   <div class="metrics"><div class="metric"><span>Durée chantier</span><strong>${fmt(r.main_oeuvre.temps_estime_heures)} h</strong></div><div class="metric"><span>Heures-homme</span><strong>${fmt(r.main_oeuvre.heures_homme)} h</strong></div><div class="metric"><span>Matériaux / forfaits HT</span><strong>${eur(r.totaux.materiaux_ht)}</strong></div><div class="metric"><span>Total TTC</span><strong>${eur(r.totaux.total_ttc)}</strong></div></div>
   ${Object.keys(det).length?`<div class="card"><h2>Réseau calculé</h2><div class="network-metrics">${Object.entries(det).map(([k,v])=>`<div><span>${esc(k.replaceAll('_',' '))}</span><strong>${fmt(v)}</strong></div>`).join('')}</div></div>`:''}
   <div class="card"><h2>Détail des lignes</h2><div class="table-wrap"><table class="table"><thead><tr><th>Désignation</th><th>Référence catalogue</th><th>Catégorie</th><th>Qté</th><th>Unité</th><th>PU HT</th><th>Total HT</th><th>Source</th></tr></thead><tbody>${r.materiaux.map(m=>`<tr><td>${esc(m.nom)}</td><td>${m.catalogue_code?`<b>${esc(m.catalogue_marque||'')}</b><br><small>Téréva ${esc(m.catalogue_code)}</small>`:'—'}</td><td>${esc(m.categorie)}</td><td>${fmt(m.quantite_finale)}</td><td>${esc(m.unite)}</td><td>${eur(m.prix_unitaire_ht)}</td><td>${eur(m.total_ht)}</td><td>${esc(m.source||'—')}</td></tr>`).join('')}</tbody></table></div></div>
-  <div class="card"><h2>Main-d’œuvre et totaux</h2><div class="summary-lines"><div><span>Coefficient complexité</span><b>× ${fmt(r.main_oeuvre.coefficient_complexite)}</b></div><div><span>Main-d’œuvre HT</span><b>${eur(r.totaux.main_oeuvre_ht)}</b></div><div><span>Total HT</span><b>${eur(r.totaux.total_ht)}</b></div><div><span>TVA ${fmt(r.totaux.taux_tva)} %</span><b>${eur(r.totaux.tva)}</b></div><div class="grand"><span>Total TTC</span><b>${eur(r.totaux.total_ttc)}</b></div></div></div>`;
+  <div class="card"><div class="row between wrap"><div><h2>Besoins matériaux / fournisseur</h2><p class="muted">${esc(r.approvisionnement?.message_stock||'Aucune donnée de stock réelle connectée.')}</p></div><span class="pill wait">Stock : non connecté</span></div><div class="network-metrics"><div><span>Lignes de besoin</span><strong>${fmt(r.approvisionnement?.nombre_lignes||0)}</strong></div><div><span>Références Téréva</span><strong>${fmt(r.approvisionnement?.articles_catalogue?.length||0)}</strong></div><div><span>Hors catalogue</span><strong>${fmt(r.approvisionnement?.articles_hors_catalogue?.length||0)}</strong></div><div><span>Total besoins HT</span><strong>${eur(r.approvisionnement?.total_besoins_ht||0)}</strong></div></div>${(r.approvisionnement?.items||[]).length?`<div class="table-wrap"><table class="table"><thead><tr><th>Désignation</th><th>Code Téréva</th><th>Besoin chantier</th><th>PU HT</th><th>Total HT</th><th>Stock</th></tr></thead><tbody>${r.approvisionnement.items.map(x=>`<tr><td>${esc(x.designation)}</td><td>${x.catalogue_code?esc(x.catalogue_code):'—'}</td><td>${fmt(x.quantite_besoin)} ${esc(x.unite)}</td><td>${eur(x.prix_unitaire_ht)}</td><td>${eur(x.total_ht)}</td><td><span class="pill wait">à vérifier</span></td></tr>`).join('')}</tbody></table></div><div class="row wrap result-actions"><button type="button" class="btn secondary" data-export-appro-csv>Exporter CSV</button><button type="button" class="btn secondary" data-export-appro-json>Exporter JSON SpeedArti</button><button type="button" class="btn ghost" data-copy-appro-json>Copier le payload</button></div><p class="subtle">Le payload prépare le futur raccord avec Demande de devis fournisseur / Commande fournisseur. Il ne prétend pas connaître le stock ni créer une commande dans cette démo.</p>`:`<div class="empty-state">Aucun article stockable dans ce chiffrage.</div>`}</div>
+  ${(r.nomenclature_annexe2||[]).length?`<div class="card"><h2>Nomenclature Annexe 2</h2><p class="muted">Contrôle de composition par appareil. « Non renseigné » n’ajoute aucun prix automatiquement : il faut vérifier si le composant est inclus dans le pack principal ou l’associer au catalogue.</p><div class="annexe2-result-list">${r.nomenclature_annexe2.map(n=>`<details class="accordion"><summary>${esc(n.equipment)} — ${n.components.length} poste(s)</summary><div class="inside annexe2-result-grid">${n.components.map(c=>`<div class="annexe2-result-item"><span>${esc(c.label)}</span><b>${esc(c.status)}</b>${c.catalogue_code?`<small>Téréva ${esc(c.catalogue_code)}${c.catalogue_marque?` · ${esc(c.catalogue_marque)}`:''}</small>`:''}</div>`).join('')}</div></details>`).join('')}</div></div>`:''}
+  <div class="card"><h2>Main-d’œuvre et totaux</h2><div class="summary-lines"><div><span>Coefficient complexité</span><b>× ${fmt(r.main_oeuvre.coefficient_complexite)}</b></div><div><span>Main-d’œuvre HT avant aléas</span><b>${eur(r.totaux.main_oeuvre_ht_avant_aleas??r.totaux.main_oeuvre_ht)}</b></div>${r.totaux.aleas_ht>0?`<div><span>Aléas — 4 % de la main-d’œuvre HT</span><b>${eur(r.totaux.aleas_ht)}</b></div>`:''}<div><span>Main-d’œuvre HT totale</span><b>${eur(r.totaux.main_oeuvre_ht)}</b></div><div><span>Total HT</span><b>${eur(r.totaux.total_ht)}</b></div><div><span>TVA ${fmt(r.totaux.taux_tva)} %</span><b>${eur(r.totaux.tva)}</b></div><div class="grand"><span>Total TTC</span><b>${eur(r.totaux.total_ttc)}</b></div></div></div>`;
 }
 
 const catalogueFiltersCache={};
@@ -233,10 +262,10 @@ function renderCatalogueModal(){
   catalogueHost.innerHTML=`<div class="catalogue-overlay" data-close-catalogue-overlay><section class="catalogue-modal" role="dialog" aria-modal="true"><header><div><span class="eyebrow">Catalogue Plombier</span><h2>${esc(catalogueUi.label||'Choisir un produit')}</h2><p>${fmt(CAT.count)} références · ${CATALOGUE_VERSION}</p></div><button type="button" class="catalogue-close" data-close-catalogue aria-label="Fermer">×</button></header><div class="catalogue-toolbar"><div class="catalogue-search"><span>🔎</span><input id="catalogueSearchInput" value="${esc(catalogueUi.q)}" data-catalogue-search placeholder="Produit, marque, finition, référence ou code Téréva…"></div><div class="catalogue-filters"><select data-catalogue-filter="brand">${opt(f.brands,catalogueUi.brand,'Toutes les marques')}</select><select data-catalogue-filter="type">${opt(f.types,catalogueUi.type,'Tous les types')}</select><select data-catalogue-filter="finish">${opt(f.finishes,catalogueUi.finish,'Toutes les finitions')}</select></div></div><div class="catalogue-count">${results.length} résultat(s) affiché(s)${results.length===40?' — affinez la recherche pour aller plus loin':''}</div><div class="catalogue-results">${results.length?results.map(a=>`<article class="catalogue-result"><div class="catalogue-result-main"><div class="row wrap"><span class="catalogue-brand">${esc(a.marque||'À identifier')}</span><span class="catalogue-type">${esc(a.type||'')}</span></div><h3>${esc(a.produit||'Référence catalogue')}</h3>${a.variante?`<p>${esc(a.variante)}</p>`:''}${a.finition?`<p>Finition : <b>${esc(a.finition)}</b></p>`:''}<small>Réf. fabricant ${esc(a.ref_fab||'—')} · Code Téréva <b>${esc(a.code||'—')}</b> · ${esc(a.source||'')}</small></div><div class="catalogue-result-action"><strong class="catalogue-price ${a.prix==null?'missing':''}">${a.prix==null?'Prix manquant':eur(a.prix)}</strong><button type="button" class="btn primary compact" data-select-catalogue-index="${a.__index}">Sélectionner</button></div></article>`).join(''):`<div class="empty-state">Aucun article ne correspond à ces critères.</div>`}</div><footer class="catalogue-modal-footer"><span>Le prix sélectionné est le prix exact de la base Téréva -20 %. La gamme ne le remultiplie pas.</span><button type="button" class="btn secondary" data-close-catalogue>Fermer</button></footer></section></div>`;
 }
 function openCatalogueFrom(el){
-  catalogueUi={open:true,target:el.dataset.catalogueTarget||'',pricePath:el.dataset.cataloguePricePath||'',context:el.dataset.catalogueContext||'all',label:el.dataset.catalogueLabel||'Choisir un produit',q:'',brand:'',type:'',finish:'',mode:el.dataset.catalogueMode||'replace'};
+  catalogueUi={open:true,target:el.dataset.catalogueTarget||'',pricePath:el.dataset.cataloguePricePath||'',context:el.dataset.catalogueContext||'all',label:el.dataset.catalogueLabel||'Choisir un produit',q:el.dataset.catalogueQ||'',brand:'',type:'',finish:'',mode:el.dataset.catalogueMode||'replace'};
   renderCatalogueModal();setTimeout(()=>q('#catalogueSearchInput')?.focus(),0);
 }
-function closeCatalogue(){catalogueUi.open=false;renderCatalogueModal()}
+function closeCatalogue(){catalogueUi.open=false;if(catalogueRenderTimer){clearTimeout(catalogueRenderTimer);catalogueRenderTimer=null}renderCatalogueModal()}
 function syncCatalogueSelectionToUi(target,sel){
   const txt=`${sel.produit||''} ${sel.variante||''}`.toLowerCase();
   const cap=(txt.match(/(?:^|[^0-9])(100|150|200|300)\s*l(?:[^a-z]|$)/i)||[])[1];
@@ -259,17 +288,27 @@ function catalogueClickHandler(e){
     if(catalogueUi.mode==='append'){
       d.options.articles_libres=d.options.articles_libres||[];d.options.articles_libres.push({catalogue:sel,price_ht:sel.prix,quantite:1});
     }else{
-      set(d,catalogueUi.target,sel);if(catalogueUi.pricePath)set(d,catalogueUi.pricePath,sel.prix==null?undefined:sel.prix);syncCatalogueSelectionToUi(catalogueUi.target,sel);
+      set(d,catalogueUi.target,sel);if(catalogueUi.pricePath)set(d,catalogueUi.pricePath,sel.prix==null?undefined:sel.prix);const a2=catalogueUi.target.match(/^(.*\.annexe2_items\.[^.]+)\.catalogue$/);if(a2&&get(d,`${a2[1]}.quantite`)==null)set(d,`${a2[1]}.quantite`,1);syncCatalogueSelectionToUi(catalogueUi.target,sel);
     }
     save(false);closeCatalogue();render();flash(`Référence Téréva ${sel.code} sélectionnée`,'ok');return;
   }
-  const clear=e.target.closest('[data-clear-catalogue]');if(clear){const target=clear.dataset.clearCatalogue;set(d,target,null);if(clear.dataset.cataloguePricePath)set(d,clear.dataset.cataloguePricePath,undefined);save(false);render();return}
+  const clear=e.target.closest('[data-clear-catalogue]');if(clear){const target=clear.dataset.clearCatalogue;const a2=target.match(/^(.*\.annexe2_items\.[^.]+)\.catalogue$/);if(a2)set(d,a2[1],null);else set(d,target,null);if(clear.dataset.cataloguePricePath)set(d,clear.dataset.cataloguePricePath,undefined);save(false);render();return}
   const rm=e.target.closest('[data-remove-free-article]');if(rm){d.options.articles_libres.splice(Number(rm.dataset.removeFreeArticle),1);save(false);render();return}
 }
 function catalogueInputHandler(e){
   if(!catalogueUi.open)return;
-  if(e.target.matches('[data-catalogue-search]')){catalogueUi.q=e.target.value;const pos=e.target.selectionStart;renderCatalogueModal();const inp=q('#catalogueSearchInput');if(inp){inp.focus();try{inp.setSelectionRange(pos,pos)}catch{}}return}
-  if(e.target.matches('[data-catalogue-filter]')){catalogueUi[e.target.dataset.catalogueFilter]=e.target.value;renderCatalogueModal();return}
+  if(e.target.matches('[data-catalogue-search]')){
+    catalogueUi.q=e.target.value;const pos=e.target.selectionStart;
+    if(catalogueRenderTimer)clearTimeout(catalogueRenderTimer);
+    catalogueRenderTimer=setTimeout(()=>{catalogueRenderTimer=null;if(!catalogueUi.open)return;renderCatalogueModal();const inp=q('#catalogueSearchInput');if(inp){inp.focus();try{inp.setSelectionRange(pos,pos)}catch{}}},90);
+    return;
+  }
+  if(e.target.matches('[data-catalogue-filter]')){
+    catalogueUi[e.target.dataset.catalogueFilter]=e.target.value;
+    if(catalogueRenderTimer)clearTimeout(catalogueRenderTimer);
+    catalogueRenderTimer=setTimeout(()=>{catalogueRenderTimer=null;if(catalogueUi.open)renderCatalogueModal()},0);
+    return;
+  }
 }
 function catalogueSelectionPathForPrice(path){
   if(path.endsWith('.mitigeur_price_ht'))return path.replace(/\.mitigeur_price_ht$/,'.mitigeur_catalogue');
@@ -292,20 +331,28 @@ function invalidateCatalogueOnConfigChange(path){
 }
 
 function clickHandler(e){
-  const el=e.target.closest('[data-choice],[data-step],[data-add-equipment],[data-remove-equipment],[data-edit-equipment],[data-add-prestation],[data-remove-prestation],[data-create-prestation-equipment],[data-edit-prestation-equipment],[data-gamme],[data-complexite],[data-tva]');
+  const el=e.target.closest('[data-choice],[data-step],[data-add-equipment],[data-remove-equipment],[data-edit-equipment],[data-add-prestation],[data-remove-prestation],[data-create-prestation-equipment],[data-edit-prestation-equipment],[data-gamme],[data-complexite],[data-tva],[data-export-appro-csv],[data-export-appro-json],[data-copy-appro-json]');
   if(!el)return;
   if(el.dataset.choice!==undefined){d.options.type_projet=el.dataset.choice;save();render();return}
   if(el.dataset.addEquipment){d.installation.equipments.push(newEquipment(el.dataset.addEquipment));save();render();return}
   if(el.dataset.removeEquipment){d.installation.equipments=d.installation.equipments.filter(x=>x.id!==el.dataset.removeEquipment);save();render();return}
   if(el.dataset.editEquipment){step=3;render();setTimeout(()=>document.querySelector(`[data-equipment-anchor="${el.dataset.editEquipment}"]`)?.scrollIntoView({behavior:'smooth'}),0);return}
-  if(el.hasAttribute('data-add-prestation')){d.petits_travaux.prestations.push({id:uid('pt'),type:'',duration_h:2});save();render();return}
+  if(el.hasAttribute('data-add-prestation')){d.petits_travaux.prestations.push({id:uid('pt'),type:''});save();render();return}
   if(el.dataset.removePrestation){d.petits_travaux.prestations=d.petits_travaux.prestations.filter(x=>x.id!==el.dataset.removePrestation);save();render();return}
   if(el.dataset.createPrestationEquipment){const p=d.petits_travaux.prestations.find(x=>x.id===el.dataset.createPrestationEquipment);if(p){p.equipment=newEquipment(el.dataset.equipmentKind||'element_specifique');save();render()}return}
   if(el.dataset.editPrestationEquipment){step=3;render();return}
   if(el.dataset.gamme){d.options.gamme=el.dataset.gamme;save();render();return}
   if(el.dataset.complexite){d.options.complexite=el.dataset.complexite;save();render();return}
   if(el.dataset.tva){d.options.taux_tva=+el.dataset.tva;save();render();return}
+  if(el.hasAttribute('data-export-appro-csv')){exportApproCsv();return}
+  if(el.hasAttribute('data-export-appro-json')){exportApproJson();return}
+  if(el.hasAttribute('data-copy-appro-json')){copyApproJson();return}
 }
+function downloadText(filename,text,mime='text/plain;charset=utf-8'){const blob=new Blob([text],{type:mime});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),0)}
+function currentAppro(){return d._lastResult?.approvisionnement||null}
+function exportApproCsv(){const a=currentAppro();if(!a){flash('Aucun besoin fournisseur calculé','warn');return}const rows=[['Code Téréva','Réf fabricant','Marque','Désignation','Quantité besoin','Unité','PU HT','Total HT','Source prix','Statut stock']];for(const x of a.items||[])rows.push([x.catalogue_code||'',x.catalogue_ref_fabricant||'',x.catalogue_marque||'',x.designation||'',x.quantite_besoin,x.unite,x.prix_unitaire_ht,x.total_ht,x.source_prix,x.stock_status]);const csv=rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(';')).join('\n');downloadText('SpeedArti_Plomber_Besoins_Fournisseur.csv','\ufeff'+csv,'text/csv;charset=utf-8');flash('Liste fournisseur CSV exportée','ok')}
+function exportApproJson(){const a=currentAppro();if(!a){flash('Aucun besoin fournisseur calculé','warn');return}downloadText('SpeedArti_Plomber_Payload_Fournisseur.json',JSON.stringify(a.payload_fournisseur,null,2),'application/json;charset=utf-8');flash('Payload fournisseur JSON exporté','ok')}
+async function copyApproJson(){const a=currentAppro();if(!a){flash('Aucun besoin fournisseur calculé','warn');return}try{await navigator.clipboard.writeText(JSON.stringify(a.payload_fournisseur,null,2));flash('Payload fournisseur copié','ok')}catch{flash('Copie impossible dans ce navigateur — utilise Export JSON','warn')}}
 function newEquipment(kind){
   const eq={id:uid('eq'),kind,subtype:''};
   if(kind==='wc'){eq.subtype='poser';eq.price_ht=300;eq.time_h=2}
@@ -321,7 +368,7 @@ function inputHandler(e){
   if(t.type==='checkbox')v=t.checked;else if(t.type==='number')v=t.value===''?undefined:+t.value;else v=t.value;
   set(d,t.dataset.path,v);markCataloguePriceOverride(t.dataset.path,v);invalidateCatalogueOnConfigChange(t.dataset.path);
   // Changement de sous-type WC : une ancienne référence catalogue pourrait devenir incompatible, on la retire explicitement.
-  if(/\.subtype$/.test(t.dataset.path)&&t.dataset.path.includes('equipment')){const eq=get(d,t.dataset.path.replace(/\.subtype$/,''));if(eq?.kind==='wc'){eq.catalogue=null;const def={poser:[300,2],suspendu:[700,5],urinoir:[300,2],urinoir_bati:[600,5]}[eq.subtype];if(def){eq.price_ht=def[0];eq.time_h=def[1]}}}
+  if(/\.subtype$/.test(t.dataset.path)&&t.dataset.path.includes('equipment')){const eq=get(d,t.dataset.path.replace(/\.subtype$/,''));if(eq?.kind==='wc'){eq.catalogue=null;eq.annexe2_items={};const def={poser:[300,2],suspendu:[700,5],urinoir:[300,2],urinoir_bati:[600,5]}[eq.subtype];if(def){eq.price_ht=def[0];eq.time_h=def[1]}}}
   // Changer le type de petit chauffe-eau invalide la référence précédemment choisie.
   if(/petits_travaux\.prestations\.\d+\.ce_type$/.test(t.dataset.path)){const pp=t.dataset.path.replace(/\.ce_type$/, '');set(d,`${pp}.catalogue`,null);set(d,`${pp}.price_ht`,undefined);if(v==='reparation')set(d,`${pp}.duration_h`,undefined)}
   save(false);
