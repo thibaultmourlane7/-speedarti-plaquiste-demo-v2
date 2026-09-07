@@ -5,7 +5,7 @@ for(const f of ['catalogue-data.js','catalogue-service.js','engine-current.js'])
 const CAT=global.SpeedArtiCatalogueService,API=global.SpeedArtiPlombierCurrent,DB=global.SpeedArtiCataloguePlombier;
 let ok=0;function assert(cond,msg){if(!cond)throw new Error(`ASSERT ${ok+1}: ${msg}`);ok++}
 function approx(a,b,t=.011){return Math.abs(Number(a)-Number(b))<=t}
-function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.5.2',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{}}}}
+function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.6.0',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{}}}}
 function selectFirst(ctx,pred=()=>true){const a=CAT.search({context:ctx,limit:100}).find(x=>x.prix>0&&x.code&&pred(x));assert(!!a,`Référence exploitable contexte ${ctx}`);return CAT.selection(a)}
 function netRefs(d){const ctx=d.options.type_tuyau==='cuivre'?'raccord_cuivre':d.options.type_tuyau==='multicouche'?'raccord_multicouche':'raccord_per';d.installation.network.fitting_catalogue=selectFirst(ctx);d.installation.network.stop_valve_catalogue=selectFirst('robinet_arret');}
 
@@ -45,7 +45,7 @@ assert(wcLine.catalogue_version==='Téréva 2026 -20%','Version catalogue balis�
 assert(!!wcLine.catalogue_source_page,'Page source catalogue balisée');
 assert(String(wcLine.source).includes('Catalogue Téréva 2026 -20%'),'Source catalogue visible');
 assert(r1.controle_balises.ok===true,'Balises scénario WC OK');
-assert(r1.controle_balises.version==='BALISES-ABSOLUES-v1.5','Version balises v1.5');
+assert(r1.controle_balises.version==='BALISES-ABSOLUES-v1.6','Version balises v1.6');
 assert(r1.finalisation_bloquee===false,'WC complet finalisable');
 assert(r1.surfaces.detail_par_face.EF_ml===8,'WC = 8 ml EF');
 assert(r1.surfaces.detail_par_face.EC_ml===0,'WC = 0 ml EC');
@@ -189,12 +189,12 @@ assert(approx(r1.controle_balises.tva_controlee,r1.totaux.tva),'Contrôle TVA = 
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const posData=html.indexOf('catalogue-data.js'),posService=html.indexOf('catalogue-service.js'),posEngine=html.indexOf('engine-current.js'),posApp=html.indexOf('app.js');
 assert(posData>0&&posData<posService&&posService<posEngine&&posEngine<posApp,'Ordre de chargement catalogue -> service -> moteur -> app');
-assert(/v0\.5\.2/.test(html),'HTML annonce v0.5.2');
+assert(/v0\.6\.0/.test(html),'HTML annonce v0.6.0');
 
 // 22. Contrôles statiques UI / absence de règles cachées
 const appSrc=fs.readFileSync(path.join(root,'app.js'),'utf8'),engSrc=fs.readFileSync(path.join(root,'engine-current.js'),'utf8'),catSrc=fs.readFileSync(path.join(root,'catalogue-service.js'),'utf8');
 assert(appSrc.includes('installation.network.time_h'),'Champ temps réseau présent dans UI');
-assert(appSrc.includes("platinePicker('Platine EF','platine_ef'"),'Sélection catalogue platine EF présente');
+assert(appSrc.includes('manual_platine_ef_qty'),'Quantité platine EF automatique/modifiable présente');
 assert(appSrc.includes('Forfait débouchage HT'),'Montant débouchage explicite présent');
 assert(!appSrc.includes('Forfait débouchage 180 €'),'Ancien prix débouchage caché absent UI');
 assert(!/reparation:\{[^}]*price:120/.test(engSrc),'Ancien 120 € réparation caché absent moteur');
@@ -203,7 +203,7 @@ assert(catSrc.includes("raccord_per")&&catSrc.includes("raccord_multicouche")&&c
 assert(appSrc.includes("d.options.type_projet==='petits_travaux'?") ,'Affichage déplacement conditionné au mode petits travaux');
 
 
-// 23. Annexe 2 — nomenclature source Guillaume et articles complémentaires explicites
+// 23. Composition interne des équipements et articles complémentaires explicites
 assert(Array.isArray(API.annexe2For('lavabo'))&&API.annexe2For('lavabo').length===15,'Annexe 2 lavabo = 15 postes de référence');
 assert(API.annexe2For('meuble_vasque').length===API.annexe2For('lavabo').length,'Meuble vasque réutilise la composition lavabo/vasque');
 assert(API.annexe2For('douche').some(x=>x.label==='Bonde de douche'),'Annexe 2 douche contient la bonde');
@@ -252,14 +252,14 @@ assert(approx(a2m.prix_unitaire_ht,bondeSel.prix+12),'Override manuel composant 
 const ptA2=base();ptA2.options.type_projet='petits_travaux';ptA2.petits_travaux.prestations=[{id:'rep1',type:'remplacement',equipment:{id:'repLav',kind:'lavabo',catalogue:lavSel,price_ht:lavSel.prix,time_h:2,annexe2_items:{bonde:{catalogue:bondeSel,price_ht:bondeSel.prix,quantite:1}}}}];const rptA2=API.calculate(ptA2);
 assert(rptA2.nomenclature_annexe2.length===1,'Remplacement réutilise nomenclature Annexe 2');assert(rptA2.materiaux.some(x=>x.annexe2_slot==='bonde'),'Remplacement réutilise article complémentaire Annexe 2');assert(rptA2.controle_balises.ok===true,'Balises remplacement + Annexe 2 OK');
 
-// 25. Contrôles statiques v0.5.2
-assert(appSrc.includes('Composition Annexe 2'),'UI expose la composition Annexe 2');
+// 25. Contrôles statiques composition / catalogue
+assert(!appSrc.includes('Composition Annexe 2'),'UI artisan ne montre plus le libellé Annexe 2');
 assert(appSrc.includes('data-catalogue-q'),'Recherche composant peut préremplir la barre catalogue');
 assert(appSrc.includes('nomenclature_annexe2'),'Résultat UI affiche la nomenclature Annexe 2');
 assert(engSrc.includes("annexe2_source:'Annexe 2 Guillaume'"),'Moteur balise explicitement la source Annexe 2');
 assert(engSrc.includes('parent_equipment_id'),'Moteur conserve le parent équipement des composants');
 assert(appSrc.includes('eq.annexe2_items={}'),'Changement de sous-type WC nettoie la nomenclature associée devenue obsolète');
-assert(engSrc.includes("version:'BALISES-ABSOLUES-v1.5'"),'Moteur balises v1.5');
+assert(engSrc.includes("version:'BALISES-ABSOLUES-v1.6'"),'Moteur balises v1.6');
 
 
 // 26. Stock réel : aucune disponibilité ni quantité à commander ne doit être inventée
@@ -302,12 +302,12 @@ assert(appSrc.includes('data-export-appro-json'),'Export JSON fournisseur prése
 assert(appSrc.includes('data-copy-appro-json'),'Copie payload fournisseur présente');
 assert(appSrc.includes('Stock : non connecté'),'UI ne prétend pas connaître le stock');
 assert(appSrc.includes('ne prétend pas connaître le stock ni créer une commande'),'Garde-fou commande explicite dans UI');
-assert(engSrc.includes("version:'BALISES-ABSOLUES-v1.5'"),'Moteur balises v1.5');
+assert(engSrc.includes("version:'BALISES-ABSOLUES-v1.6'"),'Moteur balises v1.6');
 
 
 // 29. Correctifs v0.5.2 issus du contrôle humain
-assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v052'"),'Clé de sauvegarde propre v0.5.2');
-assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v051','speedarti-plombier-demo-v040','speedarti-plombier-demo-v031']"),'Migration des anciens brouillons prévue');
+assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v060'"),'Clé de sauvegarde propre v0.6.0');
+assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v052','speedarti-plombier-demo-v051','speedarti-plombier-demo-v040','speedarti-plombier-demo-v031']"),'Migration des anciens brouillons prévue');
 assert(appSrc.includes('function migrateLegacyDraft'),'Fonction de migration brouillon présente');
 assert(appSrc.includes("delete p.duration_h"),'Migration supprime les anciennes durées CE non validées');
 assert(appSrc.includes("catalogueRenderTimer=setTimeout"),'Recherche catalogue saisie rapide temporisée');
@@ -318,7 +318,7 @@ assert(CAT.search({context:'wc_suspendu_main',limit:100}).every(a=>a.type!=='Bâ
 assert(CAT.search({context:'wc_suspendu_bati',limit:100}).every(a=>a.type==='Bâti-support'),'Contexte bâti-support ne retourne que des bâtis-supports');
 assert(appSrc.includes("eq.annexe2_items={}"),'Changement de sous-type WC nettoie les anciens composants Annexe 2');
 assert(appSrc.includes("poser:[300,2],suspendu:[700,5],urinoir:[300,2],urinoir_bati:[600,5]"),'Changement sous-type WC remet prix/temps validés');
-assert(appSrc.includes("'installation.annexe1.aleas','Aléas — 4 %','Calculés uniquement sur la main-d’œuvre HT, avant TVA'"),'UI aléas annonce la règle métier validée');
+assert(appSrc.includes("'installation.annexe1.aleas','Aléas 4 %','Appliqués uniquement à la main-d’œuvre HT'"),'UI aléas annonce la règle métier validée');
 const da=base();da.installation.annexe1.aleas=true;da.installation.network.ef_only=1;da.installation.network.fitting_catalogue=selectFirst('raccord_per');const ra=API.calculate(da);
 assert(ra.finalisation_bloquee===false,'Aléas 4 % ne bloque plus après validation métier');
 const expectedAleas=Math.round(ra.totaux.main_oeuvre_ht_avant_aleas*.04*100)/100;
@@ -341,6 +341,41 @@ assert(res.materiaux.find(x=>x.article_id==='robinets_arret').quantite_finale===
 assert(appSrc.includes("stop_valves"),'Champ robinets d’arrêt élément spécifique exposé dans UI');
 assert(!/changement_200l_elec[^\n]{0,180}duration_h\s*[:=]\s*[0-9]/.test(appSrc+engSrc),'Aucune durée CE cachée codée pour changement 200 L');
 assert(!/changement_300l_elec[^\n]{0,180}duration_h\s*[:=]\s*[0-9]/.test(appSrc+engSrc),'Aucune durée CE cachée codée pour changement 300 L');
-assert(r1.controle_balises.version==='BALISES-ABSOLUES-v1.5','Version finale balises v1.5');
+assert(r1.controle_balises.version==='BALISES-ABSOLUES-v1.6','Version finale balises v1.6');
 
+
+
+// 30. Parcours v0.6 — zones chantier et réseau/accessoires automatiques modifiables
+const z0=base();z0.installation.zones={rdc_sans:true,r1_sans:false,rdc_avec:false,r1_avec:false};z0.installation.annexe1.attente_rdc=1;z0.installation.network.fitting_catalogue=selectFirst('raccord_per');
+const pz0=API.previewNetwork(z0);
+assert(pz0.autoEF===8&&pz0.autoEC===8&&pz0.autoEvac===1,'RDC sans sanitaire propose 8 ml EF + 8 ml EC + 1 ml évacuation');
+assert(pz0.autoPlatineEfEc===1&&pz0.autoPlatineEvac===1,'RDC sans sanitaire propose une platine EF+EC et une évacuation');
+assert(pz0.autoFittings===7,'RDC sans sanitaire propose 7 raccords avec +10 %');
+const rz0=API.calculate(z0);assert(rz0.surfaces.detail_par_face.EF_ml===8&&rz0.surfaces.detail_par_face.EC_ml===8,'Moteur utilise les longueurs de la zone sans sanitaire');
+
+const z1=base();z1.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:true,r1_avec:false};netRefs(z1);z1.installation.equipments.push({id:'wca',kind:'wc',subtype:'poser',catalogue:wcSel,price_ht:wcSel.prix,time_h:2},{id:'wcb',kind:'wc',subtype:'poser',catalogue:wcSel,price_ht:wcSel.prix,time_h:2},{id:'sha',kind:'douche',subtype:'bac',catalogue:selectFirst('douche'),price_ht:selectFirst('douche').prix,time_h:2});
+const pz1=API.previewNetwork(z1);
+assert(pz1.autoEF===24,'Deux WC + une douche = 24 ml EF');
+assert(pz1.autoEC===13,'Une douche SDB = 8 ml EC + distance SDB 5 m');
+assert(pz1.autoEvac===3,'Trois sanitaires = 3 ml évacuation locale');
+assert(pz1.autoPlatineEf===2&&pz1.autoPlatineEfEc===1&&pz1.autoPlatineEvac===3,'Platines automatiques suivent les trois sanitaires indépendants');
+assert(pz1.autoStopValves===4,'Deux WC + une douche = 4 robinets d’arrêt');
+assert(pz1.autoFittings===20,'Trois appareils eau = ceil(3×6×1,1)=20 raccords');
+
+const z2=base();z2.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:true,r1_avec:false};netRefs(z2);z2.installation.equipments.push({id:'wcov',kind:'wc',subtype:'poser',catalogue:wcSel,price_ht:wcSel.prix,time_h:2});z2.installation.network.manual_ef_ml=19;z2.installation.network.manual_platine_ef_qty=3;z2.installation.network.manual_fitting_qty=15;z2.installation.network.manual_stop_valve_qty=2;
+const pz2=API.previewNetwork(z2);assert(pz2.ef===19,'Override longueur EF artisan devient valeur de calcul');assert(pz2.platineEf===3,'Override platines artisan devient quantité de calcul');assert(pz2.fittings===15,'Override raccords artisan devient quantité de calcul');assert(pz2.stopValves===2,'Override vannes artisan devient quantité de calcul');
+const rz2=API.calculate(z2);assert(rz2.surfaces.detail_par_face.EF_ml===19,'Résultat final reprend longueur EF modifiée');assert(rz2.surfaces.detail_par_face.platines_EF===3,'Résultat final reprend platines modifiées');assert(rz2.materiaux.find(x=>x.article_id==='raccords_per').quantite_finale===15,'Résultat final reprend raccords modifiés');assert(rz2.materiaux.find(x=>x.article_id==='robinets_arret').quantite_finale===2,'Résultat final reprend robinets modifiés');
+
+// 31. Nettoyage interface artisan / structure 3 pages
+assert(appSrc.includes("['Base chantier','Dimensionnement & réseau']")&&appSrc.includes("['Configuration','Sanitaires & options']")&&appSrc.includes("['Résultats','Contrôle avant devis']"),'Parcours principal réduit à trois pages métier');
+assert(appSrc.includes('RDC — Sans sanitaire')&&appSrc.includes('R+1 — Sans sanitaire')&&appSrc.includes('RDC — Avec sanitaires')&&appSrc.includes('R+1 — Avec sanitaires'),'Quatre cases chantier présentes');
+assert(appSrc.includes('Chaque clic crée un élément indépendant'),'UI explique les sanitaires indépendants');
+assert(appSrc.includes('data-configure-equipment')&&appSrc.includes('configurable?'),'Configurer est piloté par la présence de sanitaires');
+assert(appSrc.includes('selectedCart(eqs,false)'),'Page Base affiche le panier sans bouton Configurer');
+assert(appSrc.includes('selectedCart(eqs,eqs.length>0)'),'Page Configuration affiche Configurer seulement si des sanitaires existent');
+assert(appSrc.includes('Distances chauffe-eau → pièces'),'Distances déplacées sur la Base chantier');
+assert(appSrc.includes('Réseau calculé automatiquement'),'Réseau automatique visible sur la Base chantier');
+assert(!/head\('Étape 1','Métier/.test(appSrc),'Ancienne première page Métier supprimée du parcours');
+assert(!/Annexe 1 — grille|Composition Annexe 2/.test(appSrc),'Aucun libellé Annexe 1/2 n’est exposé dans le parcours artisan actif');
+assert(appSrc.includes('function artisanMessage')&&appSrc.includes('Référentiel SpeedArti'),'Messages techniques internes nettoyés avant affichage');
 console.log(JSON.stringify({status:'OK',assertions:ok,catalogueCount:CAT.count,priceCount:CAT.priceCount,knownPrice117_19:known[0].prix,balisesVersion:r1.controle_balises.version,networkOnly:{ef:r2.surfaces.detail_par_face.EF_ml,ec:r2.surfaces.detail_par_face.EC_ml},fittingsOneFixture:fittingsWC.quantite_finale},null,2));

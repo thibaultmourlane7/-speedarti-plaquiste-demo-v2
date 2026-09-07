@@ -322,29 +322,68 @@
     return {lines:out,time,profile:connectionProfile(eq),nomenclature:annexe2Nomenclature(eq)};
   }
 
+  function stopValveCount(eq){
+    if(['lave_linge','lave_vaisselle'].includes(eq.kind))return 0;
+    if(['lavabo','meuble_vasque','douche','baignoire','evier'].includes(eq.kind))return 2;
+    if(eq.kind==='wc'||eq.kind==='lave_main')return 1;
+    if(eq.kind==='element_specifique')return Math.max(0,n(eq.stop_valves,0));
+    return connectionProfile(eq).ef?1:0;
+  }
+
   function computeNetwork(d,equipments){
     const net=d.installation?.network||{};
+    const zones=d.installation?.zones;
+    const hasZoneModel=!!zones;
+    const noSanitaryZones=hasZoneModel?((zones.rdc_sans?1:0)+(zones.r1_sans?1:0)):0;
     let efPoints=0,ecPoints=0,evacPoints=0;
     equipments.forEach(eq=>{const p=connectionProfile(eq);if(p.ef)efPoints++;if(p.ec)ecPoints++;if(p.evac)evacPoints++});
     const ann=d.installation?.annexe1||{};
     const waitRdc=n(ann.attente_rdc,0),waitR1=n(ann.attente_r1,0);
-    efPoints+=waitRdc+waitR1+n(net.ef_only,0)+n(net.ef_ec,0)+n(net.platines_ef,0)+n(net.platines_ef_ec,0);
-    ecPoints+=waitRdc+waitR1+n(net.ec_only,0)+n(net.ef_ec,0)+n(net.platines_ec,0)+n(net.platines_ef_ec,0);
-    evacPoints+=n(net.evac_points,0)+n(net.platines_evac,0);
+    if(hasZoneModel){
+      efPoints+=noSanitaryZones+n(net.ef_only,0)+n(net.ef_ec,0);
+      ecPoints+=noSanitaryZones+n(net.ec_only,0)+n(net.ef_ec,0);
+      evacPoints+=noSanitaryZones+n(net.evac_points,0);
+    }else{
+      // Compatibilité avec les brouillons antérieurs à la v0.6.
+      efPoints+=waitRdc+waitR1+n(net.ef_only,0)+n(net.ef_ec,0)+n(net.platines_ef,0)+n(net.platines_ef_ec,0);
+      ecPoints+=waitRdc+waitR1+n(net.ec_only,0)+n(net.ef_ec,0)+n(net.platines_ec,0)+n(net.platines_ef_ec,0);
+      evacPoints+=n(net.evac_points,0)+n(net.platines_evac,0);
+    }
     const hasHotBathroom=equipments.some(eq=>['lavabo','meuble_vasque','douche','baignoire','lave_main'].includes(eq.kind)&&connectionProfile(eq).ec);
     const hasHotKitchen=equipments.some(eq=>eq.kind==='evier'&&connectionProfile(eq).ec);
     const waterEquipments=equipments.filter(eq=>{const p=connectionProfile(eq);return p.ef||p.ec}).length;
-    const standaloneWaterPoints=waitRdc+waitR1+n(net.ef_only,0)+n(net.ec_only,0)+n(net.ef_ec,0)+n(net.platines_ef,0)+n(net.platines_ec,0)+n(net.platines_ef_ec,0);
+    const standaloneWaterPoints=hasZoneModel
+      ? noSanitaryZones+n(net.ef_only,0)+n(net.ec_only,0)+n(net.ef_ec,0)
+      : waitRdc+waitR1+n(net.ef_only,0)+n(net.ec_only,0)+n(net.ef_ec,0)+n(net.platines_ef,0)+n(net.platines_ec,0)+n(net.platines_ef_ec,0);
     const fittingUnits=waterEquipments+standaloneWaterPoints;
     const autoEF=efPoints*8;
-    // Correction v0.3 : les 5 m SDB / 8 m cuisine ne sont ajoutés que si ces zones contiennent réellement un appareil EC.
-    // Un réseau seul avec attentes EF/EC n'hérite donc plus silencieusement de 13 m supplémentaires.
     const autoEC=ecPoints*8+(hasHotBathroom?n(net.distance_ce_sdb,5):0)+(hasHotKitchen?n(net.distance_ce_cuisine,8):0);
     const autoEvac=evacPoints*1;
     const ef=net.manual_ef_ml!==undefined&&net.manual_ef_ml!==null&&net.manual_ef_ml!==''?n(net.manual_ef_ml):autoEF;
     const ec=net.manual_ec_ml!==undefined&&net.manual_ec_ml!==null&&net.manual_ec_ml!==''?n(net.manual_ec_ml):autoEC;
     const evac=net.manual_evac_ml!==undefined&&net.manual_evac_ml!==null&&net.manual_evac_ml!==''?n(net.manual_evac_ml):autoEvac;
-    return {efPoints,ecPoints,evacPoints,fittingUnits,autoEF,autoEC,autoEvac,ef,ec,evac,hasHotBathroom,hasHotKitchen};
+
+    // Accessoires proposés automatiquement à partir des appareils et des zones réseau seul.
+    let autoPlatineEf=0,autoPlatineEc=0,autoPlatineEfEc=0,autoPlatineEvac=0;
+    if(hasZoneModel){
+      equipments.forEach(eq=>{const p=connectionProfile(eq);if(p.ef&&p.ec)autoPlatineEfEc++;else if(p.ef)autoPlatineEf++;else if(p.ec)autoPlatineEc++;if(p.evac)autoPlatineEvac++});
+      autoPlatineEfEc+=noSanitaryZones;autoPlatineEvac+=noSanitaryZones;
+    }else{
+      autoPlatineEf+=n(net.platines_ef,0);autoPlatineEc+=n(net.platines_ec,0);autoPlatineEfEc+=n(net.platines_ef_ec,0);autoPlatineEvac+=n(net.platines_evac,0);
+    }
+    const useOverride=(k,auto)=>net[k]!==undefined&&net[k]!==null&&net[k]!==''?Math.max(0,n(net[k])):auto;
+    const platineEf=useOverride('manual_platine_ef_qty',autoPlatineEf);
+    const platineEc=useOverride('manual_platine_ec_qty',autoPlatineEc);
+    const platineEfEc=useOverride('manual_platine_ef_ec_qty',autoPlatineEfEc);
+    const platineEvac=useOverride('manual_platine_evac_qty',autoPlatineEvac);
+    const autoFittings=Math.ceil(fittingUnits*6*1.1);
+    const fittings=useOverride('manual_fitting_qty',autoFittings);
+    const autoStopValves=equipments.reduce((sum,eq)=>sum+stopValveCount(eq),0);
+    const stopValves=useOverride('manual_stop_valve_qty',autoStopValves);
+
+    return {efPoints,ecPoints,evacPoints,fittingUnits,autoEF,autoEC,autoEvac,ef,ec,evac,hasHotBathroom,hasHotKitchen,
+      noSanitaryZones,autoPlatineEf,autoPlatineEc,autoPlatineEfEc,autoPlatineEvac,platineEf,platineEc,platineEfEc,platineEvac,
+      autoFittings,fittings,autoStopValves,stopValves};
   }
 
   function applyAnnexe1(d,lines,alerts){
@@ -389,26 +428,19 @@
     if(totalPipe>0)lines.push(line(`tuyau_${pipe}`,`Tuyau ${pipe==='per'?'PER':pipe} — prix de secours`,pipePrice,totalPipe,'ml','Réseau',{stockable:true,source:'fallback Guillaume',balise_ui:'options.type_tuyau',balise_prix:'fallback_guillaume'}));
     if(network.evac>0){const ep=n(net.evac_price_ml,0);lines.push(line('evac_local','Évacuation locale estimée',ep,network.evac,'ml','Réseau',{source:ep>0?'saisie artisan HT/ml':'composition appareil / réseau',stockable:true,balise_ui:'installation.network.evac_price_ml',balise_prix:ep>0?'manuel':'manquant'}));if(ep<=0)alerts.push(`Prix catalogue manquant pour l'évacuation PVC : ${network.evac} ml. Renseigner exceptionnellement un prix HT/ml tant que le conditionnement catalogue n'est pas normalisé.`)}
 
-    addNetworkUnit(lines,alerts,{id:'platine_ef',label:'Platine sanitaire EF',qty:n(net.platines_ef,0),sel:net.platine_ef_catalogue,manualPrice:net.platine_ef_price_ht,uiBase:'installation.network.platine_ef'});
-    addNetworkUnit(lines,alerts,{id:'platine_ec',label:'Platine sanitaire EC',qty:n(net.platines_ec,0),sel:net.platine_ec_catalogue,manualPrice:net.platine_ec_price_ht,uiBase:'installation.network.platine_ec'});
-    addNetworkUnit(lines,alerts,{id:'platine_ef_ec',label:'Platine sanitaire EF + EC',qty:n(net.platines_ef_ec,0),sel:net.platine_ef_ec_catalogue,manualPrice:net.platine_ef_ec_price_ht,uiBase:'installation.network.platine_ef_ec'});
-    addNetworkUnit(lines,alerts,{id:'platine_evac',label:'Platine / raccordement évacuation',qty:n(net.platines_evac,0),sel:net.platine_evac_catalogue,manualPrice:net.platine_evac_price_ht,uiBase:'installation.network.platine_evac'});
+    addNetworkUnit(lines,alerts,{id:'platine_ef',label:'Platine sanitaire EF',qty:network.platineEf,sel:net.platine_ef_catalogue,manualPrice:net.platine_ef_price_ht,uiBase:'installation.network.platine_ef'});
+    addNetworkUnit(lines,alerts,{id:'platine_ec',label:'Platine sanitaire EC',qty:network.platineEc,sel:net.platine_ec_catalogue,manualPrice:net.platine_ec_price_ht,uiBase:'installation.network.platine_ec'});
+    addNetworkUnit(lines,alerts,{id:'platine_ef_ec',label:'Platine sanitaire EF + EC',qty:network.platineEfEc,sel:net.platine_ef_ec_catalogue,manualPrice:net.platine_ef_ec_price_ht,uiBase:'installation.network.platine_ef_ec'});
+    addNetworkUnit(lines,alerts,{id:'platine_evac',label:'Platine / raccordement évacuation',qty:network.platineEvac,sel:net.platine_evac_catalogue,manualPrice:net.platine_evac_price_ht,uiBase:'installation.network.platine_evac'});
 
-    const fittingQty=Math.ceil(network.fittingUnits*6*1.1);
+    const fittingQty=network.fittings;
     if(fittingQty>0){
       const sel=net.fitting_catalogue;const pr=pricedSelection(sel,net.fitting_price_ht);checkCatalogueSelection(sel,net.fitting_price_ht,`Raccords ${pipe}`,alerts);
       if(hasCatalogue(sel)&&!fittingCompatible(sel,pipe))alerts.push(`BALISE COMPATIBILITÉ : la référence raccord Téréva ${sel.code} n’est pas compatible avec le réseau ${pipe.toUpperCase()}.`);
       if(pr.price>0)lines.push(line(`raccords_${pipe}`,hasCatalogue(sel)?(sel.produit||`Raccords ${pipe}`):`Raccords ${pipe}`,pr.price,fittingQty,'unité','Réseau',{stockable:true,...(hasCatalogue(sel)?catalogueExtra(sel,'installation.network.fitting_catalogue',pr.manual):{source:'saisie artisan',balise_ui:'installation.network.fitting_price_ht',balise_prix:'manuel'})}));
       else {lines.push(line(`raccords_${pipe}`,`Raccords ${pipe} — quantité estimée`,0,fittingQty,'unité','Réseau',{stockable:true,source:'composition réseau',balise_ui:'installation.network.fitting_price_ht',balise_prix:'manquant'}));alerts.push(`Prix catalogue manquant pour les raccords ${pipe} : ${fittingQty} unité(s) estimée(s).`)}
     }
-    const stopValveCount=eq=>{
-      if(['lave_linge','lave_vaisselle'].includes(eq.kind))return 0;
-      if(['lavabo','meuble_vasque','douche','baignoire','evier'].includes(eq.kind))return 2;
-      if(eq.kind==='wc'||eq.kind==='lave_main')return 1;
-      if(eq.kind==='element_specifique')return Math.max(0,n(eq.stop_valves,0));
-      return connectionProfile(eq).ef?1:0;
-    };
-    const stopValves=equipments.reduce((sum,eq)=>sum+stopValveCount(eq),0);
+    const stopValves=network.stopValves;
     if(stopValves>0){
       const sel=net.stop_valve_catalogue;const pr=pricedSelection(sel,net.stop_valve_price_ht);checkCatalogueSelection(sel,net.stop_valve_price_ht,'Robinets d’arrêt',alerts);
       if(pr.price>0)lines.push(line('robinets_arret',hasCatalogue(sel)?(sel.produit||'Robinets d’arrêt'):'Robinets d’arrêt',pr.price,stopValves,'unité','Réseau',{stockable:true,...(hasCatalogue(sel)?catalogueExtra(sel,'installation.network.stop_valve_catalogue',pr.manual):{source:'saisie artisan',balise_ui:'installation.network.stop_valve_price_ht',balise_prix:'manuel'})}));
@@ -538,7 +570,7 @@
     if(Math.abs(htExpected-r2(ht))>.011)issues.push(`BALISE TOTAL HT incohérente : matériaux + main-d’œuvre + aléas = ${htExpected}, moteur = ${r2(ht)}.`);
     const tvaExpected=r2(n(ht)*n(tvaRate)/100);
     if(Math.abs(tvaExpected-r2(tva))>.011)issues.push(`BALISE TVA incohérente : ${tvaExpected} attendu, moteur = ${r2(tva)}.`);
-    return {ok:issues.length===0,issues,lignes_controlees:lines.length,lignes_catalogue:catalogueLines,materiaux_ht_controles:materials,main_oeuvre_ht_avant_aleas_controlee:laborExpected,aleas_ht_controle:aleasExpected,main_oeuvre_ht_controlee:r2(laborExpected+aleasExpected),total_ht_controle:htExpected,tva_controlee:tvaExpected,version:'BALISES-ABSOLUES-v1.5'};
+    return {ok:issues.length===0,issues,lignes_controlees:lines.length,lignes_catalogue:catalogueLines,materiaux_ht_controles:materials,main_oeuvre_ht_avant_aleas_controlee:laborExpected,aleas_ht_controle:aleasExpected,main_oeuvre_ht_controlee:r2(laborExpected+aleasExpected),total_ht_controle:htExpected,tva_controlee:tvaExpected,version:'BALISES-ABSOLUES-v1.6'};
   }
 
   function buildApprovisionnement(lines){
@@ -570,7 +602,7 @@
     const approvisionnement=buildApprovisionnement(lines);
     return {
       mode,
-      surfaces:{totale:n(d.installation?.surface_maison_m2,0),nette:0,avec_pertes:0,detail_par_face:network?{EF_ml:r2(network.ef),EC_ml:r2(network.ec),evac_ml:r2(network.evac),points_EF:network.efPoints,points_EC:network.ecPoints,points_evac:network.evacPoints}:{}},
+      surfaces:{totale:n(d.installation?.surface_maison_m2,0),nette:0,avec_pertes:0,detail_par_face:network?{EF_ml:r2(network.ef),EC_ml:r2(network.ec),evac_ml:r2(network.evac),points_EF:network.efPoints,points_EC:network.ecPoints,points_evac:network.evacPoints,platines_EF:network.platineEf,platines_EC:network.platineEc,platines_EF_EC:network.platineEfEc,platines_evac:network.platineEvac,raccords:network.fittings,robinets_arret:network.stopValves}:{}},
       materiaux:lines,
       main_oeuvre:{temps_estime_heures:r2(laborHours/workers),heures_homme:r2(laborHours),decomposition:[{poste:'Main-d’œuvre calculée',temps_heures:r2(laborHours),montant_ht:r2(laborTotal)},...(aleasHt>0?[{poste:'Aléas — 4 % de la main-d’œuvre HT',taux:4,montant_ht:r2(aleasHt)}]:[])],taux_horaire:n(d.options?.taux_horaire,52),nombre_ouvriers:workers,coefficient_complexite:complexiteCoef(d),cout_avant_aleas:r2(laborTotal),aleas_taux:aleasHt>0?4:0,aleas_ht:r2(aleasHt),cout_total:r2(laborTotal+aleasHt),balises:{heures_homme:r2(laborHours),taux_horaire:n(d.options?.taux_horaire,52),complexite:complexiteCoef(d),aleas_taux:aleasHt>0?4:0,aleas_ht:r2(aleasHt),formule:`${r2(laborHours)} × ${n(d.options?.taux_horaire,52)} × ${complexiteCoef(d)}${aleasHt>0?' + 4 % aléas MO':''}`}},
       totaux:{materiaux_ht:r2(lines.reduce((s,l)=>s+l.total_ht,0)),main_oeuvre_ht_avant_aleas:r2(laborTotal),aleas_ht:r2(aleasHt),main_oeuvre_ht:r2(laborTotal+aleasHt),total_ht:r2(ht),taux_tva:tvaRate,tva:r2(tva),total_ttc:r2(ht+tva)},
@@ -590,5 +622,5 @@
     if(!d.nom_calcul)throw new Error('Le nom du calcul est requis');
     return d.options?.type_projet==='petits_travaux'?petits(d):complete(d);
   }
-  window.SpeedArtiPlombierCurrent={calculate,ANNEXE1_DEFAULTS,FORFAITS_DEFAULTS,PIPE_FALLBACK,ANNEXE2_COMPONENTS,annexe2For};
+  window.SpeedArtiPlombierCurrent={calculate,previewNetwork:(d)=>computeNetwork(d,d?.installation?.equipments||[]),ANNEXE1_DEFAULTS,FORFAITS_DEFAULTS,PIPE_FALLBACK,ANNEXE2_COMPONENTS,annexe2For};
 })();

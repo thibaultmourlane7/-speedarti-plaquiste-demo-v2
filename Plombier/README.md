@@ -1,32 +1,51 @@
-# SpeedArti — Démo Plombier v0.5.2
+# SpeedArti — Plombier v0.6.0 — Base chantier
 
-Cette version reprend la v0.5.1 contrôlée et finalise la dernière règle métier ouverte.
+Cette version fait évoluer le module Plombier existant sans recréer le métier ni modifier les règles de calcul validées.
 
-## Règle Aléas désormais validée
+## Nouveau parcours artisan
 
-- **Aléas = 4 % uniquement sur la main-d’œuvre HT**.
-- Le calcul est effectué après application du coefficient de complexité sur la main-d’œuvre.
-- Les matériaux, fournitures catalogue et forfaits complets ne modifient pas le montant des aléas.
-- Les aléas sont ajoutés au total HT avant calcul de la TVA.
-- Le résultat distingue : main-d’œuvre HT avant aléas, aléas HT, main-d’œuvre HT totale.
+Le parcours installation complète est organisé en 3 pages :
 
-## Catalogue et règles conservés
+1. **Base chantier** — dimensionnement, distances chauffe-eau, zones RDC/R+1, sélection des sanitaires et calcul automatique du réseau.
+2. **Configuration & options** — configuration individuelle des sanitaires sélectionnés et options complémentaires.
+3. **Résultats** — contrôle du chiffrage, matériaux, main-d’œuvre, TVA et approvisionnement.
 
-- 7 456 références Téréva 2026 ;
-- 7 451 références avec prix exploitable ;
-- prix catalogue diminués de 20 % ;
-- recherche contextuelle, Annexe 2, réseau seul, petits travaux, approvisionnement fournisseur ;
-- aucun stock inventé ;
-- aucun prix/temps métier non validé ajouté silencieusement.
+Les termes internes de travail (Guillaume, questionnaires, annexes, mapping) ne sont plus affichés dans l’interface artisan. Ils restent uniquement des sources techniques internes lorsque nécessaires au contrôle.
+
+## Base chantier
+
+Quatre zones indépendantes peuvent être sélectionnées ou désélectionnées :
+- RDC — sans sanitaire ;
+- R+1 — sans sanitaire ;
+- RDC — avec sanitaires ;
+- R+1 — avec sanitaires.
+
+Chaque clic sur un sanitaire crée une **instance indépendante** : deux clics sur WC créent WC 1 et WC 2. La page Base chantier affiche un panier latéral avec les éléments sélectionnés et leur suppression, sans bouton Configurer.
+
+Le réseau est proposé automatiquement et reste modifiable : EF, EC, évacuation, platines, raccords, robinets d’arrêt et temps réseau. Une valeur modifiée par l’artisan devient la valeur réellement utilisée dans le calcul.
+
+## Configuration
+
+Le bouton **Configurer** apparaît uniquement lorsqu’au moins un sanitaire existe. Chaque équipement se configure séparément. En réseau seul, aucune configuration sanitaire n’est affichée.
+
+La page centrale ne reprend plus les distances ou le dimensionnement du réseau : elle est dédiée aux configurations des sanitaires et aux options complémentaires.
+
+## Tarifs
+
+Le parcours normal ne demande pas à l’artisan d’inventer un prix. Une donnée tarifaire technique indisponible reste signalée comme donnée SpeedArti à compléter ; aucun prix n’est fabriqué silencieusement.
+
+## Règles conservées
+
+- catalogue Téréva 2026 : 7 456 références, dont 7 451 avec prix exploitable ;
+- prix catalogue de la base diminués de 20 % ;
+- complexité appliquée uniquement à la main-d’œuvre ;
+- aléas = 4 % de la main-d’œuvre HT uniquement, avant TVA ;
+- quantités réseau et accessoires traçables et modifiables ;
+- stock réel uniquement, jamais de stock inventé ;
+- approvisionnement fournisseur conservé.
 
 ## Balises absolues
 
-Version : `BALISES-ABSOLUES-v1.5`.
+Version : `BALISES-ABSOLUES-v1.6`.
 
-Chaîne contrôlée : UI → donnée → quantité → unité → prix → source → calcul → total → approvisionnement / stock.
-Le contrôle vérifie maintenant aussi explicitement que les aléas valent exactement 4 % de la main-d’œuvre HT.
-
-## Sauvegarde
-
-Clé v0.5.2 : `speedarti-plombier-demo-v052`.
-Migration prévue depuis v0.5.1, v0.4.0 et v0.3.1.
+Chaîne de contrôle : UI → donnée → quantité → unité → prix → source → calcul → total → approvisionnement / stock.
