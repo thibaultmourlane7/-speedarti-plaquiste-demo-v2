@@ -414,5 +414,19 @@ test('FIX audit humain: fibres béton proposent des conditionnements catalogue c
   assert.ok(r.orderQty>0);
 });
 
+
+test('FIX v2.4: cheminée simple conserve count=1 sans interaction utilisateur',()=>{
+  const s=defaultState();
+  s.mode='simple';
+  s.simpleType='cheminee';
+  s.simple.height=5;
+  assert.equal(s.simple.count,1,'Le nombre de conduits affiché par défaut doit exister dans le state.');
+  const r=calculate(s);
+  assert.equal(qty(r,'simple-chimney-conduit'),5,'5 ml × 1 conduit doivent être calculés sans toucher au champ count.');
+  assert.ok(!r.alerts.some(a=>a.includes('Nombre de conduits obligatoire')),'Aucune alerte count ne doit apparaître lorsque la valeur affichée par défaut est 1.');
+  const app=fs.readFileSync(new URL('./app.js',import.meta.url),'utf8');
+  assert.match(app,/function resetSimple\(\)\{\s*state\.simple=\{openings:\[\],refOverrides:\{\},chimneyOverrides:\{\},count:1\};/,'Changer de type simple doit restaurer count=1 dans le vrai state UI.');
+});
+
 console.log(`OK — V2 Maçon: ${pass.length} contrôles fonctionnels passés`);
 for(const x of pass)console.log(`✓ ${x}`);

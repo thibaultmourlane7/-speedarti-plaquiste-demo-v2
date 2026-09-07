@@ -61,7 +61,7 @@ export function defaultState(){
     step:0,
     mode:'simple',
     simpleType:'murs',
-    simple:{ openings:[], refOverrides:{}, chimneyOverrides:{} },
+    simple:{ openings:[], refOverrides:{}, chimneyOverrides:{}, count:1 },
     globals:{
       hourly:'', vat:'', workers:1, concreteClass:'C25/30',
       truck:false, truckPrice:TRUCK_8X4_DEFAULT, truckDays:1, saveTruckPrice:false,
