@@ -1,92 +1,74 @@
-# SpeedArti — Plombier v0.6.1 — Parcours chantier intégral
+# SpeedArti — Plombier v0.6.3 — Référentiel réseau Téréva
 
-Cette version repart du module Plombier déjà développé. Le moteur métier, le catalogue Téréva, les règles de réseau, les balises, la TVA, la complexité, les aléas, l'approvisionnement et les contrôles existants sont conservés. La modification principale concerne l'organisation du parcours artisan.
+Cette version continue le module Plombier existant. Le parcours chantier v0.6.2 est conservé ; le lot v0.6.3 complète les fournitures réseau qui apparaissaient auparavant comme « référentiel à compléter ».
 
-## Parcours installation complète
+## Principe de prix réseau
 
-Le parcours est maintenant organisé en 4 pages :
+Priorité appliquée par le moteur :
 
-1. **Base chantier** — dimensionnement, distances depuis le chauffe-eau et 4 zones indépendantes RDC/R+1 avec ou sans sanitaire.
-2. **Équipements & réseau** — sélection des sanitaires, panier latéral, calcul automatique et modification des quantités réseau.
-3. **Configuration & options** — configuration individuelle facultative des sanitaires + options du chantier, avec le même panier latéral.
-4. **Résultats** — contrôle du chiffrage, matériaux, main-d'œuvre, TVA et approvisionnement.
+1. référence catalogue choisie explicitement par l'artisan si elle existe ;
+2. référence technique Téréva 2026 définie par SpeedArti pour le contexte réseau ;
+3. fallback uniquement quand Téréva ne publie pas de prix exploitable.
 
-## Page 1 — Base chantier
+Aucun prix n'est demandé à l'artisan dans le parcours normal pour le PVC, les platines, raccords ou robinets d'arrêt.
 
-- dimensionnement du chantier ;
-- surface ;
-- type de canalisation ;
-- nombre d'ouvriers ;
-- distance chauffe-eau → salle de bains ;
-- distance chauffe-eau → cuisine ;
-- 4 cases indépendantes :
-  - RDC — Sans sanitaire ;
-  - R+1 — Sans sanitaire ;
-  - RDC — Avec sanitaires ;
-  - R+1 — Avec sanitaires.
+## Références techniques Téréva automatiques
 
-Les distances ne sont plus répétées dans les options.
+Les prix de la base embarquée sont ceux du catalogue Téréva 2026 déjà diminués de 20 %.
 
-## Page 2 — Équipements & réseau
+### PER
+- tube PER 13x16 : code `2272355`, couronne 120 m ; prix de la couronne ramené au ml ;
+- raccord de référence : `1098216` ;
+- platine simple : `4312345` ;
+- platine EF+EC double : `3160404`.
 
-Chaque clic crée une instance séparée. Deux clics sur WC créent **WC 1** et **WC 2**.
+### Multicouche
+- tube multicouche Ø16 : code `4146584`, couronne 100 m ; prix ramené au ml ;
+- raccord de référence : `4146484` ;
+- platine simple : `4312343` ;
+- platine EF+EC double : `3160402`.
 
-Lorsque RDC et R+1 avec sanitaires sont tous les deux sélectionnés, les palettes d'ajout sont séparées par niveau afin que chaque nouvel équipement conserve sa zone chantier.
+### Cuivre
+- le catalogue Téréva 2026 indique les tubes cuivre comme prix variable/non publié : le fallback SpeedArti validé de 8 €/ml est donc conservé ;
+- raccord de référence : `024317Z` ;
+- platine simple : `2857663` ;
+- platine double : `1181674`.
 
-Les sanitaires disposent d'icônes SVG dédiées. Le panier latéral apparaît dès le premier sanitaire sélectionné. Sur cette page il permet uniquement de voir les éléments et de les supprimer : **aucun bouton Configurer**.
+### Évacuation PVC
+- DN40 : `044755V`, prix catalogue au mètre ;
+- DN100 pour WC : `044788U`, prix catalogue au mètre ;
+- raccord appareil DN40 : `059805D` ;
+- raccord WC DN100 : `027749Z`.
 
-Les quantités proposées automatiquement et modifiables comprennent :
-- eau froide ;
-- eau chaude ;
-- évacuation ;
-- platines EF ;
-- platines EC ;
-- platines EF + EC ;
-- raccordements évacuation ;
-- raccords ;
-- robinets d'arrêt / vannes ;
-- temps de pose réseau.
+### Robinet d'arrêt
+- référence automatique : `142568G`.
 
-Une valeur modifiée par l'artisan devient la valeur réellement utilisée dans le calcul.
+Les références automatiques restent traçables dans chaque ligne : code Téréva, page source, prix, quantité et formule.
 
-## Page 3 — Configuration & options
+## Temps de pose réseau
 
-La configuration apparaît uniquement ici, au même niveau que les options.
+Le champ « Temps de pose réseau total » n'est plus vide par défaut. SpeedArti fait une proposition technique calculée depuis les longueurs, puis l'artisan peut la modifier.
 
-Le panier latéral est conservé. Un bouton **Configurer** apparaît pour chaque sanitaire présent. Chaque élément reste indépendant : WC 1 et WC 2 peuvent avoir des configurations différentes.
+Référentiel externe utilisé pour cette proposition : Générateur de prix CYPE France.
 
-En installation sans sanitaire :
-- aucune palette sanitaire ;
-- aucun panier sanitaire ;
-- aucun bouton Configurer ;
-- uniquement les options utiles au chantier.
+- PER/PE-X Ø16 : `0,064 h-h/ml` (0,032 h compagnon + 0,032 h ouvrier) ;
+- multicouche Ø16 : `0,064 h-h/ml` ;
+- cuivre 13/15 : `0,45 h-h/ml` (0,225 + 0,225) ;
+- évacuation PVC : `0,12 h-h/ml` (0,080 + 0,040).
 
-Les anciennes références de travail ne sont pas exposées à l'artisan. Les intitulés visibles sont des intitulés métier SpeedArti.
+Ce sont des propositions techniques, pas des réponses Guillaume. Dès que l'artisan modifie le temps, sa valeur devient la base réelle du calcul et la balise mémorise l'override.
 
-## Tarifs
+## Parcours conservé
 
-Le parcours normal ne demande plus à l'artisan de saisir un prix pendant le chiffrage.
+1. **Base chantier** — dimensionnement, distances chauffe-eau, zones RDC/R+1 avec/sans sanitaire.
+2. **Équipements & réseau** — sanitaires indépendants, icônes, panier, quantités réseau automatiques et modifiables.
+3. **Configuration & options** — configuration individuelle uniquement si sanitaires + options chantier.
+4. **Résultats** — matériaux, MO, TVA, aléas, approvisionnement et contrôles.
 
-- les articles utilisent le catalogue ou les valeurs SpeedArti/entreprise existantes ;
-- les prestations de service utilisent le tarif entreprise lorsqu'il existe ;
-- si un tarif nécessaire n'est pas paramétré, le contrôle le signale sans inventer un montant et sans demander un prix dans le chantier.
-
-## Règles conservées
-
-- catalogue Téréva 2026 : 7 456 références, 7 451 prix exploitables ;
-- prix de la base catalogue diminués de 20 % ;
-- réseau EF/EC/évacuation et accessoires traçables ;
-- 6 raccords par appareil/point + 10 % selon les règles validées ;
-- robinets d'arrêt selon la composition de chaque équipement ;
-- complexité appliquée uniquement à la main-d'œuvre ;
-- aléas = 4 % de la main-d'œuvre HT uniquement ;
-- nombre d'ouvriers agit sur la durée chantier, pas sur les heures-homme facturées ;
-- TVA 10 % / 20 % conservée ;
-- stock réel uniquement ;
-- besoins fournisseur et exports conservés.
+Aucun libellé Guillaume / Annexe 1 / Annexe 2 / question de travail n'est destiné à l'interface artisan.
 
 ## Balises
 
-Version : `BALISES-ABSOLUES-v1.6`.
+Version : `BALISES-ABSOLUES-v1.8`.
 
-Chaîne : UI → donnée → quantité → unité → prix → source → calcul → total → approvisionnement / stock.
+Chaîne : UI → donnée → quantité → unité → référence → prix → source → calcul → temps/MO → total → approvisionnement/stock.

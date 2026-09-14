@@ -25,6 +25,35 @@
     pompe_relevage:{label:'Pompe de relevage',price:650}
   };
   const PIPE_FALLBACK={per:.8,multicouche:1.12,cuivre:8};
+  // Références techniques Téréva 2026 déjà intégrées dans la base SpeedArti (-20 %).
+  // Elles servent uniquement lorsqu'aucune référence n'a été choisie explicitement par l'artisan.
+  const TECH_REF={
+    per:{
+      tube:{code:'2272355',ref_fab:'Téréva 2272355',marque:'BAO',famille:'Hydrocâblé - Multicouche',type:'Tube',produit:'TUBE PER NU BLANC NON BAO - COURONNE',variante:'120 | 13x16',prix:70.04,source:'Catalogue p. 867 / PDF p. 869',catalogue:'Téréva 2026 -20%'},
+      tube_length:120,
+      raccord:{code:'1098216',ref_fab:'PRESS8216',type:'Raccord',produit:'RACCORD DROIT ÉCROU PRISONNIER PER À SERTIR F',variante:'16 | 12x17',prix:2.77,source:'Catalogue p. 872 / PDF p. 874',catalogue:'Téréva 2026 -20%'},
+      platine_simple:{code:'4312345',ref_fab:'FIX12345',type:'Tube',produit:'KIT FIXATION ROBINETTERIE MONOTROU POUR TUBE PER',variante:'15x21 | À sertir | 16',prix:21.26,source:'Catalogue p. 886 / PDF p. 888',catalogue:'Téréva 2026 -20%'},
+      platine_double:{code:'3160404',ref_fab:'FIX10020',type:'Tube',produit:'KIT FIXATION ROBINETTERIE ENTRAXE 150 MM POUR TUBE PER',variante:'15x21 | À sertir | 16',prix:27.67,source:'Catalogue p. 886 / PDF p. 888',catalogue:'Téréva 2026 -20%'}
+    },
+    multicouche:{
+      tube:{code:'4146584',ref_fab:'SERT22207',type:'Tube',produit:'TUBE MULTICOUCHE NU BLANC SERT - COURONNE',variante:'2 | 100 | 16',prix:123.06,source:'Catalogue p. 873 / PDF p. 875',catalogue:'Téréva 2026 -20%'},
+      tube_length:100,
+      raccord:{code:'4146484',ref_fab:'SERT20011',type:'Raccord',produit:'RACCORD ÉCROU TOURNANT MULTICOUCHE FEMELLE',variante:'16 | 15x21',prix:3.14,source:'Catalogue p. 875 / PDF p. 877',catalogue:'Téréva 2026 -20%'},
+      platine_simple:{code:'4312343',ref_fab:'FIX12343',type:'Tube',produit:'KIT FIXATION ROBINETTERIE MONOTROU POUR TUBE MULTICOUCHE',variante:'15x21 | À sertir | 16',prix:20.12,source:'Catalogue p. 885 / PDF p. 887',catalogue:'Téréva 2026 -20%'},
+      platine_double:{code:'3160402',ref_fab:'FIX10004',type:'Tube',produit:'KIT FIXATION ROBINETTERIE ENTRAXE 150 MM POUR TUBE MULTICOUCHE',variante:'15x21 | À sertir | 16',prix:27.00,source:'Catalogue p. 885 / PDF p. 887',catalogue:'Téréva 2026 -20%'}
+    },
+    cuivre:{
+      raccord:{code:'024317Z',ref_fab:'Téréva 024317Z',type:'Coude',produit:'COUDE 90° CUIVRE À SOUDER FF - FIG 90',variante:'14',prix:1.28,source:'Catalogue p. 799 / PDF p. 801',catalogue:'Téréva 2026 -20%'},
+      platine_simple:{code:'2857663',ref_fab:'CUSER663',type:'Cuivre et laiton',produit:'APPLIQUE MURALE À SERTIR FF',variante:'14 | 15x21',prix:15.94,source:'Catalogue Téréva 2026',catalogue:'Téréva 2026 -20%'},
+      platine_double:{code:'1181674',ref_fab:'Téréva 1181674',type:'Tube',produit:'ROBIFIX® ENTRAXE 150 MM POUR TUBE CUIVRE',variante:'À souder | F15x21 | 14',prix:57.63,source:'Catalogue p. 884 / PDF p. 886',catalogue:'Téréva 2026 -20%'}
+    },
+    pvc40:{code:'044755V',ref_fab:'20052041',type:'Tube',produit:'TUBE PVC ÉVACUATION',variante:'4 | 40',prix:1.88,source:'Catalogue p. 817 / PDF p. 819',catalogue:'Téréva 2026 -20%',length:4},
+    pvc100:{code:'044788U',ref_fab:'20051897',type:'Tube',produit:'TUBE PVC ÉVACUATION',variante:'4 | 100',prix:3.76,source:'Catalogue p. 817 / PDF p. 819',catalogue:'Téréva 2026 -20%',length:4},
+    evac40:{code:'059805D',ref_fab:'UCH8J',type:'Coude',produit:'COUDE 87°30 MF À JOINT POUR APPAREIL SANITAIRE PVC',variante:'40',prix:10.24,source:'Catalogue p. 825 / PDF p. 827',catalogue:'Téréva 2026 -20%'},
+    evac100:{code:'027749Z',ref_fab:'CT8',type:'Coude',produit:'COUDE 87°30 PVC MF',variante:'100',prix:8.70,source:'Catalogue p. 820 / PDF p. 822',catalogue:'Téréva 2026 -20%'},
+    stop:{code:'142568G',ref_fab:'Téréva 142568G',type:'Robinet',produit:'ROBINET D’ARRÊT MM',variante:'12x17',prix:16.48,source:'Catalogue p. 896 / PDF p. 898',catalogue:'Téréva 2026 -20%'}
+  };
+  const NETWORK_TIME_H_PER_M={per:.064,multicouche:.064,cuivre:.45,pvc:.12};
   const GAMME={eco:.7,standard:1,premium:1.6};
   const COMPLEXITE={simple:.8,moyen:1,complexe:1.4};
   const HOT_KINDS=new Set(['lavabo','meuble_vasque','douche','baignoire','evier']);
@@ -182,6 +211,17 @@
     if(!hasCatalogue(sel))return {source:manual?'saisie artisan':'catalogue / saisie',balise_ui:uiPath||'',balise_prix:manual?'manuel':'non_catalogue'};
     return {source:catalogueSource(sel,manual),catalogue_code:sel.code,catalogue_ref_fabricant:sel.ref_fab||'',catalogue_marque:sel.marque||'',catalogue_famille:sel.famille||'',catalogue_type:sel.type||'',catalogue_produit:sel.produit||'',catalogue_variante:sel.variante||'',catalogue_finition:sel.finition||'',catalogue_source_page:sel.source||'',catalogue_version:sel.catalogue||'Téréva 2026 -20%',balise_ui:uiPath||'',balise_prix:manual?'manuel_sur_reference':'reference_exacte'};
   }
+  function techSelection(ref){
+    if(!ref)return null;
+    return {catalogue:ref.catalogue||'Téréva 2026 -20%',code:ref.code||'',ref_fab:ref.ref_fab||'',marque:ref.marque||'Téréva',famille:ref.famille||'Plomberie',type:ref.type||'',produit:ref.produit||'',variante:ref.variante||'',finition:ref.finition||'',prix:n(ref.prix,0),source:ref.source||'Catalogue Téréva 2026',price_overridden:false,technical_default:true};
+  }
+  function technicalCatalogueExtra(ref,uiPath){
+    const sel=techSelection(ref);return {...catalogueExtra(sel,uiPath,false),balise_prix:'reference_technique_tereva',reference_technique:true};
+  }
+  function networkTimeProposal(network,pipe){
+    const water=r2(network.ef+network.ec);const evac=r2(network.evac);
+    return r2(water*n(NETWORK_TIME_H_PER_M[pipe],NETWORK_TIME_H_PER_M.per)+evac*NETWORK_TIME_H_PER_M.pvc);
+  }
   function checkCatalogueSelection(sel,currentPrice,label,alerts){
     if(!hasCatalogue(sel))return;
     const manualResolved=n(currentPrice,0)>0&&(!!sel.price_overridden||n(sel.prix,0)<=0);
@@ -336,8 +376,8 @@
     const zones=d.installation?.zones;
     const hasZoneModel=!!zones;
     const noSanitaryZones=hasZoneModel?((zones.rdc_sans?1:0)+(zones.r1_sans?1:0)):0;
-    let efPoints=0,ecPoints=0,evacPoints=0;
-    equipments.forEach(eq=>{const p=connectionProfile(eq);if(p.ef)efPoints++;if(p.ec)ecPoints++;if(p.evac)evacPoints++});
+    let efPoints=0,ecPoints=0,evacPoints=0,wcEvacPoints=0;
+    equipments.forEach(eq=>{const p=connectionProfile(eq);if(p.ef)efPoints++;if(p.ec)ecPoints++;if(p.evac){evacPoints++;if(eq.kind==='wc')wcEvacPoints++}});
     const ann=d.installation?.annexe1||{};
     const waitRdc=n(ann.attente_rdc,0),waitR1=n(ann.attente_r1,0);
     if(hasZoneModel){
@@ -383,7 +423,7 @@
     const stopValves=useOverride('manual_stop_valve_qty',autoStopValves);
 
     return {efPoints,ecPoints,evacPoints,fittingUnits,autoEF,autoEC,autoEvac,ef,ec,evac,hasHotBathroom,hasHotKitchen,
-      noSanitaryZones,autoPlatineEf,autoPlatineEc,autoPlatineEfEc,autoPlatineEvac,platineEf,platineEc,platineEfEc,platineEvac,
+      noSanitaryZones,wcEvacPoints,otherEvacPoints:Math.max(0,evacPoints-wcEvacPoints),autoPlatineEf,autoPlatineEc,autoPlatineEfEc,autoPlatineEvac,platineEf,platineEc,platineEfEc,platineEvac,
       autoFittings,fittings,autoStopValves,stopValves};
   }
 
@@ -424,32 +464,58 @@
     const network=computeNetwork(d,equipments);
     const net=d.installation?.network||{};
     const pipe=(d.options?.type_tuyau||'per').toLowerCase();
-    const pipePrice=PIPE_FALLBACK[pipe]||PIPE_FALLBACK.per;
+    const pipeTech=TECH_REF[pipe]||TECH_REF.per;
     const totalPipe=network.ef+network.ec;
-    if(totalPipe>0)lines.push(line(`tuyau_${pipe}`,`Tuyau ${pipe==='per'?'PER':pipe} — prix de secours`,pipePrice,totalPipe,'ml','Réseau',{stockable:true,source:'fallback Guillaume',balise_ui:'options.type_tuyau',balise_prix:'fallback_guillaume'}));
-    if(network.evac>0){const ep=n(net.evac_price_ml,0);lines.push(line('evac_local','Évacuation locale estimée',ep,network.evac,'ml','Réseau',{source:ep>0?'saisie artisan HT/ml':'composition appareil / réseau',stockable:true,balise_ui:'installation.network.evac_price_ml',balise_prix:ep>0?'manuel':'manquant'}));if(ep<=0)alerts.push(`Prix catalogue manquant pour l'évacuation PVC : ${network.evac} ml. Renseigner exceptionnellement un prix HT/ml tant que le conditionnement catalogue n'est pas normalisé.`)}
+    if(totalPipe>0){
+      if(pipeTech.tube&&n(pipeTech.tube.prix,0)>0&&n(pipeTech.tube_length,0)>0){
+        const priceMl=r2(pipeTech.tube.prix/pipeTech.tube_length);
+        lines.push(line(`tuyau_${pipe}`,`${pipeTech.tube.produit} — ${pipe.toUpperCase()}`,priceMl,totalPipe,'ml','Réseau',{stockable:true,...technicalCatalogueExtra(pipeTech.tube,'options.type_tuyau'),catalogue_conditionnement:`${pipeTech.tube_length} ml`,balise_calcul:`${r2(totalPipe)} ml × ${priceMl} €/ml`}));
+      }else{
+        const pipePrice=PIPE_FALLBACK[pipe]||PIPE_FALLBACK.per;
+        lines.push(line(`tuyau_${pipe}`,`Tuyau ${pipe==='per'?'PER':pipe} — prix de secours`,pipePrice,totalPipe,'ml','Réseau',{stockable:true,source:pipe==='cuivre'?'Fallback SpeedArti — prix tube cuivre Téréva non publié':'Fallback SpeedArti',balise_ui:'options.type_tuyau',balise_prix:'fallback_speedarti'}));
+      }
+    }
 
-    addNetworkUnit(lines,alerts,{id:'platine_ef',label:'Platine sanitaire EF',qty:network.platineEf,sel:net.platine_ef_catalogue,manualPrice:net.platine_ef_price_ht,uiBase:'installation.network.platine_ef'});
-    addNetworkUnit(lines,alerts,{id:'platine_ec',label:'Platine sanitaire EC',qty:network.platineEc,sel:net.platine_ec_catalogue,manualPrice:net.platine_ec_price_ht,uiBase:'installation.network.platine_ec'});
-    addNetworkUnit(lines,alerts,{id:'platine_ef_ec',label:'Platine sanitaire EF + EC',qty:network.platineEfEc,sel:net.platine_ef_ec_catalogue,manualPrice:net.platine_ef_ec_price_ht,uiBase:'installation.network.platine_ef_ec'});
-    addNetworkUnit(lines,alerts,{id:'platine_evac',label:'Platine / raccordement évacuation',qty:network.platineEvac,sel:net.platine_evac_catalogue,manualPrice:net.platine_evac_price_ht,uiBase:'installation.network.platine_evac'});
+    // Évacuation : DN100 pour WC, DN40 pour les autres appareils/points. Les longueurs manuelles sont réparties proportionnellement aux points automatiques.
+    if(network.evac>0){
+      const totalPts=Math.max(1,network.evacPoints);const wcShare=Math.min(1,network.wcEvacPoints/totalPts);
+      const wcMl=r2(network.evac*wcShare),otherMl=r2(network.evac-wcMl);
+      if(otherMl>0)lines.push(line('evac_pvc40',TECH_REF.pvc40.produit+' DN40',TECH_REF.pvc40.prix,otherMl,'ml','Réseau',{stockable:true,...technicalCatalogueExtra(TECH_REF.pvc40,'installation.network.manual_evac_ml')}));
+      if(wcMl>0)lines.push(line('evac_pvc100',TECH_REF.pvc100.produit+' DN100',TECH_REF.pvc100.prix,wcMl,'ml','Réseau',{stockable:true,...technicalCatalogueExtra(TECH_REF.pvc100,'installation.network.manual_evac_ml')}));
+    }
+
+    const chosenSingle=net.platine_ef_catalogue||net.platine_ec_catalogue;
+    const singleTech=pipeTech.platine_simple;const doubleTech=pipeTech.platine_double;
+    const addAutoUnit=(id,label,qty,selected,manualPrice,tech,uiBase)=>{
+      if(qty<=0)return;
+      if(hasCatalogue(selected)||n(manualPrice,0)>0)return addNetworkUnit(lines,alerts,{id,label,qty,sel:selected,manualPrice,uiBase});
+      if(tech&&n(tech.prix,0)>0)lines.push(line(id,tech.produit||label,tech.prix,qty,'unité','Réseau',{stockable:true,...technicalCatalogueExtra(tech,`${uiBase}_catalogue`)}));
+      else addNetworkUnit(lines,alerts,{id,label,qty,sel:selected,manualPrice,uiBase});
+    };
+    addAutoUnit('platine_ef','Platine sanitaire EF',network.platineEf,net.platine_ef_catalogue,net.platine_ef_price_ht,singleTech,'installation.network.platine_ef');
+    addAutoUnit('platine_ec','Platine sanitaire EC',network.platineEc,net.platine_ec_catalogue,net.platine_ec_price_ht,singleTech,'installation.network.platine_ec');
+    addAutoUnit('platine_ef_ec','Platine sanitaire EF + EC',network.platineEfEc,net.platine_ef_ec_catalogue,net.platine_ef_ec_price_ht,doubleTech,'installation.network.platine_ef_ec');
+    const evacTech=network.wcEvacPoints>0&&network.otherEvacPoints===0?TECH_REF.evac100:TECH_REF.evac40;
+    addAutoUnit('platine_evac','Raccordement évacuation',network.platineEvac,net.platine_evac_catalogue,net.platine_evac_price_ht,evacTech,'installation.network.platine_evac');
 
     const fittingQty=network.fittings;
     if(fittingQty>0){
       const sel=net.fitting_catalogue;const pr=pricedSelection(sel,net.fitting_price_ht);checkCatalogueSelection(sel,net.fitting_price_ht,`Raccords ${pipe}`,alerts);
       if(hasCatalogue(sel)&&!fittingCompatible(sel,pipe))alerts.push(`BALISE COMPATIBILITÉ : la référence raccord Téréva ${sel.code} n’est pas compatible avec le réseau ${pipe.toUpperCase()}.`);
       if(pr.price>0)lines.push(line(`raccords_${pipe}`,hasCatalogue(sel)?(sel.produit||`Raccords ${pipe}`):`Raccords ${pipe}`,pr.price,fittingQty,'unité','Réseau',{stockable:true,...(hasCatalogue(sel)?catalogueExtra(sel,'installation.network.fitting_catalogue',pr.manual):{source:'saisie artisan',balise_ui:'installation.network.fitting_price_ht',balise_prix:'manuel'})}));
-      else {lines.push(line(`raccords_${pipe}`,`Raccords ${pipe} — quantité estimée`,0,fittingQty,'unité','Réseau',{stockable:true,source:'composition réseau',balise_ui:'installation.network.fitting_price_ht',balise_prix:'manquant'}));alerts.push(`Prix catalogue manquant pour les raccords ${pipe} : ${fittingQty} unité(s) estimée(s).`)}
+      else if(pipeTech.raccord&&n(pipeTech.raccord.prix,0)>0)lines.push(line(`raccords_${pipe}`,pipeTech.raccord.produit,pipeTech.raccord.prix,fittingQty,'unité','Réseau',{stockable:true,...technicalCatalogueExtra(pipeTech.raccord,'installation.network.fitting_catalogue')}));
+      else alerts.push(`Référence réseau indisponible pour les raccords ${pipe}.`);
     }
     const stopValves=network.stopValves;
     if(stopValves>0){
       const sel=net.stop_valve_catalogue;const pr=pricedSelection(sel,net.stop_valve_price_ht);checkCatalogueSelection(sel,net.stop_valve_price_ht,'Robinets d’arrêt',alerts);
       if(pr.price>0)lines.push(line('robinets_arret',hasCatalogue(sel)?(sel.produit||'Robinets d’arrêt'):'Robinets d’arrêt',pr.price,stopValves,'unité','Réseau',{stockable:true,...(hasCatalogue(sel)?catalogueExtra(sel,'installation.network.stop_valve_catalogue',pr.manual):{source:'saisie artisan',balise_ui:'installation.network.stop_valve_price_ht',balise_prix:'manuel'})}));
-      else {lines.push(line('robinets_arret','Robinets d’arrêt — selon composition appareils',0,stopValves,'unité','Réseau',{stockable:true,source:'composition appareils',balise_ui:'installation.network.stop_valve_price_ht',balise_prix:'manquant'}));alerts.push(`Prix catalogue manquant pour les robinets d’arrêt : ${stopValves} unité(s).`)}
+      else lines.push(line('robinets_arret',TECH_REF.stop.produit,TECH_REF.stop.prix,stopValves,'unité','Réseau',{stockable:true,...technicalCatalogueExtra(TECH_REF.stop,'installation.network.stop_valve_catalogue')}));
     }
 
     const networkLength=network.ef+network.ec+network.evac;
-    if(networkLength>0){const nt=n(net.time_h,0);if(nt>0)laborHours+=nt;else alerts.push(`BALISE TEMPS : temps de pose réseau manquant pour ${r2(networkLength)} ml. Renseigner le temps artisan ; aucun rendement h/ml n’est inventé.`)}
+    const autoNetworkTime=networkTimeProposal(network,pipe);
+    if(networkLength>0){const manualTime=net.time_h!==undefined&&net.time_h!==null&&net.time_h!=='';const nt=manualTime?n(net.time_h,0):autoNetworkTime;laborHours+=nt;if(nt<=0)alerts.push(`Temps de pose réseau nul pour ${r2(networkLength)} ml.`);}
 
     // ECS equipment and recommendation
     const hotCount=equipments.filter(eq=>eq.kind==='douche'||eq.kind==='baignoire').length;
@@ -487,7 +553,6 @@
     const tva=ht*tvaRate/100;
     const workers=Math.max(1,n(d.options?.nb_ouvriers,1));
     const surface=n(d.installation?.surface_maison_m2,0);
-    if(surface>0)reco.push(`Surface maison renseignée : ${surface} m². Le code original Plombier ne contient pas encore de coefficient surface explicite ; aucune formule de surface n’a été inventée.`);
     if(!equipments.length&&(network.efPoints+network.ecPoints+network.evacPoints)===0)alerts.push('Installation complète sans sanitaire autorisée, mais aucun point réseau n’est encore renseigné.');
 
     return finish({d,lines,alerts,reco,laborHours,laborTotal,aleasHt,ht,tva,tvaRate,workers,network,nomenclature,mode:'Installation complète'});
@@ -570,7 +635,7 @@
     if(Math.abs(htExpected-r2(ht))>.011)issues.push(`BALISE TOTAL HT incohérente : matériaux + main-d’œuvre + aléas = ${htExpected}, moteur = ${r2(ht)}.`);
     const tvaExpected=r2(n(ht)*n(tvaRate)/100);
     if(Math.abs(tvaExpected-r2(tva))>.011)issues.push(`BALISE TVA incohérente : ${tvaExpected} attendu, moteur = ${r2(tva)}.`);
-    return {ok:issues.length===0,issues,lignes_controlees:lines.length,lignes_catalogue:catalogueLines,materiaux_ht_controles:materials,main_oeuvre_ht_avant_aleas_controlee:laborExpected,aleas_ht_controle:aleasExpected,main_oeuvre_ht_controlee:r2(laborExpected+aleasExpected),total_ht_controle:htExpected,tva_controlee:tvaExpected,version:'BALISES-ABSOLUES-v1.6'};
+    return {ok:issues.length===0,issues,lignes_controlees:lines.length,lignes_catalogue:catalogueLines,materiaux_ht_controles:materials,main_oeuvre_ht_avant_aleas_controlee:laborExpected,aleas_ht_controle:aleasExpected,main_oeuvre_ht_controlee:r2(laborExpected+aleasExpected),total_ht_controle:htExpected,tva_controlee:tvaExpected,version:'BALISES-ABSOLUES-v1.8'};
   }
 
   function buildApprovisionnement(lines){
@@ -622,5 +687,5 @@
     if(!d.nom_calcul)throw new Error('Le nom du calcul est requis');
     return d.options?.type_projet==='petits_travaux'?petits(d):complete(d);
   }
-  window.SpeedArtiPlombierCurrent={calculate,previewNetwork:(d)=>computeNetwork(d,d?.installation?.equipments||[]),ANNEXE1_DEFAULTS,FORFAITS_DEFAULTS,PIPE_FALLBACK,ANNEXE2_COMPONENTS,annexe2For};
+  window.SpeedArtiPlombierCurrent={calculate,previewNetwork:(d)=>{const x=computeNetwork(d,d?.installation?.equipments||[]);return {...x,autoTimeH:networkTimeProposal(x,(d.options?.type_tuyau||'per').toLowerCase())}},ANNEXE1_DEFAULTS,FORFAITS_DEFAULTS,PIPE_FALLBACK,ANNEXE2_COMPONENTS,annexe2For};
 })();

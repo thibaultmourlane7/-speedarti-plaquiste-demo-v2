@@ -5,7 +5,7 @@ for(const f of ['catalogue-data.js','catalogue-service.js','engine-current.js'])
 const CAT=global.SpeedArtiCatalogueService,API=global.SpeedArtiPlombierCurrent,DB=global.SpeedArtiCataloguePlombier;
 let ok=0;function assert(cond,msg){if(!cond)throw new Error(`ASSERT ${ok+1}: ${msg}`);ok++}
 function approx(a,b,t=.011){return Math.abs(Number(a)-Number(b))<=t}
-function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.6.1',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{},services:{}}}}
+function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.6.3',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{},services:{}}}}
 function selectFirst(ctx,pred=()=>true){const a=CAT.search({context:ctx,limit:100}).find(x=>x.prix>0&&x.code&&pred(x));assert(!!a,`Référence exploitable contexte ${ctx}`);return CAT.selection(a)}
 function netRefs(d){const ctx=d.options.type_tuyau==='cuivre'?'raccord_cuivre':d.options.type_tuyau==='multicouche'?'raccord_multicouche':'raccord_per';d.installation.network.fitting_catalogue=selectFirst(ctx);d.installation.network.stop_valve_catalogue=selectFirst('robinet_arret');}
 
@@ -45,7 +45,7 @@ assert(wcLine.catalogue_version==='Téréva 2026 -20%','Version catalogue balis�
 assert(!!wcLine.catalogue_source_page,'Page source catalogue balisée');
 assert(String(wcLine.source).includes('Catalogue Téréva 2026 -20%'),'Source catalogue visible');
 assert(r1.controle_balises.ok===true,'Balises scénario WC OK');
-assert(r1.controle_balises.version==='BALISES-ABSOLUES-v1.6','Version balises v1.6');
+assert(r1.controle_balises.version==='BALISES-ABSOLUES-v1.8','Version balises v1.7');
 assert(r1.finalisation_bloquee===false,'WC complet finalisable');
 assert(r1.surfaces.detail_par_face.EF_ml===8,'WC = 8 ml EF');
 assert(r1.surfaces.detail_par_face.EC_ml===0,'WC = 0 ml EC');
@@ -75,9 +75,9 @@ assert(r2.main_oeuvre.heures_homme===4,'Temps réseau saisi = heures-homme rése
 assert(r2.finalisation_bloquee===false,'Réseau seul renseigné finalisable');
 const d2b=base();d2b.installation.network.ef_ec=1;d2b.installation.network.time_h=undefined;d2b.installation.network.fitting_catalogue=selectFirst('raccord_per');
 const r2b=API.calculate(d2b);
-assert(r2b.finalisation_bloquee===true,'Temps réseau absent bloque');
-assert(r2b.blocages.some(x=>/BALISE TEMPS/.test(x)),'Blocage temps réseau explicite');
-assert(r2b.main_oeuvre.heures_homme===0,'Aucun 0,15 h/ml caché');
+assert(r2b.finalisation_bloquee===false,'Temps réseau absent reçoit une proposition technique');
+assert(!r2b.blocages.some(x=>/TEMPS/.test(x)),'Aucun blocage temps réseau avec proposition technique');
+assert(r2b.main_oeuvre.heures_homme>0,'Temps réseau technique calculé automatiquement');
 const d2c=base();d2c.installation.network.ef_ec=2;d2c.installation.network.manual_ef_ml=12;d2c.installation.network.manual_ec_ml=15;d2c.installation.network.fitting_catalogue=selectFirst('raccord_per');
 const r2c=API.calculate(d2c);
 assert(r2c.surfaces.detail_par_face.EF_ml===12,'Override longueur EF appliqué');
@@ -106,8 +106,8 @@ assert(rpm.materiaux.find(x=>x.article_id==='platine_ec').prix_unitaire_ht===42,
 assert(rpm.materiaux.find(x=>x.article_id==='platine_ec').source==='saisie artisan','Platine manuelle tracée');
 assert(rpm.finalisation_bloquee===false,'Platine manuelle finalisable');
 const dp0=base();dp0.installation.network.platines_ef_ec=1;dp0.installation.network.fitting_catalogue=selectFirst('raccord_per');const rp0=API.calculate(dp0);
-assert(rp0.finalisation_bloquee===true,'Platine sans prix bloque');
-assert(rp0.blocages.some(x=>/Platine sanitaire EF \+ EC/.test(x)),'Blocage platine nomme l’élément');
+assert(rp0.finalisation_bloquee===false,'Platine sans sélection artisan utilise Téréva technique');
+assert(rp0.materiaux.find(x=>x.article_id==='platine_ef_ec')?.catalogue_code==='3160404','Platine EF+EC PER résolue par Téréva');
 
 // 7. Prix Téréva absent => manuel résout sans inventer
 const missingA=DB.articles.find(a=>a.prix==null&&a.code);assert(!!missingA,'Référence sans prix trouvée');
@@ -189,7 +189,7 @@ assert(approx(r1.controle_balises.tva_controlee,r1.totaux.tva),'Contrôle TVA = 
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const posData=html.indexOf('catalogue-data.js'),posService=html.indexOf('catalogue-service.js'),posEngine=html.indexOf('engine-current.js'),posApp=html.indexOf('app.js');
 assert(posData>0&&posData<posService&&posService<posEngine&&posEngine<posApp,'Ordre de chargement catalogue -> service -> moteur -> app');
-assert(/v0\.6\.1/.test(html),'HTML annonce v0.6.1');
+assert(/v0\.6\.3/.test(html),'HTML annonce v0.6.3');
 
 // 22. Contrôles statiques UI / absence de règles cachées
 const appSrc=fs.readFileSync(path.join(root,'app.js'),'utf8'),engSrc=fs.readFileSync(path.join(root,'engine-current.js'),'utf8'),catSrc=fs.readFileSync(path.join(root,'catalogue-service.js'),'utf8');
@@ -259,7 +259,7 @@ assert(appSrc.includes('nomenclature_annexe2'),'Résultat UI affiche la nomencla
 assert(engSrc.includes("annexe2_source:'Annexe 2 Guillaume'"),'Moteur balise explicitement la source Annexe 2');
 assert(engSrc.includes('parent_equipment_id'),'Moteur conserve le parent équipement des composants');
 assert(appSrc.includes('eq.annexe2_items={}'),'Changement de sous-type WC nettoie la nomenclature associée devenue obsolète');
-assert(engSrc.includes("version:'BALISES-ABSOLUES-v1.6'"),'Moteur balises v1.6');
+assert(engSrc.includes("version:'BALISES-ABSOLUES-v1.8'"),'Moteur balises v1.8');
 
 
 // 26. Stock réel : aucune disponibilité ni quantité à commander ne doit être inventée
@@ -302,12 +302,12 @@ assert(appSrc.includes('data-export-appro-json'),'Export JSON fournisseur prése
 assert(appSrc.includes('data-copy-appro-json'),'Copie payload fournisseur présente');
 assert(appSrc.includes('Stock : non connecté'),'UI ne prétend pas connaître le stock');
 assert(appSrc.includes('ne prétend pas connaître le stock ni créer une commande'),'Garde-fou commande explicite dans UI');
-assert(engSrc.includes("version:'BALISES-ABSOLUES-v1.6'"),'Moteur balises v1.6');
+assert(engSrc.includes("version:'BALISES-ABSOLUES-v1.8'"),'Moteur balises v1.8');
 
 
 // 29. Correctifs v0.5.2 issus du contrôle humain
-assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v061'"),'Clé de sauvegarde propre v0.6.1');
-assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v060','speedarti-plombier-demo-v052','speedarti-plombier-demo-v051','speedarti-plombier-demo-v040','speedarti-plombier-demo-v031']"),'Migration des anciens brouillons prévue');
+assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v063'"),'Clé de sauvegarde propre v0.6.3');
+assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v061','speedarti-plombier-demo-v060'"),'Migration des anciens brouillons prévue');
 assert(appSrc.includes('function migrateLegacyDraft'),'Fonction de migration brouillon présente');
 assert(appSrc.includes("delete p.duration_h"),'Migration supprime les anciennes durées CE non validées');
 assert(appSrc.includes("catalogueRenderTimer=setTimeout"),'Recherche catalogue saisie rapide temporisée');
@@ -341,7 +341,7 @@ assert(res.materiaux.find(x=>x.article_id==='robinets_arret').quantite_finale===
 assert(appSrc.includes("stop_valves"),'Champ robinets d’arrêt élément spécifique exposé dans UI');
 assert(!/changement_200l_elec[^\n]{0,180}duration_h\s*[:=]\s*[0-9]/.test(appSrc+engSrc),'Aucune durée CE cachée codée pour changement 200 L');
 assert(!/changement_300l_elec[^\n]{0,180}duration_h\s*[:=]\s*[0-9]/.test(appSrc+engSrc),'Aucune durée CE cachée codée pour changement 300 L');
-assert(r1.controle_balises.version==='BALISES-ABSOLUES-v1.6','Version finale balises v1.6');
+assert(r1.controle_balises.version==='BALISES-ABSOLUES-v1.8','Version finale balises v1.7');
 
 
 
@@ -389,4 +389,41 @@ assert(appSrc.includes("data-zone=\"${zone}\""),'Chaque nouvel équipement trans
 assert(!/Prix méthode HT|Forfait débouchage HT|Forfait complet HT|Prix fourniture HT utilisé|Prix HT utilisé|Forfait pose — montant artisan|Forfait dépose — montant artisan/.test(appSrc),'Le parcours artisan ne demande plus de prix pendant le chiffrage');
 assert(appSrc.includes("head('Étape 4','Résultats et contrôle'")&&appSrc.includes("step!==3")&&appSrc.includes("step===3"),'Résultats réellement routés sur la page 4');
 const psTarif=base();psTarif.options.type_projet='petits_travaux';psTarif.settings.services.debouchage=215;psTarif.petits_travaux.prestations=[{id:'ds',type:'debouchage'}];const rsTarif=API.calculate(psTarif);assert(rsTarif.materiaux.find(x=>x.article_id==='debouchage_ds').prix_unitaire_ht===215,'Tarif service entreprise alimente le moteur sans saisie chantier');
+
+// 32. v0.6.3 — référentiel réseau Téréva + temps technique automatique
+const tPer=base();tPer.installation.zones={rdc_sans:true,r1_sans:false,rdc_avec:false,r1_avec:false};tPer.installation.network.time_h=undefined;tPer.installation.network.evac_price_ml=undefined;tPer.installation.network.fitting_catalogue=undefined;const rPer=API.calculate(tPer);const pPer=API.previewNetwork(tPer);
+assert(Math.abs(pPer.autoTimeH-1.14)<.011,'Temps technique PER + PVC calculé automatiquement');
+assert(Math.abs(rPer.main_oeuvre.heures_homme-1.14)<.011,'Temps automatique réseau repris en heures-homme');
+assert(rPer.materiaux.find(x=>x.article_id==='tuyau_per')?.catalogue_code==='2272355','Tube PER résolu par référence Téréva technique');
+assert(Math.abs(rPer.materiaux.find(x=>x.article_id==='tuyau_per')?.prix_unitaire_ht-.58)<.011,'Couronne PER ramenée au prix au ml');
+assert(rPer.materiaux.find(x=>x.article_id==='tuyau_per')?.balise_prix==='reference_technique_tereva','Tube PER trace la référence technique');
+assert(rPer.materiaux.find(x=>x.article_id==='platine_ef_ec')?.catalogue_code==='3160404','Platine double PER Téréva automatique');
+assert(rPer.materiaux.find(x=>x.article_id==='evac_pvc40')?.catalogue_code==='044755V','Évacuation DN40 Téréva automatique');
+assert(rPer.materiaux.find(x=>x.article_id==='platine_evac')?.catalogue_code==='059805D','Raccordement évacuation DN40 Téréva automatique');
+assert(rPer.materiaux.find(x=>x.article_id==='raccords_per')?.catalogue_code==='1098216','Raccord PER Téréva automatique');
+assert(!rPer.alertes.some(x=>/prix catalogue manquant|temps de pose réseau manquant/i.test(x)),'Réseau PER standard sans alerte référentiel manquant');
+
+const tMc=base();tMc.options.type_tuyau='multicouche';tMc.installation.zones={rdc_sans:true,r1_sans:false,rdc_avec:false,r1_avec:false};tMc.installation.network.time_h=undefined;tMc.installation.network.evac_price_ml=undefined;tMc.installation.network.fitting_catalogue=undefined;const rMc=API.calculate(tMc);const pMc=API.previewNetwork(tMc);
+assert(rMc.materiaux.find(x=>x.article_id==='tuyau_multicouche')?.catalogue_code==='4146584','Tube multicouche Téréva automatique');
+assert(Math.abs(rMc.materiaux.find(x=>x.article_id==='tuyau_multicouche')?.prix_unitaire_ht-1.23)<.011,'Couronne multicouche ramenée au prix au ml');
+assert(rMc.materiaux.find(x=>x.article_id==='raccords_multicouche')?.catalogue_code==='4146484','Raccord multicouche Téréva automatique');
+assert(rMc.materiaux.find(x=>x.article_id==='platine_ef_ec')?.catalogue_code==='3160402','Platine double multicouche Téréva automatique');
+assert(Math.abs(pMc.autoTimeH-pPer.autoTimeH)<.011,'PER et multicouche Ø16 utilisent le même temps technique de référence');
+
+const tCu=base();tCu.options.type_tuyau='cuivre';tCu.installation.zones={rdc_sans:true,r1_sans:false,rdc_avec:false,r1_avec:false};tCu.installation.network.time_h=undefined;tCu.installation.network.evac_price_ml=undefined;tCu.installation.network.fitting_catalogue=undefined;const rCu=API.calculate(tCu);const pCu=API.previewNetwork(tCu);
+assert(rCu.materiaux.find(x=>x.article_id==='tuyau_cuivre')?.prix_unitaire_ht===8,'Cuivre conserve le fallback validé 8 €/ml');
+assert(/prix tube cuivre Téréva non publié/i.test(rCu.materiaux.find(x=>x.article_id==='tuyau_cuivre')?.source||''),'Fallback cuivre explique l’absence de prix Téréva publié');
+assert(rCu.materiaux.find(x=>x.article_id==='raccords_cuivre')?.catalogue_code==='024317Z','Raccord cuivre Téréva automatique');
+assert(rCu.materiaux.find(x=>x.article_id==='platine_ef_ec')?.catalogue_code==='1181674','Platine double cuivre Téréva automatique');
+assert(pCu.autoTimeH>pPer.autoTimeH,'Temps technique cuivre supérieur au PER pour longueur identique');
+
+const tWc=base();tWc.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:true,r1_avec:false};tWc.installation.network.time_h=undefined;tWc.installation.network.evac_price_ml=undefined;tWc.installation.network.fitting_catalogue=undefined;tWc.installation.equipments=[{id:'wc-tech',kind:'wc',subtype:'poser',catalogue:wcSel,price_ht:wcSel.prix,time_h:2}];const rWc=API.calculate(tWc);
+assert(rWc.materiaux.find(x=>x.article_id==='evac_pvc100')?.catalogue_code==='044788U','WC utilise tube évacuation DN100 Téréva');
+assert(rWc.materiaux.find(x=>x.article_id==='platine_evac')?.catalogue_code==='027749Z','WC utilise raccordement évacuation DN100 Téréva');
+assert(rWc.materiaux.find(x=>x.article_id==='robinets_arret')?.catalogue_code==='142568G','Robinet d’arrêt Téréva automatique');
+const tManual=base();tManual.installation.zones={rdc_sans:true,r1_sans:false,rdc_avec:false,r1_avec:false};tManual.installation.network.time_h=3.5;tManual.installation.network.fitting_catalogue=undefined;const rManual=API.calculate(tManual);assert(Math.abs(rManual.main_oeuvre.heures_homme-3.5)<.011,'Temps artisan remplace la proposition technique automatique');
+const chosen=selectFirst('raccord_per');const tChosen=base();tChosen.installation.network.ef_only=1;tChosen.installation.network.fitting_catalogue=chosen;const rChosen=API.calculate(tChosen);assert(rChosen.materiaux.find(x=>x.article_id==='raccords_per')?.catalogue_code===chosen.code,'Référence choisie par artisan reste prioritaire sur référence technique');
+assert(rPer.controle_balises.version==='BALISES-ABSOLUES-v1.8','Balises v1.8 actives sur référentiel réseau');
+assert(appSrc.includes('Proposition technique automatique'),'UI affiche le temps réseau proposé et modifiable');
+
 console.log(JSON.stringify({status:'OK',assertions:ok,catalogueCount:CAT.count,priceCount:CAT.priceCount,knownPrice117_19:known[0].prix,balisesVersion:r1.controle_balises.version,networkOnly:{ef:r2.surfaces.detail_par_face.EF_ml,ec:r2.surfaces.detail_par_face.EC_ml},fittingsOneFixture:fittingsWC.quantite_finale},null,2));

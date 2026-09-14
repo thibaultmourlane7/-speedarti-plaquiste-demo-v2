@@ -10,8 +10,8 @@ const steps=[
   ['Configuration & options','Réglages facultatifs'],
   ['Résultats','Contrôle avant devis']
 ];
-const storeKey='speedarti-plombier-demo-v061';
-const legacyStoreKeys=['speedarti-plombier-demo-v060','speedarti-plombier-demo-v052','speedarti-plombier-demo-v051','speedarti-plombier-demo-v040','speedarti-plombier-demo-v031'];
+const storeKey='speedarti-plombier-demo-v063';
+const legacyStoreKeys=['speedarti-plombier-demo-v061','speedarti-plombier-demo-v060','speedarti-plombier-demo-v052','speedarti-plombier-demo-v051','speedarti-plombier-demo-v040','speedarti-plombier-demo-v031'];
 let step=0;
 let d=load()||initial();
 const q=s=>document.querySelector(s);
@@ -144,7 +144,7 @@ function renderNetworkPreview(){
   return `<div class="card network-live"><div class="row between wrap"><div><h2>Quantités réseau proposées</h2><p class="muted">SpeedArti calcule les tuyaux et accessoires à partir des zones, des distances et de chaque sanitaire. Toutes les quantités restent modifiables par l’artisan.</p></div><span class="pill ok-pill">Calcul automatique</span></div>
   <div class="grid">${autoField('Tuyau eau froide','installation.network.manual_ef_ml',net.manual_ef_ml,p.autoEF,'ml')}${autoField('Tuyau eau chaude','installation.network.manual_ec_ml',net.manual_ec_ml,p.autoEC,'ml')}${autoField('Évacuation','installation.network.manual_evac_ml',net.manual_evac_ml,p.autoEvac,'ml')}</div>
   <h3 class="subhead">Platines, raccords et vannes</h3><div class="grid">${autoField('Platines EF','installation.network.manual_platine_ef_qty',net.manual_platine_ef_qty,p.autoPlatineEf,'u','c3',1)}${autoField('Platines EC','installation.network.manual_platine_ec_qty',net.manual_platine_ec_qty,p.autoPlatineEc,'u','c3',1)}${autoField('Platines EF + EC','installation.network.manual_platine_ef_ec_qty',net.manual_platine_ef_ec_qty,p.autoPlatineEfEc,'u','c3',1)}${autoField('Raccordements évacuation','installation.network.manual_platine_evac_qty',net.manual_platine_evac_qty,p.autoPlatineEvac,'u','c3',1)}${autoField('Raccords','installation.network.manual_fitting_qty',net.manual_fitting_qty,p.autoFittings,'u','c6',1)}${autoField("Robinets d’arrêt / vannes",'installation.network.manual_stop_valve_qty',net.manual_stop_valve_qty,p.autoStopValves,'u','c6',1)}</div>
-  <div class="grid"><div class="field c6"><label>Temps de pose réseau total (h)</label><input class="input" type="number" min="0" step=".25" data-path="installation.network.time_h" value="${net.time_h??''}" placeholder="Temps artisan"></div></div></div>`;
+  <div class="grid"><div class="field c6 auto-field"><label>Temps de pose réseau total (h)</label><input class="input" type="number" min="0" step=".01" data-path="installation.network.time_h" value="${net.time_h!==undefined&&net.time_h!==null&&net.time_h!==''?net.time_h:p.autoTimeH}"><small>${net.time_h!==undefined&&net.time_h!==null&&net.time_h!==''?'Valeur modifiée par l’artisan':`Proposition technique automatique : ${fmt(p.autoTimeH)} h`}</small></div></div></div>`;
 }
 function renderInstallationBase(){
   const z=d.installation.zones||{};
@@ -275,18 +275,25 @@ function showError(e){const h=q('#resultHost')||content;h.innerHTML=`<div class=
 function artisanSource(src){const x=String(src||'');if(/Guillaume|Annexe/i.test(x))return 'Référentiel SpeedArti';if(/fallback/i.test(x))return 'Barème SpeedArti';if(/saisie artisan/i.test(x))return 'Valeur artisan';return x||'SpeedArti'}
 function artisanMessage(msg){
   let x=String(msg||'').replace(/Annexe 2 Guillaume/gi,'composition équipement').replace(/Annexe 2/gi,'composition équipement').replace(/Annexe 1 Guillaume/gi,'référentiel SpeedArti').replace(/Guillaume/gi,'SpeedArti').replace(/BALISE\s*/gi,'').trim();
-  if(/prix catalogue ou manuel manquant|prix catalogue manquant/i.test(x)){
-    const m=x.match(/(?:pour|«)\s*[«"]?([^»"]+?)[»"]?(?:\s*\(|\s*:|\.|$)/i);const item=m?.[1]?.trim();
-    return `Tarif technique indisponible${item?` pour ${item}`:''} — référentiel SpeedArti à compléter.`;
-  }
-  x=x.replace(/Renseigner exceptionnellement un prix[^.]*\.?/gi,'Référentiel SpeedArti à compléter.').replace(/prix catalogue ou manuel/gi,'tarif référentiel');
-  return x;
+  x=x.replace(/Renseigner exceptionnellement un prix[^.]*\.?/gi,'').replace(/prix catalogue ou manuel/gi,'tarif référentiel');
+  return x.trim();
+}
+function isInternalTechnicalMessage(msg){
+  const x=String(msg||'');
+  return /Surface maison renseignée|code original Plombier|prix catalogue(?: ou manuel)? manquant|tarif entreprise SpeedArti .*non paramétré|temps de pose réseau manquant|durée de pose manquante|temps de pose du chauffe-eau manquant|Référentiel SpeedArti à compléter|Information catalogue|BALISE (?:PRIX|TEMPS|CATALOGUE|QUANTITÉ|BESOIN|COMMANDE|MAIN-D’ŒUVRE|TOTAL|TVA|ALÉAS)/i.test(x);
+}
+function isArtisanActionableMessage(msg){
+  const x=String(msg||'');
+  if(isInternalTechnicalMessage(x))return false;
+  return /Choisir|Sélectionner|ajouter au moins|aucun point réseau|incompatible|ne correspond pas|surface réelle|SPEC/i.test(x);
 }
 function showResult(r){
-  const h=q('#resultHost');if(!h)return;const det=r.surfaces.detail_par_face||{};const ctl=r.controle_balises||{};
-  h.innerHTML=`<div class="status-banner ${r.finalisation_bloquee?'blocked':'ready'}"><strong>${r.finalisation_bloquee?'⚠️ Finalisation bloquée':'✅ Chiffrage contrôlé'}</strong><span>${r.finalisation_bloquee?'Certaines données techniques restent à synchroniser avant finalisation.':'Aucun blocage critique détecté dans la démo.'}</span></div>
-  <details class="card control-card ${ctl.ok?'control-ok':'control-ko'}"><summary><b>Contrôle technique SpeedArti</b> — ${ctl.ok?'OK':'à vérifier'}</summary><div class="inside"><div class="row between"><div><h2>Contrôle technique SpeedArti</h2><p class="muted">${esc(ctl.version||'BALISES-ABSOLUES-v1')} — vérification automatique des données, quantités et calculs.</p></div><span class="pill ${ctl.ok?'ok-pill':'wait'}">${ctl.ok?'VALIDÉ':'BLOQUÉ'}</span></div><div class="network-metrics"><div><span>Lignes contrôlées</span><strong>${fmt(ctl.lignes_controlees)}</strong></div><div><span>Lignes catalogue</span><strong>${fmt(ctl.lignes_catalogue)}</strong></div><div><span>Matériaux contrôlés</span><strong>${eur(ctl.materiaux_ht_controles)}</strong></div><div><span>Total HT contrôlé</span><strong>${eur(ctl.total_ht_controle)}</strong></div></div></div></details>
-  ${(r.recommandations||[]).map(x=>`<div class="alert info-alert">ℹ️ ${esc(artisanMessage(x))}</div>`).join('')}${(r.alertes||[]).map(x=>`<div class="alert warn">⚠️ ${esc(artisanMessage(x))}</div>`).join('')}
+  const h=q('#resultHost');if(!h)return;const det=r.surfaces.detail_par_face||{};
+  const artisanRecos=(r.recommandations||[]).filter(x=>!isInternalTechnicalMessage(x));
+  const artisanAlerts=(r.alertes||[]).filter(isArtisanActionableMessage);
+  const artisanBlocked=(r.blocages||[]).some(isArtisanActionableMessage);
+  h.innerHTML=`<div class="status-banner ${artisanBlocked?'blocked':'ready'}"><strong>${artisanBlocked?'⚠️ À compléter':'✅ Chiffrage calculé'}</strong><span>${artisanBlocked?'Une information du chantier doit encore être renseignée.':'Les contrôles techniques internes restent actifs en arrière-plan sans encombrer le parcours artisan.'}</span></div>
+  ${artisanRecos.map(x=>`<div class="alert info-alert">ℹ️ ${esc(artisanMessage(x))}</div>`).join('')}${artisanAlerts.map(x=>`<div class="alert warn">⚠️ ${esc(artisanMessage(x))}</div>`).join('')}
   <div class="metrics"><div class="metric"><span>Durée chantier</span><strong>${fmt(r.main_oeuvre.temps_estime_heures)} h</strong></div><div class="metric"><span>Heures-homme</span><strong>${fmt(r.main_oeuvre.heures_homme)} h</strong></div><div class="metric"><span>Matériaux / forfaits HT</span><strong>${eur(r.totaux.materiaux_ht)}</strong></div><div class="metric"><span>Total TTC</span><strong>${eur(r.totaux.total_ttc)}</strong></div></div>
   ${Object.keys(det).length?`<div class="card"><h2>Réseau calculé</h2><div class="network-metrics">${Object.entries(det).map(([k,v])=>`<div><span>${esc(k.replaceAll('_',' '))}</span><strong>${fmt(v)}</strong></div>`).join('')}</div></div>`:''}
   <div class="card"><h2>Détail des lignes</h2><div class="table-wrap"><table class="table"><thead><tr><th>Désignation</th><th>Référence catalogue</th><th>Catégorie</th><th>Qté</th><th>Unité</th><th>PU HT</th><th>Total HT</th></tr></thead><tbody>${r.materiaux.map(m=>`<tr><td>${esc(m.nom)}</td><td>${m.catalogue_code?`<b>${esc(m.catalogue_marque||'')}</b><br><small>Téréva ${esc(m.catalogue_code)}</small>`:'—'}</td><td>${esc(m.categorie)}</td><td>${fmt(m.quantite_finale)}</td><td>${esc(m.unite)}</td><td>${eur(m.prix_unitaire_ht)}</td><td>${eur(m.total_ht)}</td></tr>`).join('')}</tbody></table></div></div>
