@@ -1,0 +1,14 @@
+feat(chiffrage-amenagement): V6.5 - multi-sélection globale matériaux et quincaillerie
+
+- généralise la multi-sélection à tous les ouvrages Aménagement extérieur
+- permet plusieurs références de lambourdes, visseries, plots, lames, poteaux et accessoires
+- rend les quantités calculées modifiables directement dans le panier
+- conserve la quantité automatique comme référence et permet un retour en mode Auto
+- ajoute la catégorie Quincaillerie & accessoires
+- ajoute la catégorie Traitements / entretien / protection
+- calcule les traitements avec rendement fabricant m²/L, sans coefficient caché
+- conserve le calcul exact des conditionnements fournisseur
+- conserve le panier latéral V6.4 et les barèmes de main-d’œuvre précédents
+- tests Node métier : multi-lambourdes, multi-visserie, traitement, quantité modifiable, 8 ouvrages
+
+Statut avant push : PRÉPARÉE

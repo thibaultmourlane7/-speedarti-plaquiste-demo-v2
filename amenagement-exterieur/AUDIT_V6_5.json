@@ -1,0 +1,67 @@
+{
+  "version": "AMEXT-V6.5-MULTI-MATERIAUX-2026-09-15",
+  "catalogue_master": {
+    "total_references": 299,
+    "lambourdes": 7,
+    "fixations_terrasse": 2,
+    "quincaillerie_accessoires_routes": 66,
+    "traitements_entretien_protection": 4
+  },
+  "regles": {
+    "multi_selection_globale": true,
+    "ouvrages_couverts": [
+      "terrasse_bois",
+      "terrasse_composite",
+      "terrasse_dalles",
+      "cloture_panneaux",
+      "cloture_lames",
+      "occultation",
+      "ganivelle",
+      "retenue_terre"
+    ],
+    "quantite_calculee_par_defaut": true,
+    "quantite_modifiable_dans_panier": true,
+    "retour_quantite_auto": true,
+    "plusieurs_references_meme_categorie": true,
+    "traitement_rendement_fabricant_obligatoire_pour_auto": true
+  },
+  "tests": {
+    "terrasse_10x5_lambourdes": {
+      "besoin_auto_ml": 140,
+      "repartition_test": [
+        {
+          "code": "IDEA-0137",
+          "besoin_ml": 80,
+          "achat_pieces": 30
+        },
+        {
+          "code": "IDEA-0138",
+          "besoin_ml": 60,
+          "achat_pieces": 33
+        }
+      ]
+    },
+    "visserie": {
+      "besoin_auto_unites": 1176,
+      "repartition_test": [
+        {
+          "code": "IDEA-0296",
+          "besoin_unites": 588,
+          "achat": "1 kit de 650"
+        },
+        {
+          "code": "IDEA-0299",
+          "besoin_unites": 588,
+          "achat": "1 seau de 1000"
+        }
+      ]
+    },
+    "traitement": {
+      "surface_m2": 50,
+      "rendement_m2_par_l": 10,
+      "besoin_l": 5,
+      "reference_test": "IDEA-0286",
+      "achat": "1 bidon 5 L"
+    }
+  }
+}
