@@ -6,12 +6,14 @@ import {
 import {
   defaultState, newElement, renderMode, renderWorks, renderConfig, renderOptions, renderPrices,
   calculate, validateStep, assertBalisage,
-  WORKS, WORK_BY_ID, FIBRES, PREFAB_H_PER_ML, TRUCK_8X4_DEFAULT, TRACE_TARGETS
+  WORKS, WORK_BY_ID, FIBRES, PREFAB_H_PER_ML, TRUCK_8X4_DEFAULT, TRACE_TARGETS,
+  TREILLIS_GUILLAUME, PUMP_DEFAULT_PRICE, TOUPIE_PRICE_M3, TOUPIE_MIN_BILLABLE_M3, TOUPIE_CAPACITY_M3,
+  PREFAB_DEFAULT_PRICE_M2, LONGRINE_PRICE_ML, micropileSuggestedPrice, estimatedVerticalChainage, toupieEstimatedCount
 } from './core.js';
 
 const pass=[];
 function test(name,fn){try{fn();pass.push(name)}catch(e){console.error(`FAIL — ${name}`);throw e}}
-function base(){const s=defaultState();s.globals.hourly=50;s.globals.vat=20;s.globals.workers=2;return s;}
+function base(){const s=defaultState();s.globals.hourly=50;s.globals.vat=20;s.globals.workers=2;s.globals.concreteClass='C25/30';return s;}
 function fillRequiredPrices(s){const r=calculate(s);for(const l of r.missingPrices)s.manualPrices[l.id]=10;return calculate(s)}
 function qty(r,id){const l=r.lines.find(x=>x.id===id);return l?.qty??null}
 
@@ -55,7 +57,7 @@ test('balisage: aucun contrôle orphelin sur parcours représentatifs',()=>{
   s=base();s.mode='multiple';
   const f=newElement('fondations');f.data.foundationType='vide_sanitaire';f.data.perimeter=20;f.data.blockHeight=.2;f.data.rows=3;f.data.blocksPerM2=10;f.data.wallHPerM2=.8;f.data.footingWidthCm=50;f.data.footingHeightCm=30;f.data.refendLength=5;f.data.refendHeight=.6;f.data.refendBlocksPerM2=10;f.data.refendHoursPerM2=.8;
   const w=newElement('murs_elevations');Object.assign(w.data,{length:10,height:2.5,thickness:20,material:'parpaing',method:'tradi',blocksPerM2:10,mortarKgM2:20,wallHPerM2:.8,openings:[{type:'linteau_ba_courant',width:1,height:2,lintelLength:1.2}],beams:[{length:3,widthCm:20,heightCm:30,ref:'poutre_ba_courante'}],pignons:[{width:5,slope:30}],waterproof:'delta_ms',decoration:'genoise_simple',antiTermite:true});
-  const p=newElement('murs_porteurs');Object.assign(p.data,{length:10,height:3,thickness:20,method:'prefabrique',prefabType:'standard',baseSupplyPrice:100,braceQty:1,bracePrice:50,braceHours:.5});
+  const p=newElement('murs_porteurs');Object.assign(p.data,{length:10,height:3,thickness:20,method:'prefabrique',prefabType:'standard',prefabPriceM2:350,braceQty:1,bracePrice:50,braceHours:.5});
   const d=newElement('dalle');Object.assign(d.data,{length:5,width:2,thickness:12,slabRef:'dallage_arme',treillis:true,fibres:true,fibreType:'courante',fibreDose:3.5});
   const c=newElement('cheminee');Object.assign(c.data,{height:5,count:1,conduit:'20x30',stack:'simple',stackCount:1,cap:'standard',capCount:1});
   const b=newElement('ouvrage_ba');Object.assign(b.data,{workRef:'radier_general',quantity:2});
@@ -96,10 +98,10 @@ test('camion-benne modifiable et mémorisable dans UI',()=>{
   const s=base();s.globals.truck=true;const h=renderOptions(s);assert.ok(h.includes('data-global="truckPrice"'));assert.ok(h.includes('data-global="saveTruckPrice"'));
 });
 
-test('préfabriqué: +30% fourniture seule, prix réel remplace',()=>{
-  const s=base();s.mode='multiple';const e=newElement('murs_porteurs');Object.assign(e.data,{length:10,height:3,thickness:20,method:'prefabrique',prefabType:'standard',baseSupplyPrice:100});s.elements=[e];
-  let r=calculate(s),l=r.lines.find(x=>x.id===`${e.id}-prefab`);assert.equal(l.price,130);assert.equal(r.hours,15.5);
-  e.data.realSupplyPrice=120;r=calculate(s);l=r.lines.find(x=>x.id===`${e.id}-prefab`);assert.equal(l.price,120);
+test('v2.5 préfabriqué: 350 €/m² modifiable, pose planning non refacturée',()=>{
+  const s=base();s.mode='multiple';const e=newElement('murs_porteurs');Object.assign(e.data,{length:10,height:3,thickness:20,method:'prefabrique',prefabType:'standard'});s.elements=[e];
+  let r=calculate(s),l=r.lines.find(x=>x.id===`${e.id}-prefab`);assert.equal(l.qty,30);assert.equal(l.unit,'m²');assert.equal(l.price,350);assert.equal(r.hours,15.5);assert.equal(r.laborCost,0);
+  e.data.prefabPriceM2=420;r=calculate(s);l=r.lines.find(x=>x.id===`${e.id}-prefab`);assert.equal(l.price,420);
 });
 
 test('cheminée: conduit/souche/chapeau ont quantités indépendantes',()=>{
@@ -163,7 +165,7 @@ test('pignon ajoute sa surface sans coefficient silencieux',()=>{
   const s=base();s.mode='multiple';const e=newElement('murs_elevations');Object.assign(e.data,{length:10,height:2.5,thickness:20,material:'parpaing',method:'tradi',blocksPerM2:10,wallHPerM2:1,pignons:[{width:5,slope:40}]});s.elements=[e];
   const r=calculate(s);const blocks=r.lines.find(x=>x.id.startsWith(`${e.id}-blocks`));
   // mur 25 m² + pignon 5²×0,40/2 = 5 m² => 30 m² × 10 blocs
-  assert.equal(blocks.qty,300);assert.equal(r.hours,30);
+  assert.equal(blocks.qty,300);assert.equal(r.labor.find(x=>x.name===e.name).hours,30);
 });
 
 test('poutre BA détaillée utilise longueur × section et référentiel',()=>{
@@ -359,7 +361,7 @@ test('FIX audit humain: dalle associée VS et terre-plein affiche une épaisseur
 
 test('FIX audit humain: dalle associée micro-pieux calcule le volume réel avec épaisseur saisie',()=>{
   const s=base();s.mode='multiple';const e=newElement('fondations');
-  Object.assign(e.data,{foundationType:'micro_pieux',microCount:4,microPrice:500,microHours:1,microSlabSurface:30,slabRef:'dallage_arme',thickness:12});s.elements=[e];
+  Object.assign(e.data,{foundationType:'micro_pieux',microCount:4,microDepth:4,microPrice:500,microSlabSurface:30,slabRef:'dallage_arme',thickness:12});s.elements=[e];
   const r=calculate(s);
   const concrete=r.lines.find(l=>l.id.includes('dalle VS-concrete'));
   assert.ok(concrete,'ligne béton dalle associée absente');
@@ -425,8 +427,96 @@ test('FIX v2.4: cheminée simple conserve count=1 sans interaction utilisateur',
   assert.equal(qty(r,'simple-chimney-conduit'),5,'5 ml × 1 conduit doivent être calculés sans toucher au champ count.');
   assert.ok(!r.alerts.some(a=>a.includes('Nombre de conduits obligatoire')),'Aucune alerte count ne doit apparaître lorsque la valeur affichée par défaut est 1.');
   const app=fs.readFileSync(new URL('./app.js',import.meta.url),'utf8');
-  assert.match(app,/function resetSimple\(\)\{\s*state\.simple=\{openings:\[\],refOverrides:\{\},chimneyOverrides:\{\},count:1\};/,'Changer de type simple doit restaurer count=1 dans le vrai state UI.');
+  assert.match(app,/function resetSimple\(\)\{\s*state\.simple=\{openings:\[\],refOverrides:\{\},chimneyOverrides:\{\},count:1,wallKind:'mur',concreteClass:''\};/,'Changer de type simple doit restaurer count=1 dans le vrai state UI.');
 });
 
-console.log(`OK — V2 Maçon: ${pass.length} contrôles fonctionnels passés`);
+
+test('v2.5: la classe béton globale n’est plus affichée au début',()=>{
+  const s=base();const html=renderMode(s);assert.ok(!html.includes('data-global="concreteClass"'));assert.ok(!html.includes('Classe béton'));
+});
+
+test('v2.5: un nouveau chiffrage demande la classe béton au niveau ouvrage',()=>{
+  const s=defaultState();s.globals.hourly=50;s.globals.vat=20;s.simpleType='fondations';Object.assign(s.simple,{foundationRef:'semelle_filante',length:10,widthCm:50,heightCm:30});
+  const html=renderConfig(s);assert.match(html,/data-simple="concreteClass"/);
+  const r=calculate(s);assert.ok(r.alerts.some(a=>a.includes('Classe béton obligatoire')));
+});
+
+test('v2.5: deux ouvrages peuvent utiliser deux classes béton différentes',()=>{
+  const s=base();s.globals.concreteClass='';s.mode='multiple';
+  const a=newElement('dalle');Object.assign(a.data,{length:5,width:2,thickness:12,slabRef:'dallage_arme',concreteClass:'C25/30'});
+  const b=newElement('ouvrage_ba');Object.assign(b.data,{workRef:'radier_general',quantity:1,concreteClass:'C30/37'});
+  s.elements=[a,b];const r=calculate(s);
+  assert.ok(r.lines.some(l=>l.name.includes('Béton C25/30')&&l.id.includes('Dalle-concrete')));
+  assert.ok(r.lines.some(l=>l.name.includes('Béton C30/37')&&l.id===`${b.id}-generic-beton`));
+  assert.ok(!r.alerts.some(a=>a.includes('Classe béton obligatoire')));
+});
+
+test('v2.5: soubassement propose seulement blocs 20/25 cm et hauteur totale calculée',()=>{
+  const s=base();s.mode='multiple';const e=newElement('fondations');Object.assign(e.data,{foundationType:'vide_sanitaire',blockHeight:.25,rows:4});s.elements=[e];
+  const html=renderConfig(s);assert.match(html,/value="0\.20"/);assert.match(html,/value="0\.25" selected/);assert.match(html,/1,00 m/);
+});
+
+test('v2.5: terre-plein exclut poutrelles-hourdis et prédalles',()=>{
+  const s=base();s.mode='multiple';const e=newElement('fondations');e.data.foundationType='terre_plein';s.elements=[e];
+  const html=renderConfig(s);assert.ok(!html.includes('value="plancher_poutrelles_hourdis"'));assert.ok(!html.includes('value="plancher_predalles"'));
+  assert.ok(html.includes('value="dallage_arme"'));
+});
+
+test('v2.5: treillis Guillaume ST25C chiffré au m² avec temps de pose',()=>{
+  assert.equal(TREILLIS_GUILLAUME.ST25C.priceM2,4.2);
+  const s=base();s.simpleType='dalle';Object.assign(s.simple,{surface:10,thickness:12,slabRef:'dallage_arme',treillis:true,treillisType:'ST25C'});
+  const r=calculate(s),l=r.lines.find(x=>x.id==='Dalle-steel');assert.equal(l.qty,10);assert.equal(l.unit,'m²');assert.equal(l.price,4.2);
+  assert.ok(r.labor.some(x=>x.name.includes('Pose treillis ST25C')&&Math.abs(x.hours-1.2)<1e-9));
+});
+
+test('v2.5: micropieux prix proposé par profondeur et aucune MO doublée',()=>{
+  assert.equal(micropileSuggestedPrice(4),600);assert.equal(micropileSuggestedPrice(7),900);assert.equal(micropileSuggestedPrice(22),5000);
+  const s=base();s.mode='multiple';const e=newElement('fondations');Object.assign(e.data,{foundationType:'micro_pieux',microCount:4,microDepth:7});s.elements=[e];
+  const r=calculate(s),l=r.lines.find(x=>x.id===`${e.id}-micro`);assert.equal(l.price,900);assert.equal(l.qty,4);assert.equal(r.hours,0);assert.equal(r.laborCost,0);
+});
+
+test('v2.5: longrine 135 €/ml séparée des micropieux sans double coût matériaux/MO',()=>{
+  assert.equal(LONGRINE_PRICE_ML,135);
+  const s=base();s.mode='multiple';const e=newElement('fondations');Object.assign(e.data,{foundationType:'micro_pieux',microCount:2,microDepth:4,beamLength:10,beamWidthCm:20,beamHeightCm:30,longrineConcreteClass:'C25/30'});s.elements=[e];
+  const r=calculate(s),pack=r.lines.find(x=>x.id===`${e.id}-longrine-package`);assert.equal(pack.qty,10);assert.equal(pack.price,135);
+  assert.ok(r.lines.some(x=>x.id.includes('longrine-included-beton')&&x.priceMode==='included'));
+  assert.ok(r.labor.some(x=>x.name.includes('longrine planning')&&x.includedInManual));
+});
+
+test('v2.5: béton banché propose coulé sur place / préfabriqué, pas collé/traditionnel',()=>{
+  const s=base();s.mode='multiple';const e=newElement('murs_elevations');Object.assign(e.data,{material:'beton_banche',method:'coule_sur_place'});s.elements=[e];
+  const html=renderConfig(s);assert.match(html,/value="coule_sur_place" selected/);assert.match(html,/value="prefabrique"/);assert.ok(!html.includes('>Collé<'));assert.ok(!html.includes('>Traditionnel<'));
+});
+
+test('v2.5: chaînage vertical Guillaume est une estimation de ratios modifiable',()=>{
+  assert.equal(estimatedVerticalChainage(10,2.5),7.5);
+  const s=base();s.mode='multiple';const e=newElement('murs_elevations');Object.assign(e.data,{length:10,height:2.5,material:'parpaing'});s.elements=[e];
+  const html=renderConfig(s);assert.match(html,/Estimation réalisée à partir de ratios Guillaume/);assert.match(html,/value="7\.5"/);
+});
+
+test('v2.5: camion pompe 950 € par défaut',()=>{
+  assert.equal(PUMP_DEFAULT_PRICE,950);const s=base();s.globals.pump=true;const r=calculate(s);const l=r.lines.find(x=>x.id==='pump');assert.equal(l.price,950);
+});
+
+test('v2.5: toupie 190 €/m³, minimum 6 m³ et capacité 7 m³',()=>{
+  assert.equal(TOUPIE_PRICE_M3,190);assert.equal(TOUPIE_MIN_BILLABLE_M3,6);assert.equal(TOUPIE_CAPACITY_M3,7);assert.equal(toupieEstimatedCount(7),1);assert.equal(toupieEstimatedCount(8),2);
+  const s=base();s.simpleType='dalle';Object.assign(s.simple,{surface:20,thickness:10,slabRef:'dallage_non_arme'});s.globals.toupie=true;s.globals.toupieMode='auto_volume';
+  const r=calculate(s),l=r.lines.find(x=>x.id==='toupie');assert.equal(l.qty,6);assert.equal(l.price,190);assert.equal(l.qty*l.price,1140);
+});
+
+test('v2.5: toupie au-dessus du minimum facture le volume réel',()=>{
+  const s=base();s.simpleType='dalle';Object.assign(s.simple,{surface:70,thickness:10,slabRef:'dallage_non_arme'});s.globals.toupie=true;s.globals.toupieMode='auto_volume';
+  const r=calculate(s),l=r.lines.find(x=>x.id==='toupie');assert.equal(l.qty,7);assert.equal(l.qty*l.price,1330);assert.ok(r.reco.some(x=>x.includes('1 camion')));
+});
+
+test('v2.5: dosage fibre reste explicite dans le moteur et l’UI',()=>{
+  const s=base();s.simpleType='dalle';Object.assign(s.simple,{surface:10,thickness:12,slabRef:'dallage_arme',fibres:true,fibreType:'courante',fibreDose:3.5});
+  assert.match(renderOptions(s),/data-simple="fibreDose"/);const r=calculate(s);assert.ok(Math.abs(qty(r,'Dalle-fibres')-4.2)<1e-9);
+});
+
+test('v2.5: Murs / Cloisons qualifie mur ou cloison non porteuse',()=>{
+  const s=base();s.simpleType='murs';const html=renderConfig(s);assert.match(html,/data-simple="wallKind"/);assert.match(html,/Cloison non porteuse/);
+});
+
+console.log(`OK — V2.5 Maçon: ${pass.length} contrôles fonctionnels passés`);
 for(const x of pass)console.log(`✓ ${x}`);

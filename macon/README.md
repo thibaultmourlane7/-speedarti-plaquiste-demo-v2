@@ -111,3 +111,68 @@ Contrôles après correction :
 - 0 balise morte ;
 - 0 contrôle sans liaison ;
 - **23/23 contrôles Chromium réels** sur les zones corrigées, sans alerte ni exception JavaScript.
+
+
+## v2.4 — correction cheminée simple
+
+- le nombre de conduits par défaut `1` est désormais réellement présent dans l’état ;
+- le reset du mode simple conserve ce défaut ;
+- le calcul d’une cheminée simple ne bloque plus à tort si l’utilisateur ne touche pas au champ.
+
+## v2.5 — modifications Guillaume + séparation des contrôles métier / DTU
+
+La v2.5 reste une évolution du module existant : aucun moteur n’a été recréé depuis zéro. Les décisions métier retournées par Guillaume sont intégrées avec des valeurs visibles et modifiables. Les estimations métier ne sont jamais présentées comme des règles DTU.
+
+### Béton par ouvrage
+
+- suppression du choix de classe béton unique dans les paramètres généraux ;
+- classe béton portée par chaque ouvrage béton concerné ;
+- compatibilité conservée avec les anciens états v2.4 qui possèdent encore une classe globale enregistrée ;
+- aucune classe béton n’est inventée pour un nouveau chiffrage.
+
+### Fondations et soubassements
+
+- vide sanitaire / terre-plein : hauteur de bloc limitée au référentiel Guillaume **20 cm / 25 cm** ;
+- hauteur totale calculée automatiquement à partir de la hauteur du bloc et du nombre de rangs ;
+- consommations blocs et temps de pose déplacés dans les réglages métier avancés au lieu d’être supprimés du moteur ;
+- terre-plein : retrait des choix **poutrelles-hourdis** et **prédalles** de la dalle associée ;
+- choix de treillis Guillaume disponible sur les dalles concernées ; **ST25C** proposé comme valeur métier modifiable, sans prétention de dimensionnement structurel.
+
+### Micro-pieux / longrines
+
+- prix micro-pieu proposé selon profondeur : 600 / 900 / 1 300 / 1 700 / 2 200 / 3 000 / 5 000 € HT selon les tranches validées ;
+- le prix micro-pieu est traité comme **fourniture + main-d’œuvre incluse** : aucune seconde main-d’œuvre facturée ;
+- profondeur utilisée uniquement pour le chiffrage, jamais pour dimensionner automatiquement les micro-pieux ;
+- longrine conservée en poste séparé avec référence Guillaume **135 €/ml**, modifiable ;
+- quantités physiques béton/acier/coffrage de la longrine restent visibles comme incluses dans le forfait afin de ne pas perdre la traçabilité.
+
+### Murs
+
+- mur préfabriqué : suppression de l’ancien prix de base et de la règle `+30 %` ;
+- prix préfabriqué par défaut **350 €/m² HT posé, livré et gruté**, modifiable, hors terrassement, drainage, remblai et fondations éventuelles ;
+- heures de pose conservées pour le planning sans double facturation ;
+- béton banché : méthodes **Coulé sur place / Préfabriqué** ; les choix Collé / Traditionnel restent réservés aux matériaux maçonnés ;
+- chaînage horizontal prérempli à partir du linéaire connu et modifiable ;
+- chaînage vertical proposé selon le ratio Guillaume `ceil(périmètre / 3,50) × hauteur`, explicitement affiché comme **estimation réalisée à partir de ratios** et non comme règle DTU ;
+- parcours simple Murs / Cloisons qualifié par nature d’ouvrage pour permettre des contrôles normatifs distincts à terme.
+
+### Fibres, transport béton et toupies
+
+- le dosage exact des fibres reste une donnée du moteur, car la quantité = volume béton × dosage ;
+- pompe : **950 € HT** par défaut, modifiable ;
+- toupie : **190 €/m³ HT**, minimum facturé **6 m³ = 1 140 €**, modifiable ;
+- capacité logistique retenue avec Guillaume : **7 m³ maximum par toupie** ;
+- mode automatique selon le volume béton ou saisie manuelle du nombre de toupies ;
+- prix commercial et estimation du nombre de camions sont conservés comme deux notions distinctes.
+
+### Contrôles v2.5
+
+- **69/69 tests fonctionnels** ;
+- audit de **208 états d’interface** ;
+- **3 446 contrôles interactifs** analysés ;
+- 0 contrôle sans balise ;
+- 0 balise inconnue ;
+- 0 balise morte ;
+- 0 contrôle sans liaison ;
+- **6/6 parcours Chromium ciblés v2.5** : terre-plein, micro-pieux, préfabriqué, béton banché, transport béton et chaînage vertical ;
+- aucune exception JavaScript observée sur ces parcours ciblés.

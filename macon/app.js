@@ -51,7 +51,7 @@ function bindDataField(el,obj,path,rerender=false){
   });
 }
 function resetSimple(){
-  state.simple={openings:[],refOverrides:{},chimneyOverrides:{},count:1};
+  state.simple={openings:[],refOverrides:{},chimneyOverrides:{},count:1,wallKind:'mur',concreteClass:''};
 }
 function findElement(id){return state.elements.find(e=>e.id===id);}
 function splitPair(v){const [id,idx]=String(v).split(':');return [id,Number(idx)];}

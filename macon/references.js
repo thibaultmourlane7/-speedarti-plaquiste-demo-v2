@@ -6,6 +6,36 @@ export const PREFAB_TEAM_ADVICE = "Conseil : la pose d’un mur préfabriqué b�
 
 export const PREFAB_H_PER_ML = { standard:1.55, hauteur_importante:1.90, lourd_complexe:2.75 };
 export const TRUCK_8X4_DEFAULT = 800;
+export const CONCRETE_CLASSES = ['C20/25','C25/30','C30/37','C35/45'];
+
+// Référentiel métier Guillaume — valeurs commerciales / de chiffrage, jamais dimensionnement structurel.
+export const TREILLIS_GUILLAUME = {
+  ST10:{label:'ST10',diametre:'5,5 mm',maille:'200 × 200',usage:'Petites dalles',priceM2:2.00,hPerM2:0.12},
+  ST15C:{label:'ST15 / ST15C',diametre:'6 mm',maille:'200 × 200',usage:'Dalles courantes',priceM2:2.30,hPerM2:0.12},
+  ST20:{label:'ST20',diametre:'6/7 mm',maille:'150 × 300',usage:'Dalles moyennes',priceM2:2.55,hPerM2:0.12},
+  ST25:{label:'ST25',diametre:'7 mm',maille:'150 × 300',usage:'Dalles et garages',priceM2:3.10,hPerM2:0.12},
+  ST25C:{label:'ST25C',diametre:'7 mm',maille:'150 × 150',usage:'Dalles renforcées',priceM2:4.20,hPerM2:0.12},
+  ST35:{label:'ST35',diametre:'7 mm',maille:'100 × 300',usage:'Dalles fortement chargées',priceM2:4.15,hPerM2:0.12},
+  ST50:{label:'ST50',diametre:'8 mm',maille:'100 × 300',usage:'Charges importantes',priceM2:5.45,hPerM2:0.12},
+  ST60:{label:'ST60',diametre:'8/9 mm',maille:'100 × 200',usage:'Ouvrages très chargés',priceM2:7.20,hPerM2:0.12}
+};
+
+export const MICROPILE_PRICE_BY_DEPTH = [
+  {max:5,price:600,label:'3 à 5 m'},
+  {max:8,price:900,label:'5 à 8 m'},
+  {max:10,price:1300,label:'8 à 10 m'},
+  {max:12,price:1700,label:'10 à 12 m'},
+  {max:15,price:2200,label:'12 à 15 m'},
+  {max:20,price:3000,label:'15 à 20 m'},
+  {max:Infinity,price:5000,label:'Plus de 20 m'}
+];
+export const LONGRINE_PRICE_ML = 135;
+export const PREFAB_DEFAULT_PRICE_M2 = 350;
+export const PUMP_DEFAULT_PRICE = 950;
+export const TOUPIE_PRICE_M3 = 190;
+export const TOUPIE_MIN_BILLABLE_M3 = 6;
+export const TOUPIE_CAPACITY_M3 = 7;
+
 export const FIBRES = {
   courante:{min:3,max:4,label:"Dalle courante / limitation fissuration"},
   renforcee:{min:5,max:6,label:"Dalle renforcée"},
