@@ -220,6 +220,12 @@ const PLATES = Object.freeze({
   habito:{label:'Habito',surcharge:getRule('plaques.surchargeAchatHtM2.habito')},
 });
 const PROFILES = DEMO_CATALOG.profiles;
+const CEILING_ACCESSORY_CATALOG=Object.freeze({
+  // Prix publics relevés le 05/10/2026 chez Point.P, gamme Placo Stil F530.
+  // Eclisse : 31,76 € TTC / 50 => 0,53 € HT/unité. Cavalier : 52,56 € TTC / 100 => 0,44 € HT/unité.
+  ceilingSplicePriceEach:0.53,
+  ceilingConnectorPriceEach:0.44
+});
 const STORE = 'speedarti-plaquiste-demo-v130-guarded';
 const steps = [
   ['Chantier','Contexte & TVA'],['Ouvrages','Pièces & murs simples'],['Murs','Configuration indépendante'],
@@ -241,12 +247,6 @@ function ceilingDefault(){ return {active:false,type:null,manualArea:null,face:f
 function wallBase(id,label,length){ return {id,label,active:false,type:null,length:length==null?null:Number(length),framing:framingDefault(),isolation:isoDefault(),face1:faceDefault(),face2:faceDefault(),openings:[],reinforcementQty:0,reinforcementPrice:R.reinforcement,outsideAnglesQty:0,cuts:false}; }
 function makePiece(n=1){ const L=null,W=null; return {id:uid(),name:`Pièce ${n}`,length:L,width:W,height:null,walls:[wallBase('A','Mur A (face)',L),wallBase('B','Mur B (droite)',W),wallBase('C','Mur C (fond)',L),wallBase('D','Mur D (gauche)',W)],ceiling:ceilingDefault()}; }
 function makeSimpleWall(n=1){ const w=wallBase(uid(),`Mur simple ${n}`,null); w.height=null; return w; }
-const CEILING_ACCESSORY_CATALOG=Object.freeze({
-  // Prix publics relevés le 05/10/2026 chez Point.P, gamme Placo Stil F530.
-  // Eclisse : 31,76 € TTC / 50 => 0,53 € HT/unité. Cavalier : 52,56 € TTC / 100 => 0,44 € HT/unité.
-  ceilingSplicePriceEach:0.53,
-  ceilingConnectorPriceEach:0.44
-});
 function catalogDefault(){return {optimaClipPricePerMl:null,optimaSupportPriceEach:null,optimaKeyPriceEach:null,optimaFixingPriceEach:null,ceilingSplicePriceEach:CEILING_ACCESSORY_CATALOG.ceilingSplicePriceEach,ceilingConnectorPriceEach:CEILING_ACCESSORY_CATALOG.ceilingConnectorPriceEach,band30Price:null,band50Price:null,band150Price:null,compound5Price:null,compound15Price:null,compound25Price:null};}
 function createInitial(){ return {schemaVersion:'1.3.1',project:{name:'Chiffrage Plaquiste — démo',olderThan2Years:null,energyRenovation:false,eligibilityConfirmed:false},catalog:catalogDefault(),pieces:[makePiece(1)],simpleWalls:[],options:{hourlyRate:null,materialMargin:null,complexity:null,finish:null,impression:false,reprise:false,reprisePrice:R.reprise,access:false,accessPrice:R.access,extras:[]}}; }
 function load(){ if(typeof localStorage==='undefined')return null; try{return JSON.parse(localStorage.getItem(STORE));}catch{return null;} }
