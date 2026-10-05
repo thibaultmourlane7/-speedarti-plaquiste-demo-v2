@@ -9,8 +9,10 @@ Le module Maçon reste le module V2 validé. L'intégration catalogue ne remplac
 - 227 articles métier intégrés dans `catalogue-macon.js` ;
 - catalogue neutre : aucune enseigne d'origine n'est exposée dans l'interface, le code ou les tests ;
 - marque fabricant, produit, référence catalogue, unité de vente et prix artisan moyen HT restent disponibles ;
-- prix personnel artisan toujours prioritaire sur le prix catalogue ;
-- aucun prix absent ou conditionnement incompatible n'est transformé en prix silencieux.
+- le meilleur article compatible et tarifé est retenu automatiquement par SpeedArti ;
+- le prix personnel artisan reste prioritaire uniquement lorsqu’il souhaite le modifier ;
+- l’absence d’un prix catalogue ne bloque plus l’accès au résultat ; le poste est signalé « à confirmer » sans inventer de valeur ;
+- le prix peut être modifié directement depuis le résultat final.
 
 ## Correspondance automatique
 
@@ -27,7 +29,7 @@ Le moteur propose des articles selon le poste calculé :
 - enduits / façade ;
 - drainage, caniveaux, assainissement, scellement et éléments préfabriqués lorsque le poste le permet.
 
-La sélection reste toujours modifiable par l'artisan.
+La sélection est automatique par défaut et reste toujours modifiable par l'artisan.
 
 ## Conditionnements
 
