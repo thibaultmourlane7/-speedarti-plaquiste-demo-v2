@@ -4,7 +4,7 @@ import {
   CATALOGUE_MACON, catalogueCandidatesForLine, resolveCatalogueProduct
 } from './catalogue-macon.js';
 import {
-  defaultState, newElement, renderMode, renderWorks, renderConfig, renderOptions, renderPrices,
+  defaultState, newElement, renderMode, renderWorks, renderConfig, renderOptions, renderPrices, renderResult,
   calculate, validateStep, assertBalisage,
   WORKS, WORK_BY_ID, FIBRES, PREFAB_H_PER_ML, TRUCK_8X4_DEFAULT, TRACE_TARGETS,
   TREILLIS_GUILLAUME, PUMP_DEFAULT_PRICE, TOUPIE_PRICE_M3, TOUPIE_MIN_BILLABLE_M3, TOUPIE_CAPACITY_M3,
@@ -80,12 +80,18 @@ test('dalle simple et multi: parité physique',()=>{
   assert.equal(ac,bc);assert.equal(as,bs);assert.equal(ra.hours,rb.hours);
 });
 
-test('prix manquant: case visible et résultat bloqué',()=>{
+test('prix catalogue automatique: aucun prix personnel requis pour continuer',()=>{
   const s=base();s.simpleType='murs';Object.assign(s.simple,{length:10,height:2.5,thickness:20,blocksPerM2:10,wallHPerM2:.8,material:'parpaing'});
-  const r=calculate(s);assert.ok(r.missingPrices.length>0);assert.equal(r.canFinalize,false);
-  const html=renderPrices(s);assert.match(html,/Prix U\. HT/);assert.match(html,/data-root-field="manualPrices\./);
-  assert.notEqual(validateStep(s,4),'');
-  const rr=fillRequiredPrices(s);assert.equal(rr.missingPrices.length,0);assert.equal(rr.canFinalize,true);assert.equal(validateStep(s,4),'');
+  const r=calculate(s);const blocks=r.lines.find(x=>x.id.startsWith('simple-wall-block'));
+  assert.ok(blocks.price>0);assert.equal(blocks.source,'Catalogue Maçon SpeedArti — sélection automatique');
+  assert.equal(r.missingPrices.length,0);assert.equal(r.canFinalize,true);assert.equal(validateStep(s,4),'');
+  const html=renderPrices(s);assert.match(html,/Sélection automatique SpeedArti/);assert.match(html,/Prix U\. HT personnel/);
+});
+
+test('absence de prix catalogue ne bloque plus le résultat',()=>{
+  const s=base();s.simpleType='fondations';Object.assign(s.simple,{foundationRef:'semelle_filante',length:10,widthCm:40,heightCm:30,concreteClass:'C25/30'});
+  const r=calculate(s);assert.ok(r.missingPrices.length>0);assert.equal(r.canFinalize,true);assert.equal(validateStep(s,4),'');
+  const html=renderResult(s);assert.match(html,/Résultat du chiffrage/);assert.match(html,/provisoire/i);assert.match(html,/data-root-field="manualPrices\./);
 });
 
 test('options visibles ont une case prix immédiate',()=>{
@@ -331,7 +337,7 @@ test('FIX capture: ancienne sélection catalogue incompatible n’est plus affic
   // La référence peut exister ailleurs dans le catalogue source JS, mais ne doit pas être une option de cette ligne.
   const row=html.split('<tr').find(x=>x.includes('Béton C25/30 — Chaînage horizontal'))||'';
   assert.ok(!row.includes('value="3483173" selected'));
-  assert.ok(row.includes('Aucun article compatible proposé'));
+  assert.ok(row.includes('Aucun article catalogue compatible'));
 });
 
 
@@ -518,5 +524,5 @@ test('v2.5: Murs / Cloisons qualifie mur ou cloison non porteuse',()=>{
   const s=base();s.simpleType='murs';const html=renderConfig(s);assert.match(html,/data-simple="wallKind"/);assert.match(html,/Cloison non porteuse/);
 });
 
-console.log(`OK — V2.5 Maçon: ${pass.length} contrôles fonctionnels passés`);
+console.log(`OK — V2.6 Maçon: ${pass.length} contrôles fonctionnels passés`);
 for(const x of pass)console.log(`✓ ${x}`);
