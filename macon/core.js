@@ -998,3 +998,327 @@ function calcFoundationElement(state,e,lines,lab,alerts,reco){
       else calcSlab(state,d,`${e.name} dalle associée`,num(d.slabSurface),lines,lab,alerts,reco,d.slabConcreteClass||g.concreteClass);
       if(d.foundationType==='vide_sanitaire'&&d.slabInsulation==='avec_isolant') lines.push(line(`${p}-vs-insulation`,'Isolation plancher VS','Isolation',num(d.slabSurface),'m²'));
     }
+    reco.push(`${e.name} : hauteur soubassement calculée = ${fmt(bh*rows,2)} m (${fmt(bh*100,0)} cm × ${rows||0} rangs).`);
+  }
+}
+
+function calcBearingWall(state,e,lines,lab,alerts,reco){
+  const d=e.data,g=state.globals,p=e.id,L=num(d.length),H=num(d.height),T=num(d.thickness)/100,cc=concreteClassFor(d,g);
+  if(!(L>0&&H>0&&T>0)){alerts.push(`🚨 ${e.name} : dimensions incomplètes.`);return;}
+  if(d.method==='prefabrique'){
+    const hh=PREFAB_H_PER_ML[d.prefabType||'standard'];
+    const price=num(d.prefabPriceM2)||PREFAB_DEFAULT_PRICE_M2,surface=L*H;
+    lines.push(line(`${p}-prefab`,`Mur préfabriqué béton — posé, livré, gruté`,'Structure préfabriquée',surface,'m²',price,'explicit'));
+    if(hh>0)lab.push(labor(`${e.name} — pose planning`,L*hh,{includedInManual:true}));
+    reco.push(`${e.name} : ${fmt(surface,2)} m² × ${money(price)}/m². Pose, livraison et grutage inclus ; hors terrassement, drainage, remblai et fondations éventuelles.`);
+  } else {
+    const surface=L*H,ref=resolvedRef(d,'mur_banche_courant');
+    lines.push(line(`${p}-concrete`,`Béton ${cc} — mur porteur`,'Béton',surface*T,'m³'));
+    if(ref.acierParUnite>0)lines.push(line(`${p}-steel`,'Acier indicatif — mur porteur','Ferraillage',surface*ref.acierParUnite,'kg'));
+    if(ref.coffrageParUnite>0)lines.push(line(`${p}-form`,'Coffrage — mur porteur','Coffrage',surface*ref.coffrageParUnite,'m²'));
+    lab.push(labor(e.name,surface*ref.moHParUnite));
+    reco.push(`${e.name} : volume béton réel ${fmt(surface*T,3)} m³ ; classe ${cc} ; contrôle annexe ${fmt(surface*ref.betonParUnite,3)} m³.`);
+  }
+  if(num(d.chainHml)>0){const ref=resolvedRef(d,'chainage_horizontal');lab.push(labor(`${e.name} — chaînage horizontal`,addRefLines(lines,ref,num(d.chainHml),`${p}-chain-h`,cc)));}
+  if(num(d.chainVml)>0){const ref=resolvedRef(d,'chainage_vertical');lab.push(labor(`${e.name} — chaînage vertical`,addRefLines(lines,ref,num(d.chainVml),`${p}-chain-v`,cc)));}
+  const bq=num(d.braceQty);
+  if(bq>0){
+    if(!(num(d.bracePrice)>0))alerts.push(`🚨 ${e.name} : prix jambe de force obligatoire.`);else lines.push(line(`${p}-brace`,'Jambe de force','Renforts',bq,'unité',num(d.bracePrice),'explicit'));
+    if(!(num(d.braceHours)>0))alerts.push(`🚨 ${e.name} : temps jambe de force obligatoire.`);else lab.push(labor(`${e.name} — jambes de force`,bq*num(d.braceHours)));
+  }
+}
+
+function calcElevationWall(state,e,lines,lab,alerts,reco){
+  const d=e.data,g=state.globals,p=e.id,L=num(d.length),H=num(d.height),gross=L*H,cc=concreteClassFor(d,g);
+  if(!(gross>0)){alerts.push(`🚨 ${e.name} : dimensions incomplètes.`);return;}
+  const openings=d.openings||[];
+  const openingArea=openings.reduce((s,o)=>s+num(o.width)*num(o.height),0);
+  if(openingArea>gross){alerts.push(`🚨 ${e.name} : ouvertures supérieures à la surface du mur.`);return;}
+  const pignonArea=(d.pignons||[]).reduce((s,pn)=>s+(num(pn.width)*num(pn.width)*(num(pn.slope)/100)/2),0);
+  const net=Math.max(0,gross-openingArea)+pignonArea;
+  if(d.material==='beton_banche'){
+    if(d.method==='prefabrique'){
+      const price=num(d.prefabPriceM2)||PREFAB_DEFAULT_PRICE_M2;
+      lines.push(line(`${p}-prefab`,`Mur extérieur préfabriqué béton — posé, livré, gruté`,'Structure préfabriquée',net,'m²',price,'explicit'));
+      const hh=PREFAB_H_PER_ML[d.prefabType||'standard'];
+      if(hh>0)lab.push(labor(`${e.name} — pose planning`,L*hh,{includedInManual:true}));
+      reco.push(`${e.name} : préfabriqué ${fmt(net,2)} m² × ${money(price)}/m² ; pose incluse dans le prix commercial.`);
+    }else{
+      const ref=resolvedRef(d,'mur_banche_courant'),ep=num(d.thickness)/100;
+      lines.push(line(`${p}-banche-concrete`,`Béton ${cc} — mur banché`,'Béton',net*ep,'m³'));
+      if(ref.acierParUnite>0)lines.push(line(`${p}-banche-steel`,'Acier indicatif mur banché','Ferraillage',net*ref.acierParUnite,'kg'));
+      if(ref.coffrageParUnite>0)lines.push(line(`${p}-banche-form`,'Coffrage mur banché','Coffrage',net*ref.coffrageParUnite,'m²'));
+      lab.push(labor(e.name,net*ref.moHParUnite));
+      reco.push(`${e.name} : volume béton réel ${fmt(net*ep,3)} m³ ; classe ${cc} ; contrôle annexe ${fmt(net*ref.betonParUnite,3)} m³.`);
+    }
+  }else{
+    if(!(num(d.blocksPerM2)>0))alerts.push(`🚨 ${e.name} : consommation blocs/m² obligatoire dans les réglages métier avancés.`);else lines.push(line(`${p}-blocks-${d.material}-${d.thickness}`,`${d.material} ${d.thickness||20} cm`,'Maçonnerie',net*num(d.blocksPerM2),'unité'));
+    if(num(d.mortarKgM2)>0)lines.push(line(`${p}-mortar-${d.method}`,d.method==='colle'?'Colle / mortier-colle':'Mortier traditionnel','Liants',net*num(d.mortarKgM2),'kg'));
+    if(!(num(d.wallHPerM2)>0))alerts.push(`🚨 ${e.name} : temps de pose h/m² obligatoire dans les réglages métier avancés.`);else lab.push(labor(e.name,net*num(d.wallHPerM2)));
+  }
+  openings.forEach((o,i)=>addOpeningAssociated(lines,lab,o,`${p}-open-${i}`,d,cc,alerts));
+  (d.beams||[]).forEach((b,i)=>{
+    const Lb=num(b.length),W=num(b.widthCm),Hb=num(b.heightCm),ref=resolvedRef(d,b.ref||'poutre_ba_courante');
+    if(Lb||W||Hb){if(!(Lb>0&&W>0&&Hb>0))alerts.push(`🚨 ${e.name} : poutre ${i+1} incomplète.`);else{const v=Lb*(W/100)*(Hb/100);lab.push(labor(`${e.name} — ${ref.label}`,addRefLines(lines,ref,v,`${p}-beam-${i}`,cc)));}}
+  });
+  const hq=num(d.chainHml)>0?num(d.chainHml):L;
+  const vq=num(d.chainVml)>0?num(d.chainVml):estimatedVerticalChainage(L,H);
+  if(hq>0){const ref=resolvedRef(d,'chainage_horizontal');lab.push(labor(`${e.name} — chaînage H`,addRefLines(lines,ref,hq,`${p}-ch`,cc)));}
+  if(vq>0){const ref=resolvedRef(d,'chainage_vertical');lab.push(labor(`${e.name} — chaînage V`,addRefLines(lines,ref,vq,`${p}-cv`,cc)));reco.push(`${e.name} : chaînage vertical automatique éventuel = estimation réalisée à partir de ratios Guillaume, modifiable, distincte d’un contrôle DTU.`);}
+  if(d.waterproof) lines.push(line(`${p}-waterproof-${d.waterproof}`,d.waterproof==='delta_ms'?'Delta MS':'Enduit hydrofuge','Étanchéité',net,'m²'));
+  if(d.decoration) lines.push(line(`${p}-decor-${d.decoration}`,d.decoration.replaceAll('_',' '),'Décoration extérieure',L,'ml'));
+  if(d.antiTermite) lines.push(line(`${p}-anti-termite`,'Traitement anti-termite','Traitements',1,'forfait'));
+  reco.push(`${e.name} (${d.wallType||'mur'}) : brute ${fmt(gross,2)} m² ; ouvertures ${fmt(openingArea,2)} m² ; pignons ${fmt(pignonArea,2)} m² ; nette calculée ${fmt(net,2)} m².`);
+}
+
+function calcGenericWork(state,e,lines,lab,alerts){
+  const d=e.data,ref=resolvedRef(d,d.workRef),q=num(d.quantity),cc=concreteClassFor(d,state.globals);
+  if(!ref)alerts.push(`🚨 ${e.name} : ouvrage de référence obligatoire.`);
+  if(!(q>0))alerts.push(`🚨 ${e.name} : quantité obligatoire.`);
+  if(ref&&q>0)lab.push(labor(`${e.name} — ${ref.label}`,addRefLines(lines,ref,q,`${e.id}-generic`,cc)));
+  alerts.push(STRUCTURE_WARNING);
+}
+
+function addCommonOptions(state,lines,lab,alerts,reco){
+  const g=state.globals;
+  if(g.truck) addDirectPricedLine(lines,'truck8x4','Camion-benne 8×4','Transport / location',Math.max(1,num(g.truckDays)||1),'jour',num(g.truckPrice)||TRUCK_8X4_DEFAULT);
+  if(g.pump){
+    const price=num(g.pumpPrice)||PUMP_DEFAULT_PRICE;
+    addDirectPricedLine(lines,'pump','Camion pompe béton','Transport béton',1,'forfait',price);
+  }
+
+  const opts=[
+    ['earthworks','Terrassement','Terrassement'],['backfill','Remblaiement','Terrassement'],['scaffold','Échafaudage','Location'],['finishCoat','Enduit de finition','Finitions'],['waterproofCoat','Enduit hydrofuge','Finitions']
+  ];
+  for(const [k,label,cat] of opts){
+    if(g[k]){
+      const q=num(g[`${k}Qty`]),pr=num(g[`${k}Price`]),unit=g[`${k}Unit`]||'forfait';
+      if(!(q>0&&pr>0))alerts.push(`🚨 ${label} : quantité et prix obligatoires.`); else addDirectPricedLine(lines,`global-${k}`,label,cat,q,unit,pr);
+    }
+  }
+  if(g.difficultAccess){if(!(num(g.difficultAccessHours)>0))alerts.push('🚨 Accès difficile : heures supplémentaires obligatoires.');else lab.push(labor('Accès difficile — plus-value explicite',num(g.difficultAccessHours)));}
+
+  for(const [key,label] of FOUNDATION_GLOBAL_OPTIONS){
+    const o=g.foundationOptions?.[key]; if(!o?.enabled)continue;
+    const q=num(o.qty),pr=num(o.price),unit=o.unit||'forfait';
+    if(!(q>0&&pr>0))alerts.push(`🚨 ${label} : quantité et prix obligatoires.`); else addDirectPricedLine(lines,`foundation-option-${key}`,label,'Options fondations',q,unit,pr);
+  }
+
+  const totalConcrete=lines.filter(x=>x.category==='Béton'&&x.unit==='m³'&&x.priceMode!=='included').reduce((s,x)=>s+x.qty,0);
+  if(g.toupie){
+    const priceM3=num(g.toupiePrice)||TOUPIE_PRICE_M3;
+    if(g.toupieMode==='manuel'){
+      const n=Math.max(1,num(g.toupies)||1);
+      reco.push(`Toupies : ${n} camion(s) saisi(s) manuellement ; capacité de référence ${TOUPIE_CAPACITY_M3} m³ max par toupie.`);
+    }else{
+      reco.push(`Toupies estimées selon volume : ${toupieEstimatedCount(totalConcrete)} camion(s) pour ${fmt(totalConcrete,3)} m³, capacité ${TOUPIE_CAPACITY_M3} m³ max.`);
+    }
+    if(totalConcrete>0){
+      const billed=Math.max(totalConcrete,TOUPIE_MIN_BILLABLE_M3);
+      addDirectPricedLine(lines,'toupie','Béton livré par toupie — facturation volume','Transport béton',billed,'m³',priceM3);
+      reco.push(`Facturation toupie Guillaume : ${money(priceM3)}/m³, minimum ${TOUPIE_MIN_BILLABLE_M3} m³ (${money(priceM3*TOUPIE_MIN_BILLABLE_M3)}).`);
+    }else alerts.push('🚨 Toupie : aucun volume béton calculé à facturer.');
+  }
+  if(g.concreteControlMode==='betonniere')reco.push(`Contrôle productivité bétonnière : ${fmt(totalConcrete*4,2)} h-homme pour ${fmt(totalConcrete,3)} m³. Non additionné automatiquement aux temps ouvrage.`);
+  if(g.concreteControlMode==='toupie')reco.push(`Contrôle productivité toupie : ${fmt(totalConcrete*1,2)} h-homme pour ${fmt(totalConcrete,3)} m³. Non additionné automatiquement aux temps ouvrage.`);
+}
+
+export function calculate(state){
+  const lines=[],lab=[],alerts=[],reco=[];
+  const g=state.globals;
+  const hourly=num(g.hourly),workers=Math.max(1,num(g.workers)||1);
+  const vatRaw=g.vat;
+  if(!(hourly>0))alerts.push('🚨 Taux horaire Maçon manquant.');
+  if(vatRaw===''||vatRaw===null||vatRaw===undefined||!Number.isFinite(Number(vatRaw)))alerts.push('🚨 Taux de TVA chantier manquant.');
+
+  let laborPriceOverride=0;
+  let manualTotalLaborIncluded=false;
+  if(state.mode==='simple'){
+    if(state.simpleType==='murs')calcWallSimple(state,lines,lab,alerts,reco);
+    if(['dalle','terrasse'].includes(state.simpleType)){
+      calcSlab(state,state.simple,state.simpleType==='terrasse'?'Terrasse':'Dalle',num(state.simple.surface),lines,lab,alerts,reco);
+      if(state.simpleType==='terrasse'){
+        if(state.simple.terraceWaterproof){const pr=num(state.simple.terraceWaterproofPrice);if(!(pr>0))alerts.push('🚨 Prix étanchéité terrasse obligatoire.');else addDirectPricedLine(lines,'terrace-waterproof','Étanchéité terrasse','Étanchéité',num(state.simple.surface),'m²',pr);}
+        if(state.simple.terraceInsulation){const pr=num(state.simple.terraceInsulationPrice);if(!(pr>0))alerts.push('🚨 Prix isolation terrasse obligatoire.');else addDirectPricedLine(lines,'terrace-insulation','Isolation thermique sous dalle','Isolation',num(state.simple.surface),'m²',pr);}
+      }
+    }
+    if(state.simpleType==='fondations')calcFoundationSimple(state,lines,lab,alerts,reco);
+    if(state.simpleType==='escalier'){
+      const r=calcStair(state,state.simple,'simple-stair',lines,lab,alerts,reco);
+      manualTotalLaborIncluded=r.manualTotal&&r.manualIncludesLabor;
+    }
+    if(state.simpleType==='cheminee'){
+      const r=calcChimney(state.simple,'simple-chimney');lines.push(...r.lines);lab.push(...r.labor);alerts.push(...r.alerts);reco.push(...r.reco);laborPriceOverride+=r.laborPriceOverride;
+    }
+  } else {
+    if(!state.elements.length)alerts.push('🚨 Aucun élément Maçon sélectionné.');
+    for(const e of state.elements){
+      if(e.type==='fondations')calcFoundationElement(state,e,lines,lab,alerts,reco);
+      if(e.type==='murs_porteurs')calcBearingWall(state,e,lines,lab,alerts,reco);
+      if(e.type==='murs_elevations')calcElevationWall(state,e,lines,lab,alerts,reco);
+      if(e.type==='escalier')calcStair(state,e.data,e.id,lines,lab,alerts,reco);
+      if(e.type==='dalle')calcSlab(state,e.data,e.name,num(e.data.length)*num(e.data.width),lines,lab,alerts,reco);
+      if(e.type==='cheminee'){const r=calcChimney(e.data,e.id);lines.push(...r.lines);lab.push(...r.labor);alerts.push(...r.alerts);reco.push(...r.reco);laborPriceOverride+=r.laborPriceOverride;}
+      if(e.type==='ouvrage_ba')calcGenericWork(state,e,lines,lab,alerts);
+    }
+  }
+  if(lines.some(l=>l.category==='Béton'&&/^Béton\s+—/.test(l.name))){
+    alerts.push('🚨 Classe béton obligatoire pour chaque ouvrage béton concerné.');
+  }
+  addCommonOptions(state,lines,lab,alerts,reco);
+
+  const pricedLines=lines.map(l=>{
+    if(l.priceMode==='required'){
+      const manual=num(state.manualPrices?.[l.id]);
+      const storedRef=state.catalogSelections?.[l.id]||'';
+      const auto=resolveAutomaticCataloguePrice(l,storedRef);
+      if(manual>0){
+        return {...l,price:manual,source:'prix personnel',catalogueSelection:storedRef||auto.referenceCatalogue||null,catalogueResolution:auto.resolved,automaticCatalogue:false};
+      }
+      if(auto.resolved?.compatible){
+        return {...l,price:auto.resolved.lineUnitPrice,source:auto.automatic?'Catalogue Maçon SpeedArti — sélection automatique':'Catalogue Maçon SpeedArti',catalogueSelection:auto.referenceCatalogue,catalogueResolution:auto.resolved,automaticCatalogue:auto.automatic};
+      }
+      if(num(l.price)>0){
+        return {...l,source:'prix de référence SpeedArti',catalogueSelection:storedRef||null,catalogueResolution:null,automaticCatalogue:false};
+      }
+      return {...l,price:0,source:'prix à confirmer',catalogueSelection:storedRef||null,catalogueResolution:null,automaticCatalogue:false,unpriced:true};
+    }
+    return {...l,source:l.priceMode==='validated'?'référence validée':l.priceMode==='included'?'inclus dans le forfait':'saisie explicite'};
+  });
+  const missingPrices=pricedLines.filter(l=>l.qty>0&&l.priceMode==='required'&&!(l.price>0));
+  missingPrices.forEach(l=>{
+    alerts.push(`⚠️ PRIX À CONFIRMER — ${l.name}. Le résultat reste accessible et l'artisan peut modifier ce prix à la fin.`);
+  });
+
+  const materials=pricedLines.reduce((s,l)=>s+l.qty*l.price,0);
+  const hours=lab.reduce((s,x)=>s+x.hours,0);
+  let laborCost=lab.reduce((s,x)=>{
+    if(x.annexPrice!==undefined)return s+x.annexPrice;
+    if(x.includedInManual)return s;
+    return s+x.hours*hourly;
+  },0);
+  if(laborPriceOverride>0){
+    // Les lignes cheminée portent déjà annexPrice : pas de double ajout ici. Conservé pour traçabilité.
+  }
+  if(manualTotalLaborIncluded) reco.push('Escalier : le prix manuel inclut la main-d’œuvre ; les heures restent au planning sans être refacturées une seconde fois.');
+  const vat=num(vatRaw),totalHT=materials+laborCost,tax=totalHT*(vat/100),ttc=totalHT+tax;
+  const blocking=alerts.filter(a=>a.startsWith('🚨'));
+  return {lines:pricedLines,labor:lab,alerts:[...new Set(alerts)],reco:[...new Set(reco)],missingPrices,hours,duration:hours/workers,workers,hourly,vat,materials,laborCost,totalHT,tax,ttc,canFinalize:blocking.length===0};
+}
+
+export function renderPrices(state){
+  const r=calculate(state);
+  const rows=r.lines.filter(l=>l.qty>0).map(l=>{
+    if(l.priceMode==='required'){
+      const candidates=catalogueCandidatesForLine(l,8);
+      const storedRef=state.catalogSelections?.[l.id]||'';
+      const auto=resolveAutomaticCataloguePrice(l,storedRef);
+      const selectedRef=auto.referenceCatalogue||'';
+      const resolved=auto.resolved;
+      const options=[
+        {value:'',label:candidates.length?'Sélection automatique SpeedArti…':'Aucun article catalogue compatible'},
+        ...candidates.map(product=>({value:product.referenceCatalogue,label:catalogueLabel(product)}))
+      ];
+      let detail='<span class="tiny muted">Aucun prix catalogue exploitable pour ce poste. Le résultat reste accessible et ce prix pourra être modifié à la fin.</span>';
+      if(resolved?.compatible){
+        detail=`<div class="catalog-ok"><strong>${esc(resolved.product.marque)} — ${esc(resolved.product.produit)}</strong><br>
+          <span>${auto.automatic?'Sélection automatique SpeedArti · ':''}Réf. catalogue ${esc(resolved.product.referenceCatalogue)} · ${esc(resolved.orderLabel)} · total fournitures ${money(resolved.total)}</span></div>`;
+      }
+      const currentManual=state.manualPrices?.[l.id]??'';
+      return `<tr class="${l.price>0?'':'missing-price'}">
+        <td><strong>${esc(l.name)}</strong><br><span class="muted">${esc(l.category)}</span></td>
+        <td>${fmt(l.qty,2)} ${esc(l.unit)}</td>
+        <td>
+          ${field('Article catalogue',`catalogSelections.${l.id}`,selectedRef,{scope:'root',trace:'catalogSelection',options}).replace('data-field=',`data-root-field=`)}
+          ${detail}
+        </td>
+        <td>
+          ${field('Prix U. HT personnel / unité métier',`manualPrices.${l.id}`,currentManual,{scope:'root',step:'0.01',trace:'priceInput',help:'Facultatif : s’il est renseigné, il remplace le prix automatique.'}).replace('data-field=',`data-root-field=`)}
+          ${l.price>0?`<div class="tiny muted">Prix retenu automatiquement : ${money(l.price)} · ${esc(l.source)}</div>`:'<div class="tiny muted">Prix non valorisé automatiquement — modification facultative à la fin.</div>'}
+        </td>
+      </tr>`;
+    }
+    return `<tr><td><strong>${esc(l.name)}</strong><br><span class="muted">${esc(l.category)}</span></td><td>${fmt(l.qty,2)} ${esc(l.unit)}</td><td>${esc(l.source||'')}</td><td><strong>${money(l.price)}</strong></td></tr>`;
+  }).join('');
+  return `<div class="section-title"><h2>Prix / catalogue</h2><p>SpeedArti retient automatiquement le meilleur article compatible et son prix artisan moyen HT. L’artisan peut changer l’article ou remplacer le prix, mais aucune saisie de prix personnel n’est nécessaire pour continuer.</p></div>
+    <div class="info-box"><strong>${CATALOGUE_MACON.length} articles métier intégrés.</strong> Le catalogue sert de préremplissage automatique. Le prix personnel reste prioritaire uniquement si l’artisan souhaite le modifier.</div>
+    <div class="table-wrap"><table><thead><tr><th>Poste</th><th>Besoin métier</th><th>Article catalogue / conditionnement</th><th>Prix facultatif</th></tr></thead><tbody>${rows||'<tr><td colspan="4">Aucune ligne calculée.</td></tr>'}</tbody></table></div>
+    ${r.missingPrices.length?`<div class="alert warn">⚠️ ${r.missingPrices.length} poste${r.missingPrices.length>1?'s':''} sans prix automatique. Cela ne bloque plus le résultat ; ces lignes sont signalées « à confirmer » et restent modifiables à la fin.</div>`:'<div class="alert ok">✓ Tous les prix ont été préremplis automatiquement. Vous pouvez les modifier si nécessaire.</div>'}`;
+}
+export function renderResult(state){
+  const r=calculate(state);
+  if(!r.canFinalize){
+    return `<div class="section-title"><h2>Résultat bloqué</h2><p>Le résultat final n’est bloqué que par une donnée métier réellement obligatoire, jamais par l’absence d’un article catalogue ou d’un prix personnel.</p></div>
+      ${r.alerts.filter(a=>a.startsWith('🚨')).map(a=>`<div class="alert danger">${esc(a)}</div>`).join('')}`;
+  }
+  const rows=r.lines.filter(l=>l.qty>0).map(l=>{
+    const cat=l.catalogueResolution?.compatible?l.catalogueResolution:null;
+    const product=cat?.product;
+    const extra=product?`<br><span class="tiny muted">${l.automaticCatalogue?'Sélection automatique · ':''}${esc(product.marque)} · ${esc(product.produit)} · réf. ${esc(product.referenceCatalogue)} · ${esc(cat.orderLabel)}</span>`:'';
+    const unpriced=l.priceMode==='required'&&!(l.price>0);
+    const currentManual=state.manualPrices?.[l.id]??'';
+    const priceCell=l.priceMode==='required'
+      ? `${field('Modifier le prix HT',`manualPrices.${l.id}`,currentManual,{scope:'root',step:'0.01',trace:'priceInput',help:unpriced?'Facultatif : ce poste n’a pas de prix automatique.':'Facultatif : remplace le prix automatique.'}).replace('data-field=',`data-root-field=`)}<div class="tiny muted">${unpriced?'À confirmer':`Actuel : ${money(l.price)} · ${esc(l.source)}`}</div>`
+      : `<strong>${money(l.price)}</strong>`;
+    return `<tr><td><strong>${esc(l.name)}</strong><br><span class="muted">${esc(l.category)}</span>${extra}</td><td>${fmt(l.qty,2)}</td><td>${esc(l.unit)}</td><td>${priceCell}</td><td><strong>${unpriced?'À confirmer':money(l.qty*l.price)}</strong></td></tr>`;
+  }).join('');
+  const provisional=r.missingPrices.length>0;
+  return `<div class="section-title"><h2>Résultat du chiffrage</h2><p>${provisional?`Résultat disponible immédiatement avec les prix connus. ${r.missingPrices.length} poste${r.missingPrices.length>1?'s restent':' reste'} à confirmer, sans blocage.`:'Tous les prix ont été préremplis. L’artisan peut encore les modifier directement ci-dessous.'}</p></div>
+    <div class="metric-grid"><div class="metric"><span>Heures-homme</span><strong>${fmt(r.hours,1)} h</strong></div><div class="metric"><span>Durée chantier (${r.workers} ouvrier${r.workers>1?'s':''})</span><strong>${fmt(r.duration,1)} h</strong></div><div class="metric"><span>Coût main-d’œuvre</span><strong>${money(r.laborCost)}</strong></div></div>
+    ${provisional?`<div class="alert warn">⚠️ Le total ci-dessous est provisoire : les postes « à confirmer » ne sont pas valorisés tant qu’aucun prix fiable n’est disponible. Ils ne bloquent toutefois plus le chiffrage.</div>`:''}
+    <div class="result-grid"><div><div class="table-wrap"><table><thead><tr><th>Poste</th><th>Qté</th><th>Unité</th><th>Prix U. HT / modifier</th><th>Total HT</th></tr></thead><tbody>${rows}</tbody></table></div>
+      ${r.labor.length?`<div class="panel soft" style="margin-top:14px"><h3>Décomposition main-d’œuvre / planning</h3>${r.labor.map(p=>`<div class="total-line"><span>${esc(p.name)}</span><strong>${fmt(p.hours,2)} h-homme${p.includedInManual?' · incluse dans prix manuel':''}${p.annexPrice!==undefined?' · prix annexe':''}</strong></div>`).join('')}</div>`:''}
+    </div><div><div class="panel"><h3>Totaux${provisional?' provisoires':''}</h3><div class="totals"><div class="total-line"><span>Matériaux / fournitures HT${provisional?' valorisés':''}</span><strong>${money(r.materials)}</strong></div><div class="total-line"><span>Main-d’œuvre HT</span><strong>${money(r.laborCost)}</strong></div><div class="total-line"><span>Total HT${provisional?' provisoire':''}</span><strong>${money(r.totalHT)}</strong></div><div class="total-line"><span>TVA ${fmt(r.vat,1)} %</span><strong>${money(r.tax)}</strong></div><div class="total-line grand"><span>Total TTC${provisional?' provisoire':''}</span><strong>${money(r.ttc)}</strong></div></div></div></div></div>
+    ${r.alerts.filter(a=>!a.startsWith('🚨')).length?`<div style="margin-top:16px"><h3>Alertes / avertissements</h3>${r.alerts.filter(a=>!a.startsWith('🚨')).map(a=>`<div class="alert warn">${esc(a)}</div>`).join('')}</div>`:''}
+    ${r.reco.length?`<div style="margin-top:16px"><h3>Recommandations / traçabilité</h3>${r.reco.map(a=>`<div class="info-box">${esc(a)}</div>`).join('')}</div>`:''}`;
+}
+export function validateStep(state,step=state.step){
+  if(step===0){
+    if(!(num(state.globals.hourly)>0))return 'Renseigner le taux horaire Maçon.';
+    if(state.globals.vat===''||state.globals.vat==null||state.globals.vat===undefined)return 'Renseigner le taux de TVA du chantier.';
+    if(!(num(state.globals.workers)>0))return 'Renseigner le nombre d’ouvriers.';
+  }
+  if(step===1&&state.mode==='multiple'&&!state.elements.length)return 'Ajouter au moins un élément Maçon.';
+  if(step===2){
+    const r=calculate(state);
+    const configErrors=r.alerts.filter(a=>a.startsWith('🚨')&&!a.includes('PRIX MANQUANT')&&!a.toLowerCase().includes('prix '));
+    if(configErrors.length)return configErrors[0].replace(/^🚨\s*/,'');
+  }
+  if(step===3){
+    const r=calculate(state);
+    const optionErrors=r.alerts.filter(a=>a.startsWith('🚨')&&!a.includes('PRIX MANQUANT'));
+    // Autoriser les prix de matériaux génériques à être saisis à l’étape suivante, mais pas les prix directs d’options visibles.
+    const directOptionError=optionErrors.find(a=>/camion pompe|toupie obligatoire|terrassement|remblaiement|échafaudage|enduit|étanchéité terrasse|isolation terrasse|résine|implantation|ouverture des fondations|canalisation|plateforme|delta ms|étude de sol|jambe de force|micro-pieu/i.test(a));
+    if(directOptionError)return directOptionError.replace(/^🚨\s*/,'');
+  }
+  if(step===4){
+    const r=calculate(state);
+    const blocking=r.alerts.find(a=>a.startsWith('🚨'));
+    if(blocking)return blocking.replace(/^🚨\s*/,'');
+  }
+  return '';
+}
+
+export function renderStep(state){
+  if(state.step===0)return renderMode(state);
+  if(state.step===1)return renderWorks(state);
+  if(state.step===2)return renderConfig(state);
+  if(state.step===3)return renderOptions(state);
+  if(state.step===4)return renderPrices(state);
+  return renderResult(state);
+}
+
+export function collectTraces(html){
+  return [...String(html).matchAll(/data-trace="([^"]+)"/g)].map(m=>m[1]);
+}
+
+export function assertBalisage(html){
+  const controls=[...String(html).matchAll(/<(input|select|button|a)\b[^>]*>/gi)].map(m=>m[0]);
+  const missing=controls.filter(tag=>!tag.includes('data-trace='));
+  if(missing.length)throw new Error(`Contrôles sans balisage: ${missing.slice(0,5).join(' | ')}`);
+  const unknown=collectTraces(html).filter(t=>!TRACE_TARGETS[t]);
+  if(unknown.length)throw new Error(`Traces sans destination: ${[...new Set(unknown)].join(', ')}`);
+  return true;
+}
+
+export { WORKS, WORK_BY_ID, FIBRES, CHIMNEY_CONDUITS, CHIMNEY_STACKS, CHIMNEY_CAPS, PREFAB_H_PER_ML, TRUCK_8X4_DEFAULT, STRUCTURE_WARNING, FIBRE_WARNING, PREFAB_TEAM_ADVICE, TREILLIS_GUILLAUME, PUMP_DEFAULT_PRICE, TOUPIE_PRICE_M3, TOUPIE_MIN_BILLABLE_M3, TOUPIE_CAPACITY_M3, PREFAB_DEFAULT_PRICE_M2, LONGRINE_PRICE_ML };
