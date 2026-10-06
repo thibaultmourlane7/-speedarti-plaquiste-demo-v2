@@ -1,0 +1,35 @@
+(function(){
+  const API=window.SpeedArtiPlombierCurrent;
+  if(!API)throw new Error('Moteur Plombier requis avant la base Angel');
+  const avg=API.EQUIPMENT_AVERAGE_PRICES||{};
+  const euro=n=>Number(n||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' € HT';
+  const avgEntries=Object.entries(avg).map(([kind,p])=>({
+    id:'PLB-PRIX-'+kind.toUpperCase(),
+    topic:'prix_appareillage',
+    tags:['prix','moyen','appareil','sanitaire','tereva','catalogue',kind,p.label],
+    title:'Prix moyen sans catalogue — '+p.label,
+    answer:`${p.label} sans référence Téréva : Éco ${euro(p.eco)}, Standard ${euro(p.standard)}, Premium ${euro(p.premium)}. Source : catalogue Téréva 2026 embarqué (-20 %), accessoires exclus, 10 % des prix les plus bas et les plus hauts retirés, puis moyenne par tiers de gamme. Échantillon : ${p.retained}/${p.sample} références retenues.`
+  }));
+  const entries=[
+    {id:'PLB-PRIX-PRIORITE',topic:'prix',tags:['prix','catalogue','tereva','priorite','manuel','moyen'],title:'Priorité des prix',answer:'Priorité SpeedArti : 1) référence Téréva choisie = prix exact de la référence ; 2) prix manuel explicite = prix saisi ; 3) sans référence ni prix manuel = prix moyen SpeedArti de la gamme pour les appareils couverts. Une référence Téréva exacte n’est jamais remultipliée par la gamme.'},
+    {id:'PLB-RESEAU-LONGUEURS',topic:'reseau',tags:['reseau','ef','ec','evacuation','longueur','8 ml','chauffe eau'],title:'Longueurs réseau automatiques',answer:'Le moteur propose 8 ml par point EF et 8 ml par point EC, ajoute les distances chauffe-eau vers salle de bains/cuisine lorsque nécessaires, et 1 ml d’évacuation par point. Toutes les longueurs automatiques restent modifiables par l’artisan.'},
+    {id:'PLB-RESEAU-REFS',topic:'reseau',tags:['tereva','per','multicouche','cuivre','pvc','raccord','platine','robinet'],title:'Références techniques réseau',answer:'PER : tube 2272355, raccord 1098216, platines 4312345/3160404. Multicouche : tube 4146584, raccord 4146484, platines 4312343/3160402. PVC : DN40 044755V, DN100 044788U, raccords 059805D/027749Z. Robinet d’arrêt : 142568G. Cuivre : tube au fallback validé 8 €/ml car le catalogue 2026 ne publie pas de prix exploitable, raccord 024317Z, platines 2857663/1181674.'},
+    {id:'PLB-RESEAU-TEMPS',topic:'main_oeuvre',tags:['temps','pose','reseau','cype','per','multicouche','cuivre','pvc'],title:'Temps de pose réseau',answer:'Proposition technique CYPE : PER 0,064 h-h/ml, multicouche 0,064 h-h/ml, cuivre 0,45 h-h/ml, PVC 0,12 h-h/ml. La valeur proposée est modifiable et une valeur artisan devient prioritaire.'},
+    {id:'PLB-ZONES',topic:'chantier',tags:['rdc','r+1','zone','sanitaire','etage'],title:'Zones chantier',answer:'Le chantier distingue RDC/R+1 avec ou sans sanitaires. Les appareils sont rattachés à leur zone ; les zones réseau seul alimentent les quantités de réseau sans créer de faux appareil.'},
+    {id:'PLB-WC',topic:'appareillage',tags:['wc','poser','suspendu','urinoir','prix','temps'],title:'Bases WC',answer:'Bases historiques SpeedArti : WC à poser 300 € et 2 h ; WC suspendu avec bâti-support 700 € et 5 h ; urinoir suspendu 300 € et 2 h ; urinoir + bâti 600 € et 5 h. Elles restent remplacées par un prix Téréva exact lorsqu’une référence est choisie.'},
+    {id:'PLB-PMR',topic:'options',tags:['pmr','wc','douche','accessibilite'],title:'Forfaits PMR',answer:'Adaptation PMR WC : 300 € HT. Adaptation PMR douche : 300 € HT. Ce sont deux forfaits distincts.'},
+    {id:'PLB-DOUCHE-ITALIENNE',topic:'options',tags:['douche','italienne','spec','natte','chape','etancheite'],title:'Douche italienne',answer:'Prestations disponibles : SPEC 16 €/m², SPEC + natte 43 €/m², chape de forme 54 €/m². La surface réelle doit être renseignée.'},
+    {id:'PLB-GAMME',topic:'prix',tags:['gamme','eco','standard','premium','coefficient'],title:'Gamme',answer:'La gamme sert aux propositions SpeedArti. Pour les nouveaux prix moyens d’appareillage, chaque gamme possède sa propre moyenne Téréva filtrée. Si une référence Téréva est choisie, son prix exact reste inchangé.'},
+    {id:'PLB-COMPLEXITE',topic:'main_oeuvre',tags:['complexite','simple','moyen','complexe','main oeuvre'],title:'Complexité chantier',answer:'La complexité agit sur la main-d’œuvre : simple ×0,80 ; moyen ×1 ; complexe ×1,40.'},
+    {id:'PLB-APPRO',topic:'stock',tags:['stock','approvisionnement','fournisseur','commande'],title:'Approvisionnement',answer:'La démo calcule les besoins chantier et prépare un payload fournisseur, mais ne prétend pas connaître un stock réel tant qu’aucune connexion stock/fournisseur n’est active.'},
+    {id:'PLB-BALISES',topic:'trace',tags:['balise','source','trace','calcul'],title:'Traçabilité',answer:'Chaîne de traçabilité active : UI → donnée → quantité → unité → référence → prix → source → calcul → temps/MO → total → approvisionnement/stock. Version BALISES-ABSOLUES-v1.8.'},
+    ...avgEntries
+  ];
+  const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  function search(query,limit=5){
+    const tokens=norm(query).split(/\s+/).filter(Boolean);if(!tokens.length)return entries.slice(0,limit);
+    return entries.map(e=>{const hay=norm([e.id,e.topic,e.title,e.answer,...(e.tags||[])].join(' '));let score=0;for(const t of tokens){if(hay.includes(t))score+=1;if(norm(e.title).includes(t))score+=2;if((e.tags||[]).some(x=>norm(x).includes(t)))score+=2}return{...e,score}}).filter(e=>e.score>0).sort((a,b)=>b.score-a.score||a.id.localeCompare(b.id)).slice(0,Math.max(1,Math.min(10,Number(limit)||5)));
+  }
+  function answer(query){const hits=search(query,3);return hits.length?hits.map(x=>x.answer).join('\n\n'):'Aucune règle Plombier correspondante dans la base Angel.'}
+  window.SpeedArtiAngelPlombierKnowledge={version:'PLB-ANGEL-KB-v1.0',metier:'plombier',source:'Moteur Plombier SpeedArti v0.6.4',entries,search,answer,equipmentAveragePrices:avg};
+})();
