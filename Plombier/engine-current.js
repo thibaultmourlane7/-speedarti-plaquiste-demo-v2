@@ -55,6 +55,16 @@
   };
   const NETWORK_TIME_H_PER_M={per:.064,multicouche:.064,cuivre:.45,pvc:.12};
   const GAMME={eco:.7,standard:1,premium:1.6};
+  // Prix moyens d'appareillage calculés à partir du catalogue Téréva 2026 embarqué (-20 %).
+  // Méthode : accessoires exclus, retrait des 10 % de prix les plus bas/hauts, puis moyenne par tiers de gamme.
+  const EQUIPMENT_AVERAGE_PRICES={
+    lavabo:{label:'Lavabo / vasque',sample:61,retained:49,eco:82.66,standard:165.11,premium:231.37},
+    meuble_vasque:{label:'Meuble vasque',sample:102,retained:82,eco:138.34,standard:204.19,premium:282.76},
+    douche:{label:'Receveur / douche',sample:361,retained:289,eco:305.27,standard:428.06,premium:605.94},
+    baignoire:{label:'Baignoire',sample:34,retained:28,eco:179.04,standard:307.93,premium:1046.72},
+    evier:{label:'Évier',sample:111,retained:89,eco:124.57,standard:194.69,premium:352.22},
+    lave_main:{label:'Lave-main',sample:24,retained:20,eco:58.94,standard:83.59,premium:101.01}
+  };
   const COMPLEXITE={simple:.8,moyen:1,complexe:1.4};
   const HOT_KINDS=new Set(['lavabo','meuble_vasque','douche','baignoire','evier']);
   const EF_KINDS=new Set(['lavabo','meuble_vasque','douche','baignoire','evier','wc','lave_main','lave_linge','lave_vaisselle']);
@@ -268,6 +278,11 @@
     if(eq.kind==='lave_vaisselle')return {price:83.60,time:0,label:'Raccordement lave-vaisselle'};
     return {price:0,time:0,label:labelFor(eq)};
   }
+  function equipmentAveragePrice(eq,gamme='standard'){
+    const ref=EQUIPMENT_AVERAGE_PRICES[eq?.kind];if(!ref)return null;
+    const g=['eco','standard','premium'].includes(gamme)?gamme:'standard';
+    return {kind:eq.kind,label:ref.label,price:ref[g],gamme:g,sample:ref.sample,retained:ref.retained,method:'Téréva 2026 -20 % — accessoires exclus — 10 % bas/haut retirés — moyenne du tiers de gamme'};
+  }
   function labelFor(eq){
     const labels={lavabo:'Lavabo / vasque',meuble_vasque:'Meuble vasque',douche:'Douche',baignoire:'Baignoire',evier:'Évier',wc:'WC',lave_main:'Lave-main',lave_linge:'Lave-linge',lave_vaisselle:'Lave-vaisselle',element_specifique:'Élément spécifique'};
     return eq.label||labels[eq.kind]||'Équipement';
@@ -315,12 +330,15 @@
     checkCatalogueSelection(eq.catalogue,eq.price_ht,def.label||labelFor(eq),alerts);
     const catalogueSelected=hasCatalogue(eq.catalogue);
     const manualOverride=catalogueSelected&&!!eq.catalogue.price_overridden;
+    const average=equipmentAveragePrice(eq,d.options?.gamme||'standard');
+    const hasManualPrice=eq.price_ht!==undefined&&eq.price_ht!==null&&eq.price_ht!==''&&n(eq.price_ht,0)>0;
+    const usingAverage=!catalogueSelected&&!isUnitForfait&&!hasManualPrice&&!!average;
     const serviceDefault=eq.kind==='lave_linge'?annexPrice(d,'robinet_mll'):eq.kind==='lave_vaisselle'?annexPrice(d,'robinet_mlv'):def.price;
-    const fallback=isUnitForfait?serviceDefault:n(eq.price_ht,def.price);
+    const fallback=isUnitForfait?serviceDefault:hasManualPrice?n(eq.price_ht,0):(average?.price??def.price);
     let basePrice=catalogueSelected&&!manualOverride?cataloguePrice(eq.catalogue,fallback):fallback;
     let price=basePrice;
-    // Une référence catalogue exacte garde son prix exact. La gamme sert à filtrer/proposer, pas à remultiplier le prix choisi.
-    if(!isUnitForfait&&!catalogueSelected&&basePrice>0)price=basePrice*coef;
+    // Une référence catalogue exacte ou un prix manuel garde son prix exact. Les moyennes sont déjà ventilées par gamme.
+    if(!isUnitForfait&&!catalogueSelected&&basePrice>0&&!average)price=basePrice*coef;
     const baseTime=n(eq.time_h,def.time);
     let time=baseTime;
     if(eq.kind==='douche'&&eq.subtype==='italienne')time*=1.4;
@@ -328,7 +346,7 @@
     if(price<=0){alerts.push(`Prix catalogue manquant pour « ${label} ». La finalisation doit demander un prix manuel.`)}
     if(time<=0 && !isUnitForfait){alerts.push(`Temps de pose manquant pour « ${label} ». Le traceur doit remonter cette donnée.`)}
     if(price>0){
-      const extra=catalogueSelected?catalogueExtra(eq.catalogue,`${uiPath}.catalogue`,manualOverride):isUnitForfait?{source:'Paramètres entreprise — Annexe 1 Guillaume',balise_ui:eq.kind==='lave_linge'?'settings.annexe1.robinet_mll':'settings.annexe1.robinet_mlv',balise_prix:'parametre_entreprise'}:{source:basePrice===def.price?'défaut SpeedArti / Guillaume':'saisie artisan',balise_ui:`${uiPath}.price_ht`,balise_prix:basePrice===def.price?'defaut_guillaume':'manuel'};
+      const extra=catalogueSelected?catalogueExtra(eq.catalogue,`${uiPath}.catalogue`,manualOverride):isUnitForfait?{source:'Paramètres entreprise — Annexe 1 Guillaume',balise_ui:eq.kind==='lave_linge'?'settings.annexe1.robinet_mll':'settings.annexe1.robinet_mlv',balise_prix:'parametre_entreprise'}:usingAverage?{source:`Prix moyen SpeedArti — Téréva 2026 -20 % — ${average.retained}/${average.sample} références retenues`,balise_ui:'options.gamme',balise_prix:'moyenne_catalogue',prix_moyen_gamme:average.gamme,prix_moyen_echantillon:average.retained,prix_moyen_source:'Téréva 2026 -20 %',prix_moyen_methode:average.method}:{source:basePrice===def.price?'défaut SpeedArti / Guillaume':'saisie artisan',balise_ui:`${uiPath}.price_ht`,balise_prix:basePrice===def.price?'defaut_guillaume':'manuel'};
       out.push(line(`equip_${eq.id}`,catalogueSelected?(eq.catalogue.produit||label):label,price,1,'unité',isUnitForfait?'Prestation unitaire':'Sanitaire',{...extra,stockable:!isUnitForfait}));
     }
     if(eq.kind==='douche'){
@@ -687,5 +705,5 @@
     if(!d.nom_calcul)throw new Error('Le nom du calcul est requis');
     return d.options?.type_projet==='petits_travaux'?petits(d):complete(d);
   }
-  window.SpeedArtiPlombierCurrent={calculate,previewNetwork:(d)=>{const x=computeNetwork(d,d?.installation?.equipments||[]);return {...x,autoTimeH:networkTimeProposal(x,(d.options?.type_tuyau||'per').toLowerCase())}},ANNEXE1_DEFAULTS,FORFAITS_DEFAULTS,PIPE_FALLBACK,ANNEXE2_COMPONENTS,annexe2For};
+  window.SpeedArtiPlombierCurrent={calculate,previewNetwork:(d)=>{const x=computeNetwork(d,d?.installation?.equipments||[]);return {...x,autoTimeH:networkTimeProposal(x,(d.options?.type_tuyau||'per').toLowerCase())}},ANNEXE1_DEFAULTS,FORFAITS_DEFAULTS,PIPE_FALLBACK,EQUIPMENT_AVERAGE_PRICES,equipmentAveragePrice,ANNEXE2_COMPONENTS,annexe2For};
 })();
