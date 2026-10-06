@@ -1,11 +1,40 @@
-# SpeedArti — Plombier v0.6.3 — Sources du lot
+# SpeedArti — Plombier v0.6.4 — Sources du lot
 
 ## Base conservée
 - module Plombier SpeedArti existant ;
-- règles métier consolidées jusqu'à la v0.6.2 ;
 - catalogue Téréva 2026 embarqué : 7 456 références, prix de la base -20 % ;
 - parcours chantier en 4 pages ;
-- balises, stock et approvisionnement existants.
+- balises, stock et approvisionnement existants ;
+- référentiel réseau Téréva de la v0.6.3 conservé.
+
+## Prix moyens d’appareillage sans sélection catalogue
+
+Source : catalogue Téréva 2026 embarqué dans `catalogue-data.js`, avec prix déjà diminués de 20 %.
+
+Méthode appliquée par catégorie :
+1. filtrer les produits principaux et exclure les accessoires ;
+2. retirer les 10 % de prix les plus bas et les 10 % les plus hauts ;
+3. répartir le reste en trois tiers de gamme ;
+4. calculer la moyenne de chaque tiers pour Éco / Standard / Premium.
+
+Valeurs intégrées :
+
+| Appareil | Éco HT | Standard HT | Premium HT | Références retenues |
+| --- | ---: | ---: | ---: | ---: |
+| Lavabo / vasque | 82,66 € | 165,11 € | 231,37 € | 49 / 61 |
+| Meuble vasque | 138,34 € | 204,19 € | 282,76 € | 82 / 102 |
+| Receveur / douche | 305,27 € | 428,06 € | 605,94 € | 289 / 361 |
+| Baignoire | 179,04 € | 307,93 € | 1 046,72 € | 28 / 34 |
+| Évier | 124,57 € | 194,69 € | 352,22 € | 89 / 111 |
+| Lave-main | 58,94 € | 83,59 € | 101,01 € | 20 / 24 |
+
+Priorité de prix : référence Téréva exacte > prix manuel explicite > moyenne SpeedArti.
+
+## Base de connaissances Angel
+
+Fichier : `angel-knowledge.js`.
+
+La base reprend les règles vérifiées du moteur Plombier : prix, réseau, références techniques, temps de pose, zones, WC, PMR, douche italienne, gamme, complexité, approvisionnement et balises. Elle expose une recherche structurée et une réponse textuelle pour l’interrogation par Angel.
 
 ## Téréva 2026 utilisés comme références techniques réseau
 - `2272355` — tube PER 13x16, 120 m ;
@@ -25,7 +54,9 @@
 Les tubes cuivre du catalogue 2026 n'ayant pas de prix T exploitable, le fallback SpeedArti validé de 8 €/ml est conservé et explicitement tracé comme fallback.
 
 ## Référentiel externe de temps
+
 Source : Générateur de prix de la construction CYPE France.
+
 - PE-X/PER Ø16 : 0,032 h compagnon + 0,032 h ouvrier par ml ;
 - multicouche Ø16 : 0,032 h + 0,032 h par ml ;
 - cuivre 13/15 : 0,225 h + 0,225 h par ml ;
