@@ -187,9 +187,9 @@ assert(approx(r1.controle_balises.tva_controlee,r1.totaux.tva),'Contrôle TVA = 
 
 // 21. Ordre scripts HTML
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
-const posData=html.indexOf('catalogue-data.js'),posService=html.indexOf('catalogue-service.js'),posEngine=html.indexOf('engine-current.js'),posApp=html.indexOf('app.js');
-assert(posData>0&&posData<posService&&posService<posEngine&&posEngine<posApp,'Ordre de chargement catalogue -> service -> moteur -> app');
-assert(/v0\.6\.3/.test(html),'HTML annonce v0.6.3');
+const posData=html.indexOf('catalogue-data.js'),posService=html.indexOf('catalogue-service.js'),posEngine=html.indexOf('engine-current.js'),posAngel=html.indexOf('angel-knowledge.js'),posApp=html.indexOf('app.js');
+assert(posData>0&&posData<posService&&posService<posEngine&&posEngine<posAngel&&posAngel<posApp,'Ordre de chargement catalogue -> service -> moteur -> Angel -> app');
+assert(/v0\.6\.4/.test(html),'HTML annonce v0.6.4');
 
 // 22. Contrôles statiques UI / absence de règles cachées
 const appSrc=fs.readFileSync(path.join(root,'app.js'),'utf8'),engSrc=fs.readFileSync(path.join(root,'engine-current.js'),'utf8'),catSrc=fs.readFileSync(path.join(root,'catalogue-service.js'),'utf8');
@@ -306,8 +306,8 @@ assert(engSrc.includes("version:'BALISES-ABSOLUES-v1.8'"),'Moteur balises v1.8')
 
 
 // 29. Correctifs v0.5.2 issus du contrôle humain
-assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v063'"),'Clé de sauvegarde propre v0.6.3');
-assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v061','speedarti-plombier-demo-v060'"),'Migration des anciens brouillons prévue');
+assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v064'"),'Clé de sauvegarde propre v0.6.4');
+assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v063','speedarti-plombier-demo-v061'"),'Migration des anciens brouillons prévue');
 assert(appSrc.includes('function migrateLegacyDraft'),'Fonction de migration brouillon présente');
 assert(appSrc.includes("delete p.duration_h"),'Migration supprime les anciennes durées CE non validées');
 assert(appSrc.includes("catalogueRenderTimer=setTimeout"),'Recherche catalogue saisie rapide temporisée');
