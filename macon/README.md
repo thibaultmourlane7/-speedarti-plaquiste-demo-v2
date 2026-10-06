@@ -178,3 +178,21 @@ La v2.5 reste une évolution du module existant : aucun moteur n’a été recr�
 - 0 contrôle sans liaison ;
 - **6/6 parcours Chromium ciblés v2.5** : terre-plein, micro-pieux, préfabriqué, béton banché, transport béton et chaînage vertical ;
 - aucune exception JavaScript observée sur ces parcours ciblés.
+
+
+## Base de connaissances Angèle Maçon
+
+Le fichier `angel-knowledge.js` expose `SpeedArtiAngelMaconKnowledge` et fournit une base métier interrogeable directement dérivée des règles présentes dans `references.js` et `core.js`.
+
+La base contient notamment :
+- les **40 ouvrages Maçon** générés depuis `WORKS`, afin d’éviter toute copie divergente des ratios béton / acier / coffrage / main-d’œuvre ;
+- les treillis, fibres, cheminées et tranches de prix micro-pieux présentes dans le référentiel ;
+- les règles de toupie, pompe, camion-benne, longrine, murs préfabriqués, chaînages, ouvertures, heures-homme et prix catalogue ;
+- les limites de sécurité : aucune réponse Angèle ne doit transformer une estimation de chiffrage en dimensionnement structurel.
+
+API disponible :
+- `searchAngelMacon(query, limit)` ;
+- `answerAngelMacon(query)` ;
+- `getAngelMaconEntry(id)`.
+
+Priorité de connaissance : **moteur réel SpeedArti → référentiel validé → base Angèle → connecteurs → raisonnement IA**. En absence de règle vérifiée, Angèle doit signaler qu’elle ne possède pas la règle au lieu de l’inventer.

@@ -10,6 +10,7 @@ import {
   TREILLIS_GUILLAUME, PUMP_DEFAULT_PRICE, TOUPIE_PRICE_M3, TOUPIE_MIN_BILLABLE_M3, TOUPIE_CAPACITY_M3,
   PREFAB_DEFAULT_PRICE_M2, LONGRINE_PRICE_ML, micropileSuggestedPrice, estimatedVerticalChainage, toupieEstimatedCount
 } from './core.js';
+import { SpeedArtiAngelMaconKnowledge, searchAngelMacon, answerAngelMacon } from './angel-knowledge.js';
 
 const pass=[];
 function test(name,fn){try{fn();pass.push(name)}catch(e){console.error(`FAIL — ${name}`);throw e}}
@@ -522,6 +523,36 @@ test('v2.5: dosage fibre reste explicite dans le moteur et l’UI',()=>{
 
 test('v2.5: Murs / Cloisons qualifie mur ou cloison non porteuse',()=>{
   const s=base();s.simpleType='murs';const html=renderConfig(s);assert.match(html,/data-simple="wallKind"/);assert.match(html,/Cloison non porteuse/);
+});
+
+
+test('Angèle Maçon: base chargée et 40 ouvrages synchronisés',()=>{
+  assert.equal(SpeedArtiAngelMaconKnowledge.metier,'macon');
+  assert.equal(SpeedArtiAngelMaconKnowledge.version,'MAC-ANGEL-KB-v1.0');
+  assert.equal(SpeedArtiAngelMaconKnowledge.entries.filter(e=>e.topic==='ouvrage').length,WORKS.length);
+});
+
+test('Angèle Maçon: recherche ouvrage utilise le référentiel réel',()=>{
+  const hits=searchAngelMacon('semelle filante beton acier coffrage main oeuvre',5);
+  assert.ok(hits.some(e=>e.sourceId==='semelle_filante'));
+});
+
+test('Angèle Maçon: toupie répond avec prix minimum et capacité',()=>{
+  const a=answerAngelMacon('prix toupie minimum capacité');
+  assert.match(a,/190/);
+  assert.match(a,/6 m³/);
+  assert.match(a,/7 m³/);
+});
+
+test('Angèle Maçon: micro-pieux ne deviennent jamais un dimensionnement',()=>{
+  const a=answerAngelMacon('micro pieu profondeur dimensionnement');
+  assert.match(a,/jamais/i);
+  assert.match(a,/dimensionn/i);
+});
+
+test('Angèle Maçon: sécurité structurelle disponible à l’interrogation',()=>{
+  const a=answerAngelMacon('dimensionnement structurel charges');
+  assert.match(a,/ne constituent en aucun cas un calcul réel de structure/i);
 });
 
 console.log(`OK — V2.6 Maçon: ${pass.length} contrôles fonctionnels passés`);
