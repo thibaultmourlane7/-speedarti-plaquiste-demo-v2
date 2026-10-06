@@ -1,0 +1,655 @@
+{
+  "metadata": {
+    "id": "speedarti-angel-plaquiste",
+    "title": "Base de connaissances Ángel — Plaquiste",
+    "trade": "plaquiste",
+    "status": "VALIDÉ",
+    "version": "1.0.0",
+    "module_schema_version": "1.3.4",
+    "business_rules_version": "plaquiste-business-2026-08-19-v1.3.0",
+    "language": "fr-FR",
+    "purpose": "Fournir à Ángel une base métier structurée pour répondre aux questions sur le chiffrage plaquiste sans inventer de règles, de prix ni d'unités.",
+    "source_of_truth": [
+      "plaquiste/engine-real.js — règles métier et abaque isolation",
+      "plaquiste/app.js — validations, catalogue démo, calculs et flux UI",
+      "Les données réelles SpeedArti (catalogue utilisateur/fournisseur, stock, Supabase) priment dès qu'elles sont raccordées."
+    ]
+  },
+  "speedarti_guardrails": {
+    "never_invent": true,
+    "source_of_truth_is_real_code": true,
+    "explicit_units_required": true,
+    "trace_sensitive_calculations": true,
+    "user_input_must_have_effect": true,
+    "preserve_existing_workflow": true,
+    "human_validation_for_ai_or_imported_uncertain_data": true,
+    "manufacturer_or_real_catalog_priority": true,
+    "price_policy": [
+      "Ne jamais demander à l'artisan un prix déjà présent dans le catalogue SpeedArti.",
+      "Un prix de démonstration ou public doit être identifié comme tel.",
+      "Un prix fournisseur réel raccordé remplace toujours un prix de démonstration."
+    ],
+    "isolation_policy": [
+      "L'artisan choisit son produit d'isolation.",
+      "Ne pas demander une validation artisan supplémentaire après son choix explicite.",
+      "Respecter référence, épaisseur, prix HT/m², simple/double couche et pose croisée."
+    ]
+  },
+  "domain_model": {
+    "project": [
+      "nom du chiffrage",
+      "âge du logement",
+      "éligibilité TVA réduite",
+      "rénovation énergétique",
+      "taux horaire HT",
+      "marge matériaux",
+      "complexité"
+    ],
+    "works": {
+      "pieces": "Une pièce possède longueur, largeur, hauteur, quatre murs A/B/C/D indépendants et éventuellement un plafond.",
+      "simple_walls": "Un mur simple est indépendant des pièces.",
+      "wall_types": [
+        "cloison — 2 faces",
+        "doublage — 1 face"
+      ],
+      "ceilings": [
+        "plafond droit",
+        "rampant",
+        "rampant complexe"
+      ]
+    },
+    "wall_configuration": [
+      "activation",
+      "type",
+      "longueur",
+      "hauteur",
+      "ossature",
+      "entraxe",
+      "système classique/Optima",
+      "montants doublés",
+      "isolation indépendante",
+      "face 1",
+      "face 2 si cloison",
+      "ouvertures",
+      "renforts OSB",
+      "angles sortants",
+      "découpes/spots"
+    ],
+    "ceiling_configuration": [
+      "activation",
+      "type",
+      "surface",
+      "parement",
+      "simple/double peau",
+      "format plaque",
+      "longueur suspente",
+      "isolation indépendante",
+      "découpes/spots"
+    ]
+  },
+  "rules": {
+    "plaques": {
+      "largeur_commerciale_m": 1.2,
+      "pertes_pct": {
+        "mur": 7,
+        "plafond": 10,
+        "rampant": 12
+      },
+      "surcharge_achat_ht_m2": {
+        "BA13": 0,
+        "hydro": 0.85,
+        "phonique": 1.35,
+        "feu": 2,
+        "habito": 3.2
+      }
+    },
+    "ossature": {
+      "perte_pct": 5,
+      "ouverture_montants_toute_hauteur": 4,
+      "ouverture_profils_horizontaux_par_largeur": 2,
+      "profils_largeur_mm": [
+        48,
+        70,
+        90,
+        100
+      ],
+      "seuils_hauteur_m": {
+        "m48_simple_60": 2.5,
+        "m48_simple_40": 2.8,
+        "m48_double_60": 3.05,
+        "m48_double_40": 3.45,
+        "max_auto": 4.15
+      }
+    },
+    "vis": {
+      "premiere_peau_mur_unites_m2": 25,
+      "premiere_peau_plafond_unites_m2": 18,
+      "seconde_peau_unites_m2": 20,
+      "perte_pct": 10,
+      "boite_unites": 500
+    },
+    "finitions": {
+      "bande_mur_ml_m2": 1.8,
+      "bande_plafond_ml_m2": 2.2,
+      "enduit_mur_kg_m2": 0.5,
+      "enduit_plafond_kg_m2": 0.6,
+      "prix_vente_ht_m2": {
+        "aucune": 0,
+        "bandes": 5,
+        "pret_a_peindre": 9,
+        "soignee": 13
+      },
+      "impression_ht_m2": 5
+    },
+    "isolation": {
+      "perte_panneaux_rouleaux_pct": 10,
+      "perte_souffle_pct": 3,
+      "semi_rigide_coef_matiere": 1.2,
+      "semi_rigide_coef_main_oeuvre": 1.2,
+      "seconde_couche_pose_ht_m2": 3,
+      "pose_croisee_coef_main_oeuvre": 1.15,
+      "pare_vapeur_prix_vente_ht_m2": 3.5,
+      "frein_vapeur_prix_vente_ht_m2": 5
+    },
+    "optima": {
+      "espacement_vertical_rangee_m": 1.35,
+      "fourrure_f530_ml_m2": 1.8,
+      "lisse_clip_ml_m2": 0.9,
+      "appui_unite_m2": 0.75,
+      "cle_unite_m2": 0.75,
+      "fixations_unite_m2_par_rangee": 2
+    },
+    "plafond_droit": {
+      "fourrure_ml_m2": 1.67,
+      "suspente_unite_m2": 1.45,
+      "corniere_ml_m2": 0.42,
+      "eclisse_unite_m2": 0.2,
+      "cavalier_connecteur_unite_m2": 0.35
+    },
+    "main_oeuvre": {
+      "cloison_h_m2": 0.35,
+      "doublage_optima_h_m2": 0.4,
+      "doublage_classique_sans_isolant_h_m2": 0.26,
+      "doublage_classique_avec_isolant_h_m2": 0.32,
+      "plafond_droit_h_m2": 0.4,
+      "seconde_peau_h_m2": 0.05,
+      "montants_doubles_coef": 1.5,
+      "complexite_coef": {
+        "simple": 0.9,
+        "moyenne": 1,
+        "complexe": 1.3
+      }
+    },
+    "options_directes": {
+      "reprise_existant_ht": 150,
+      "acces_difficile_ht": 450,
+      "seuil_grande_hauteur_m": 3.5,
+      "grande_hauteur_ht_m2": 4,
+      "nombreuses_decoupes_spots_ht_m2": 2,
+      "rampant_ht_m2": 5,
+      "rampant_complexe_ht_m2": 11,
+      "angle_sortant_ht_ml": 7,
+      "renfort_osb_ht_unite": 75
+    }
+  },
+  "catalogue_demo": {
+    "status": "DEMO_A_REMPLACER_PAR_CATALOGUE_REEL_QUAND_RACCORDE",
+    "accessoires_plafond": {
+      "eclisse_stil_f530_ht_unite": 0.53,
+      "cavalier_connecteur_stil_f530_ht_unite": 0.44
+    },
+    "finitions": {
+      "bande_papier_30m_ht_rouleau": 2.49,
+      "bande_papier_150m_ht_rouleau": 4.99,
+      "enduit_joint_5kg_ht": 8.33,
+      "enduit_joint_15kg_ht": 14.08,
+      "enduit_joint_25kg_ht": 17.42
+    }
+  },
+  "isolation_abaque": [
+    {
+      "id": "abaque-ldv-45",
+      "famille": "Minéral",
+      "nom": "Laine de verre",
+      "epaisseurMm": 45,
+      "prixAchatHtM2": 3.28,
+      "usage": "Cloison",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-ldr-45",
+      "famille": "Minéral",
+      "nom": "Laine de roche",
+      "epaisseurMm": 45,
+      "prixAchatHtM2": 4.92,
+      "usage": "Cloison coupe-feu/phonique",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-fdb-45",
+      "famille": "Naturel",
+      "nom": "Fibre de bois",
+      "epaisseurMm": 45,
+      "prixAchatHtM2": 6.56,
+      "usage": "Cloison",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-ldv-70",
+      "famille": "Minéral",
+      "nom": "Laine de verre",
+      "epaisseurMm": 70,
+      "prixAchatHtM2": 4.1,
+      "usage": "Doublage",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-ldr-70",
+      "famille": "Minéral",
+      "nom": "Laine de roche",
+      "epaisseurMm": 70,
+      "prixAchatHtM2": 5.74,
+      "usage": "Doublage",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-fdb-70",
+      "famille": "Naturel",
+      "nom": "Fibre de bois",
+      "epaisseurMm": 70,
+      "prixAchatHtM2": 8.2,
+      "usage": "Doublage",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-ldv-90",
+      "famille": "Minéral",
+      "nom": "Laine de verre",
+      "epaisseurMm": 90,
+      "prixAchatHtM2": 4.92,
+      "usage": "Cloison R90",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-ldr-90",
+      "famille": "Minéral",
+      "nom": "Laine de roche",
+      "epaisseurMm": 90,
+      "prixAchatHtM2": 6.56,
+      "usage": "Phonique",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-fdb-90",
+      "famille": "Naturel",
+      "nom": "Fibre de bois",
+      "epaisseurMm": 90,
+      "prixAchatHtM2": 9.84,
+      "usage": "Phonique",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-ldv-100",
+      "famille": "Minéral",
+      "nom": "Laine de verre",
+      "epaisseurMm": 100,
+      "prixAchatHtM2": 5.74,
+      "usage": "ITI",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-ldr-100",
+      "famille": "Minéral",
+      "nom": "Laine de roche",
+      "epaisseurMm": 100,
+      "prixAchatHtM2": 7.38,
+      "usage": "ITI",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-fdb-100",
+      "famille": "Naturel",
+      "nom": "Fibre de bois",
+      "epaisseurMm": 100,
+      "prixAchatHtM2": 11.48,
+      "usage": "ITI",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-ldv-120",
+      "famille": "Minéral",
+      "nom": "Laine de verre",
+      "epaisseurMm": 120,
+      "prixAchatHtM2": 6.56,
+      "usage": "Combles",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-ldr-120",
+      "famille": "Minéral",
+      "nom": "Laine de roche",
+      "epaisseurMm": 120,
+      "prixAchatHtM2": 8.2,
+      "usage": "Combles",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-fdb-120",
+      "famille": "Naturel",
+      "nom": "Fibre de bois",
+      "epaisseurMm": 120,
+      "prixAchatHtM2": 13.12,
+      "usage": "Combles",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-ldv-140",
+      "famille": "Minéral",
+      "nom": "Laine de verre",
+      "epaisseurMm": 140,
+      "prixAchatHtM2": 7.38,
+      "usage": "Combles",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-ldr-140",
+      "famille": "Minéral",
+      "nom": "Laine de roche",
+      "epaisseurMm": 140,
+      "prixAchatHtM2": 9.02,
+      "usage": "Combles",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-fdb-140",
+      "famille": "Naturel",
+      "nom": "Fibre de bois",
+      "epaisseurMm": 140,
+      "prixAchatHtM2": 14.76,
+      "usage": "Combles",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-ldv-160",
+      "famille": "Minéral",
+      "nom": "Laine de verre",
+      "epaisseurMm": 160,
+      "prixAchatHtM2": 8.2,
+      "usage": "Combles",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-ldr-160",
+      "famille": "Minéral",
+      "nom": "Laine de roche",
+      "epaisseurMm": 160,
+      "prixAchatHtM2": 9.84,
+      "usage": "Combles",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-fdb-160",
+      "famille": "Naturel",
+      "nom": "Fibre de bois",
+      "epaisseurMm": 160,
+      "prixAchatHtM2": 16.4,
+      "usage": "Combles",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-pse-blanc-80",
+      "famille": "Synthétique",
+      "nom": "PSE blanc",
+      "epaisseurMm": 80,
+      "prixAchatHtM2": 7.38,
+      "usage": "ITE",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-pse-graphite-100",
+      "famille": "Synthétique",
+      "nom": "PSE graphité",
+      "epaisseurMm": 100,
+      "prixAchatHtM2": 10.66,
+      "usage": "ITE",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-xps-80",
+      "famille": "Synthétique",
+      "nom": "XPS",
+      "epaisseurMm": 80,
+      "prixAchatHtM2": 13.12,
+      "usage": "Soubassement",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-pur-pir-80",
+      "famille": "Synthétique",
+      "nom": "PUR/PIR",
+      "epaisseurMm": 80,
+      "prixAchatHtM2": 18.04,
+      "usage": "Toiture terrasse",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-ouate-100",
+      "famille": "Naturel",
+      "nom": "Ouate de cellulose",
+      "epaisseurMm": 100,
+      "prixAchatHtM2": 9.02,
+      "usage": "Combles",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-chanvre-100",
+      "famille": "Naturel",
+      "nom": "Chanvre",
+      "epaisseurMm": 100,
+      "prixAchatHtM2": 12.3,
+      "usage": "ITI",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-lin-100",
+      "famille": "Naturel",
+      "nom": "Lin",
+      "epaisseurMm": 100,
+      "prixAchatHtM2": 13.12,
+      "usage": "ITI",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "abaque-liege-40",
+      "famille": "Naturel",
+      "nom": "Liège expansé",
+      "epaisseurMm": 40,
+      "prixAchatHtM2": 19.68,
+      "usage": "ITE/sol",
+      "kind": "panel_roll"
+    },
+    {
+      "id": "combles-souffle-ldv-200",
+      "famille": "Minéral",
+      "nom": "Laine de verre soufflée",
+      "epaisseurMm": 200,
+      "prixAchatHtM2": 8,
+      "usage": "Combles soufflés",
+      "kind": "blown",
+      "rApprox": 5
+    },
+    {
+      "id": "combles-souffle-ldv-300",
+      "famille": "Minéral",
+      "nom": "Laine de verre soufflée",
+      "epaisseurMm": 300,
+      "prixAchatHtM2": 11,
+      "usage": "Combles soufflés",
+      "kind": "blown",
+      "rApprox": 7.5
+    },
+    {
+      "id": "combles-souffle-ldv-400",
+      "famille": "Minéral",
+      "nom": "Laine de verre soufflée",
+      "epaisseurMm": 400,
+      "prixAchatHtM2": 14,
+      "usage": "Combles soufflés",
+      "kind": "blown",
+      "rApprox": 10
+    },
+    {
+      "id": "combles-souffle-ldr-200",
+      "famille": "Minéral",
+      "nom": "Laine de roche soufflée",
+      "epaisseurMm": 200,
+      "prixAchatHtM2": 10,
+      "usage": "Combles soufflés",
+      "kind": "blown",
+      "rApprox": 5.4
+    },
+    {
+      "id": "combles-souffle-ldr-300",
+      "famille": "Minéral",
+      "nom": "Laine de roche soufflée",
+      "epaisseurMm": 300,
+      "prixAchatHtM2": 13,
+      "usage": "Combles soufflés",
+      "kind": "blown",
+      "rApprox": 8.1
+    },
+    {
+      "id": "combles-souffle-ouate-300",
+      "famille": "Naturel",
+      "nom": "Ouate de cellulose soufflée",
+      "epaisseurMm": 300,
+      "prixAchatHtM2": 15,
+      "usage": "Combles soufflés",
+      "kind": "blown",
+      "rApprox": 7.5
+    },
+    {
+      "id": "combles-souffle-ouate-400",
+      "famille": "Naturel",
+      "nom": "Ouate de cellulose soufflée",
+      "epaisseurMm": 400,
+      "prixAchatHtM2": 19,
+      "usage": "Combles soufflés",
+      "kind": "blown",
+      "rApprox": 10
+    },
+    {
+      "id": "combles-rouleau-ldv-200",
+      "famille": "Minéral",
+      "nom": "Laine de verre rouleau",
+      "epaisseurMm": 200,
+      "prixAchatHtM2": 9,
+      "usage": "Combles rouleaux",
+      "kind": "panel_roll",
+      "rApprox": 5
+    },
+    {
+      "id": "combles-rouleau-ldv-240",
+      "famille": "Minéral",
+      "nom": "Laine de verre rouleau",
+      "epaisseurMm": 240,
+      "prixAchatHtM2": 11,
+      "usage": "Combles rouleaux",
+      "kind": "panel_roll",
+      "rApprox": 6
+    },
+    {
+      "id": "combles-rouleau-ldv-300",
+      "famille": "Minéral",
+      "nom": "Laine de verre rouleau",
+      "epaisseurMm": 300,
+      "prixAchatHtM2": 14,
+      "usage": "Combles rouleaux",
+      "kind": "panel_roll",
+      "rApprox": 7.5
+    },
+    {
+      "id": "combles-rouleau-ldr-200",
+      "famille": "Minéral",
+      "nom": "Laine de roche rouleau",
+      "epaisseurMm": 200,
+      "prixAchatHtM2": 12,
+      "usage": "Combles rouleaux",
+      "kind": "panel_roll",
+      "rApprox": 5.4
+    },
+    {
+      "id": "combles-rouleau-ldr-300",
+      "famille": "Minéral",
+      "nom": "Laine de roche rouleau",
+      "epaisseurMm": 300,
+      "prixAchatHtM2": 16,
+      "usage": "Combles rouleaux",
+      "kind": "panel_roll",
+      "rApprox": 8.1
+    },
+    {
+      "id": "combles-rouleau-fdb-200",
+      "famille": "Naturel",
+      "nom": "Fibre de bois rouleau",
+      "epaisseurMm": 200,
+      "prixAchatHtM2": 22,
+      "usage": "Combles rouleaux",
+      "kind": "panel_roll",
+      "rApprox": 5.2
+    },
+    {
+      "id": "combles-rouleau-fdb-240",
+      "famille": "Naturel",
+      "nom": "Fibre de bois rouleau",
+      "epaisseurMm": 240,
+      "prixAchatHtM2": 25,
+      "usage": "Combles rouleaux",
+      "kind": "panel_roll",
+      "rApprox": 6.3
+    }
+  ],
+  "validation_rules": [
+    "Un ouvrage doit être actif pour être calculé.",
+    "Une cloison possède deux faces ; un doublage une seule face.",
+    "Longueur et hauteur doivent être positives.",
+    "Le type de plaque et simple/double peau doivent être choisis explicitement.",
+    "Au-delà du format automatique disponible, le nombre réel de plaques doit être saisi explicitement.",
+    "Les ouvertures sont déduites des surfaces et génèrent l'ossature périphérique prévue.",
+    "Un plafond actif doit avoir un type, une surface valide, un parement, un format de plaque, une longueur de suspente et simple/double peau.",
+    "La complexité générale, le taux horaire, la marge matériaux, l'âge du logement et le niveau de finition sont des paramètres explicites.",
+    "Les prix catalogue intégrés ne doivent pas être redemandés à l'artisan.",
+    "Les coûts internes de finition ne doivent pas être refacturés une deuxième fois."
+  ],
+  "output_expectations": [
+    "Surfaces par ouvrage, y compris plafonds.",
+    "Matériaux et commandes avec quantités, unités, conditionnements, PU HT et total HT.",
+    "Total matériaux HT.",
+    "Coûts internes de finition séparés du total facturé.",
+    "Main-d'œuvre en heures et coût.",
+    "Vente/forfaits, TVA et total TTC.",
+    "Alertes et blocages traçables avec code explicite."
+  ],
+  "angel_query_contract": {
+    "supported_intents": [
+      "expliquer une règle métier",
+      "expliquer pourquoi un chiffrage est bloqué",
+      "expliquer une quantité ou une unité",
+      "identifier les données manquantes",
+      "expliquer le choix d'un conditionnement",
+      "expliquer une règle d'isolation, de plafond, de cloison ou de doublage"
+    ],
+    "answer_requirements": [
+      "Répondre à partir de cette base et du contexte du chiffrage.",
+      "Citer le nom de la règle ou le champ concerné quand c'est possible.",
+      "Ne jamais inventer une référence produit, un prix fournisseur, une norme ou une performance non présente dans les sources.",
+      "Si la réponse dépend d'un catalogue réel non raccordé, le dire clairement."
+    ]
+  },
+  "integration_status": {
+    "knowledge_base_created": true,
+    "angel_runtime_connected_in_this_static_demo": false,
+    "supabase_connected": false,
+    "note": "La base est prête à être consommée par Ángel. Le dépôt de démonstration ne contient actuellement aucun runtime Ángel ni connecteur Supabase."
+  }
+}
