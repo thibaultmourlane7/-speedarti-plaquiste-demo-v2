@@ -1,11 +1,11 @@
 const fs=require('fs'),vm=require('vm'),path=require('path');
 global.window=global;
 const root=__dirname;
-for(const f of ['catalogue-data.js','catalogue-service.js','engine-current.js'])vm.runInThisContext(fs.readFileSync(path.join(root,f),'utf8'),{filename:f});
-const CAT=global.SpeedArtiCatalogueService,API=global.SpeedArtiPlombierCurrent,DB=global.SpeedArtiCataloguePlombier;
+for(const f of ['catalogue-data.js','catalogue-service.js','engine-current.js','angel-knowledge.js'])vm.runInThisContext(fs.readFileSync(path.join(root,f),'utf8'),{filename:f});
+const CAT=global.SpeedArtiCatalogueService,API=global.SpeedArtiPlombierCurrent,ANGEL=global.SpeedArtiAngelPlombierKnowledge,DB=global.SpeedArtiCataloguePlombier;
 let ok=0;function assert(cond,msg){if(!cond)throw new Error(`ASSERT ${ok+1}: ${msg}`);ok++}
 function approx(a,b,t=.011){return Math.abs(Number(a)-Number(b))<=t}
-function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.6.3',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{},services:{}}}}
+function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.6.4',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{},services:{}}}}
 function selectFirst(ctx,pred=()=>true){const a=CAT.search({context:ctx,limit:100}).find(x=>x.prix>0&&x.code&&pred(x));assert(!!a,`Référence exploitable contexte ${ctx}`);return CAT.selection(a)}
 function netRefs(d){const ctx=d.options.type_tuyau==='cuivre'?'raccord_cuivre':d.options.type_tuyau==='multicouche'?'raccord_multicouche':'raccord_per';d.installation.network.fitting_catalogue=selectFirst(ctx);d.installation.network.stop_valve_catalogue=selectFirst('robinet_arret');}
 
@@ -425,5 +425,22 @@ const tManual=base();tManual.installation.zones={rdc_sans:true,r1_sans:false,rdc
 const chosen=selectFirst('raccord_per');const tChosen=base();tChosen.installation.network.ef_only=1;tChosen.installation.network.fitting_catalogue=chosen;const rChosen=API.calculate(tChosen);assert(rChosen.materiaux.find(x=>x.article_id==='raccords_per')?.catalogue_code===chosen.code,'Référence choisie par artisan reste prioritaire sur référence technique');
 assert(rPer.controle_balises.version==='BALISES-ABSOLUES-v1.8','Balises v1.8 actives sur référentiel réseau');
 assert(appSrc.includes('Proposition technique automatique'),'UI affiche le temps réseau proposé et modifiable');
+
+// v0.6.4 — prix moyens appareillage sans sélection catalogue + base Angel
+const avgExpected={lavabo:165.11,meuble_vasque:204.19,douche:428.06,baignoire:307.93,evier:194.69,lave_main:83.59};
+for(const [kind,price] of Object.entries(avgExpected)){
+  const t=base();t.options.gamme='standard';t.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:true,r1_avec:false};t.installation.equipments=[{id:'avg-'+kind,kind,zone:'rdc',time_h:1}];
+  if(kind==='douche')t.installation.equipments[0].subtype='bac';
+  const rr=API.calculate(t),line=rr.materiaux.find(x=>x.article_id==='equip_avg-'+kind);
+  assert(!!line,`Ligne appareil moyen présente pour ${kind}`);
+  assert(approx(line.prix_unitaire_ht,price),`Prix moyen standard correct pour ${kind}`);
+  assert(line.balise_prix==='moyenne_catalogue',`Source moyenne catalogue tracée pour ${kind}`);
+}
+const avgLavEco=API.equipmentAveragePrice({kind:'lavabo'},'eco'),avgLavPremium=API.equipmentAveragePrice({kind:'lavabo'},'premium');
+assert(approx(avgLavEco.price,82.66)&&approx(avgLavPremium.price,231.37),'Gammes Éco/Premium lavabo exposées');
+assert(ANGEL&&ANGEL.version==='PLB-ANGEL-KB-v1.0','Base de connaissances Angel Plombier chargée');
+assert(ANGEL.search('prix lavabo sans catalogue',3).some(x=>x.id==='PLB-PRIX-LAVABO'),'Angel retrouve la règle de prix lavabo sans catalogue');
+assert(/165,11/.test(ANGEL.answer('prix lavabo sans catalogue')),'Angel répond avec le prix moyen standard lavabo');
+assert(appSrc.includes('Prix moyen SpeedArti'),'UI affiche explicitement le prix moyen quand le catalogue n’est pas sélectionné');
 
 console.log(JSON.stringify({status:'OK',assertions:ok,catalogueCount:CAT.count,priceCount:CAT.priceCount,knownPrice117_19:known[0].prix,balisesVersion:r1.controle_balises.version,networkOnly:{ef:r2.surfaces.detail_par_face.EF_ml,ec:r2.surfaces.detail_par_face.EC_ml},fittingsOneFixture:fittingsWC.quantite_finale},null,2));
