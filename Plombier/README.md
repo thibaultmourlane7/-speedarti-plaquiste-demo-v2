@@ -1,6 +1,6 @@
-# SpeedArti — Plombier v0.6.3 — Référentiel réseau Téréva
+# SpeedArti — Plombier v0.6.4 — Référentiel réseau Téréva
 
-Cette version continue le module Plombier existant. Le parcours chantier v0.6.2 est conservé ; le lot v0.6.3 complète les fournitures réseau qui apparaissaient auparavant comme « référentiel à compléter ».
+Cette version continue le module Plombier existant. Le parcours chantier est conservé ; le lot v0.6.4 ajoute des prix moyens d’appareillage quand aucune référence Téréva n’est sélectionnée et une base de connaissances Plombier interrogeable par Angel. Le référentiel réseau Téréva v0.6.3 reste conservé.
 
 ## Principe de prix réseau
 
@@ -72,3 +72,30 @@ Aucun libellé Guillaume / Annexe 1 / Annexe 2 / question de travail n'est desti
 Version : `BALISES-ABSOLUES-v1.8`.
 
 Chaîne : UI → donnée → quantité → unité → référence → prix → source → calcul → temps/MO → total → approvisionnement/stock.
+
+
+## v0.6.4 — appareillage sans sélection Téréva
+
+Quand l’artisan ne choisit pas de référence Téréva pour l’appareil principal, le moteur utilise automatiquement une moyenne SpeedArti calculée sur le catalogue Téréva 2026 embarqué (-20 %). Les accessoires sont exclus, les 10 % de prix les plus bas et les 10 % les plus hauts sont retirés, puis une moyenne est calculée pour chaque tiers de gamme.
+
+| Appareil | Éco HT | Standard HT | Premium HT | Références retenues |
+| --- | ---: | ---: | ---: | ---: |
+| Lavabo / vasque | 82,66 € | 165,11 € | 231,37 € | 49 / 61 |
+| Meuble vasque | 138,34 € | 204,19 € | 282,76 € | 82 / 102 |
+| Receveur / douche | 305,27 € | 428,06 € | 605,94 € | 289 / 361 |
+| Baignoire | 179,04 € | 307,93 € | 1 046,72 € | 28 / 34 |
+| Évier | 124,57 € | 194,69 € | 352,22 € | 89 / 111 |
+| Lave-main | 58,94 € | 83,59 € | 101,01 € | 20 / 24 |
+
+Priorité : référence Téréva exacte > prix manuel explicite > prix moyen SpeedArti. Le résultat identifie les lignes au moyen de la balise `moyenne_catalogue`.
+
+## Base de connaissances Angel
+
+Le fichier `angel-knowledge.js` expose `window.SpeedArtiAngelPlombierKnowledge` avec :
+- les règles métier Plombier vérifiées dans le moteur ;
+- les références techniques réseau ;
+- les prix moyens d’appareillage ;
+- une méthode `search(query, limit)` ;
+- une méthode `answer(query)`.
+
+Cette couche est chargée dans la démo après le moteur et avant l’interface.
