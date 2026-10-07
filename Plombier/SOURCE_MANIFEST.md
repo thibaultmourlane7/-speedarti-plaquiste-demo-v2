@@ -1,4 +1,4 @@
-# SpeedArti — Plombier v0.6.7 — Sources du lot
+# SpeedArti — Plombier v0.6.8 — Sources du lot
 
 ## Base conservée
 - module Plombier SpeedArti existant ;
@@ -6,6 +6,19 @@
 - parcours chantier en 4 pages ;
 - balises, stock et approvisionnement existants ;
 - référentiel réseau Téréva de la v0.6.3 conservé.
+
+## Évacuation locale / réseau général — v0.6.8
+
+Règle Guillaume :
+- le sanitaire comprend son raccordement local, dont la petite évacuation ;
+- le réseau d’évacuation général de la maison est séparé et doit être traité comme un élément spécifique lorsqu’il est à refaire ;
+- une valeur artisan modifiée reste la base du calcul, sans déduire silencieusement une autre nature de travaux.
+
+Application :
+- WC local : DN100 — tube Téréva `044788U`, raccord `027749Z` ;
+- autres sanitaires locaux : DN40 — tube Téréva `044755V`, raccord `059805D` ;
+- en mixte, les quantités et références sont séparées ;
+- aucun DN n’est inventé pour un réseau général/spécifique dont le diamètre n’est pas renseigné.
 
 ## Règle main-d’œuvre v0.6.7
 
