@@ -8,7 +8,7 @@ import {
   calculate, validateStep, assertBalisage,
   WORKS, WORK_BY_ID, FIBRES, PREFAB_H_PER_ML, TRUCK_8X4_DEFAULT, TRACE_TARGETS,
   TREILLIS_GUILLAUME, PUMP_DEFAULT_PRICE, TOUPIE_PRICE_M3, TOUPIE_MIN_BILLABLE_M3, TOUPIE_CAPACITY_M3,
-  PREFAB_DEFAULT_PRICE_M2, LONGRINE_PRICE_ML, micropileSuggestedPrice, estimatedVerticalChainage, toupieEstimatedCount
+  PREFAB_DEFAULT_PRICE_M2, LONGRINE_PRICE_ML, micropileSuggestedPrice, estimatedVerticalChainage, toupieEstimatedCount, DEMO_SPEEDARTI_CONTEXT
 } from './core.js';
 import { SpeedArtiAngelMaconKnowledge, searchAngelMacon, answerAngelMacon } from './angel-knowledge.js';
 
@@ -582,6 +582,27 @@ test('v2.6 fibre renforcée vide utilise 5 kg/m³',()=>{
 test('v2.6 UI fibre préremplit automatiquement le minimum',()=>{
   const s=base();s.simpleType='dalle';Object.assign(s.simple,{surface:10,thickness:12,slabRef:'dallage_arme',concreteClass:'C25/30',fibres:true,fibreType:'courante',fibreDose:''});
   assert.match(renderOptions(s),/data-simple="fibreDose"[^>]*value="3"/);
+});
+
+
+test('sprint UX: paramètres entreprise cachés et contexte démo stable',()=>{
+  const s=defaultState(),html=renderMode(s);
+  assert.equal(DEMO_SPEEDARTI_CONTEXT.hourly,50);
+  assert.equal(DEMO_SPEEDARTI_CONTEXT.workers,1);
+  assert.equal(s.globals.hourly,50);
+  assert.equal(s.globals.workers,1);
+  assert.ok(!/Taux horaire Maçon HT/.test(html));
+  assert.ok(!/TVA chantier/.test(html));
+  assert.ok(!/Nombre d['’]ouvriers/.test(html));
+  assert.equal(validateStep(s,0),'');
+});
+
+test('sprint UX: anciens états sans paramètres visibles utilisent les valeurs démo',()=>{
+  const s=defaultState();s.globals.hourly='';s.globals.vat='';s.globals.workers='';
+  s.simpleType='dalle';Object.assign(s.simple,{surface:10,thickness:12,slabRef:'dallage_arme',concreteClass:'C25/30'});
+  const r=calculate(s);
+  assert.equal(r.hourly,50);assert.equal(r.workers,1);assert.equal(r.vat,20);
+  assert.ok(!r.alerts.some(x=>/taux horaire|taux de TVA|nombre d.ouvriers/i.test(x)));
 });
 
 console.log(`OK — V2.6 Maçon: ${pass.length} contrôles fonctionnels passés`);

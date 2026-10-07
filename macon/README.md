@@ -207,3 +207,12 @@ Priorité de connaissance : **moteur réel SpeedArti → référentiel validé �
 - recherche Angèle sécurisée ;
 - retour en haut à chaque changement d’étape ;
 - affichage V2.6 aligné.
+
+
+## Sprint UX — paramètres SpeedArti
+
+- le taux horaire, la TVA et le nombre d’ouvriers ne sont plus demandés à l’entrée du parcours Maçon ;
+- la démo utilise en interne 50 €/h et 1 ouvrier afin de rester testable hors production ;
+- le code réel SpeedArti reste la source prévue pour l’intégration : `parametres_utilisateur.taux_horaire`, `taux_par_metier` et `nb_ouvriers_defaut` ;
+- aucune modification n’a été faite dans le dépôt SpeedArti de production ;
+- la TVA chantier sera qualifiée dans l’étape de vérification dédiée avant le résultat.

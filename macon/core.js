@@ -11,6 +11,13 @@ import {
 
 export const STEPS = ['Mode', 'Ouvrage(s)', 'Configuration', 'Options', 'Prix / catalogue', 'Résultat'];
 
+export const DEMO_SPEEDARTI_CONTEXT = Object.freeze({
+  hourly: 50,
+  workers: 1,
+  vat: 20,
+  source: 'demo-only'
+});
+
 export const SIMPLE_TYPES = [
   {id:'murs', icon:'🧱', label:'Murs / Cloisons', desc:'Blocs, briques, béton banché'},
   {id:'dalle', icon:'⬜', label:'Dallage / Dalle', desc:'Dallage ou ouvrage béton'},
@@ -33,7 +40,7 @@ export const MULTI_CARDS = [
 // Chaque trace doit avoir une destination réelle. Les tests vérifient que tous les contrôles visibles sont balisés.
 export const TRACE_TARGETS = {
   mode:'state+route', simpleType:'state+route', wizardPrev:'route-step-back', wizardNext:'validation+route-step-forward', returnTrades:'route-metiers',
-  hourly:'labor+price', vat:'tax', workers:'duration', concreteClass:'material-variant', wallKind:'normative-context',
+  concreteClass:'material-variant', wallKind:'normative-context',
   wallLength:'quantity', wallWidth:'quantity', wallHeight:'quantity', wallThickness:'material-variant', wallBlocksPerM2:'quantity', wallMortarKgM2:'quantity', wallHoursPerM2:'labor',
   wallOpening:'quantity+associated-work', wallMaterial:'material-variant+price-key', wallMethod:'material-label', wallChainH:'material+labor', wallChainV:'material+labor',
   slabSurface:'quantity', slabLength:'quantity', slabWidth:'quantity', slabThickness:'quantity', slabRef:'material+labor', slabTreillis:'material', treillisType:'material+price+labor', slabFibres:'material', fibreType:'material', fibreDose:'quantity+alert',
@@ -65,7 +72,7 @@ export function defaultState(){
     simpleType:'murs',
     simple:{ openings:[], refOverrides:{}, chimneyOverrides:{}, count:1, wallKind:'mur', concreteClass:'' },
     globals:{
-      hourly:'', vat:'', workers:1, concreteClass:'',
+      hourly:DEMO_SPEEDARTI_CONTEXT.hourly, vat:DEMO_SPEEDARTI_CONTEXT.vat, workers:DEMO_SPEEDARTI_CONTEXT.workers, concreteClass:'',
       truck:false, truckPrice:TRUCK_8X4_DEFAULT, truckDays:1, saveTruckPrice:false,
       pump:false, pumpPrice:PUMP_DEFAULT_PRICE, toupie:false, toupiePrice:TOUPIE_PRICE_M3, toupieMode:'auto_volume', toupieVolume:'', toupies:1,
       concreteControlMode:'aucun',
@@ -217,20 +224,12 @@ export function newElement(cardId){
 export function iconFor(t){return ({fondations:'🏗️',murs_porteurs:'🧱',murs_elevations:'🏠',escalier:'⭐',dalle:'🟫',cheminee:'🔥',ouvrage_ba:'▧'})[t]||'•';}
 
 export function renderMode(state){
-  const g=state.globals;
-  return `<div class="section-title"><h2>Mode de chiffrage</h2><p>Le module conserve les deux parcours SpeedArti : simple et multi-éléments.</p></div>
+  return `<div class="section-title"><h2>Mode de chiffrage</h2><p>Choisissez simplement si le chantier contient un seul ouvrage ou plusieurs éléments.</p></div>
   <div class="grid cols-2">
     ${button(`<span class="icon">▣</span><span><strong>Mode simple</strong><small>Un seul ouvrage.</small></span>`,`class="choice-card mode-card ${state.mode==='simple'?'selected':''}" data-mode="simple"`,'mode')}
     ${button(`<span class="icon">▦</span><span><strong>Mode multi-éléments</strong><small>Plusieurs éléments cumulés.</small></span>`,`class="choice-card mode-card ${state.mode==='multiple'?'selected':''}" data-mode="multiple"`,'mode')}
   </div>
-  <div class="separator"></div>
-  <div class="section-title"><h2>Paramètres entreprise / chantier</h2><p>Ces valeurs alimentent le prix, la TVA et la durée. Aucun taux caché n’est injecté.</p></div>
-  <div class="grid cols-3">
-    ${field('Taux horaire Maçon HT (€ / h)','hourly',g.hourly??'',{scope:'global',step:'0.01',required:true,trace:'hourly'})}
-    ${field('TVA chantier (%)','vat',g.vat??'',{scope:'global',step:'0.1',required:true,trace:'vat'})}
-    ${field("Nombre d'ouvriers",'workers',g.workers??1,{scope:'global',step:'1',min:'1',required:true,trace:'workers'})}
-  </div>
-  <div class="info-box">Heures-homme = somme des postes. Durée chantier = heures-homme ÷ nombre d’ouvriers. Coût MO = heures-homme × taux horaire.</div>`;
+  <div class="info-box">Dans SpeedArti, le taux horaire et l’effectif par défaut seront repris automatiquement depuis les paramètres de l’artisan. La démo utilise un contexte interne simulé, sans demander ces réglages pendant le chiffrage.</div>`;
 }
 
 export function renderWorks(state){
@@ -1133,10 +1132,9 @@ function addCommonOptions(state,lines,lab,alerts,reco){
 export function calculate(state){
   const lines=[],lab=[],alerts=[],reco=[];
   const g=state.globals;
-  const hourly=num(g.hourly),workers=Math.max(1,num(g.workers)||1);
-  const vatRaw=g.vat;
-  if(!(hourly>0))alerts.push('🚨 Taux horaire Maçon manquant.');
-  if(vatRaw===''||vatRaw===null||vatRaw===undefined||!Number.isFinite(Number(vatRaw)))alerts.push('🚨 Taux de TVA chantier manquant.');
+  const hourly=num(g.hourly)>0?num(g.hourly):DEMO_SPEEDARTI_CONTEXT.hourly;
+  const workers=Math.max(1,num(g.workers)||DEMO_SPEEDARTI_CONTEXT.workers);
+  const vatRaw=(g.vat!==''&&g.vat!==null&&g.vat!==undefined&&Number.isFinite(Number(g.vat)))?g.vat:DEMO_SPEEDARTI_CONTEXT.vat;
 
   let laborPriceOverride=0;
   let manualTotalLaborIncluded=false;
@@ -1282,11 +1280,6 @@ export function renderResult(state){
     ${r.reco.length?`<div style="margin-top:16px"><h3>Recommandations / traçabilité</h3>${r.reco.map(a=>`<div class="info-box">${esc(a)}</div>`).join('')}</div>`:''}`;
 }
 export function validateStep(state,step=state.step){
-  if(step===0){
-    if(!(num(state.globals.hourly)>0))return 'Renseigner le taux horaire Maçon.';
-    if(state.globals.vat===''||state.globals.vat==null||state.globals.vat===undefined)return 'Renseigner le taux de TVA du chantier.';
-    if(!(num(state.globals.workers)>0))return 'Renseigner le nombre d’ouvriers.';
-  }
   if(step===1&&state.mode==='multiple'&&!state.elements.length)return 'Ajouter au moins un élément Maçon.';
   if(step===2){
     const r=calculate(state);
