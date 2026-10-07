@@ -10,8 +10,8 @@ const steps=[
   ['Configuration & options','Réglages facultatifs'],
   ['Résultats','Contrôle avant devis']
 ];
-const storeKey='speedarti-plombier-demo-v065';
-const legacyStoreKeys=['speedarti-plombier-demo-v064','speedarti-plombier-demo-v063','speedarti-plombier-demo-v061','speedarti-plombier-demo-v060','speedarti-plombier-demo-v052','speedarti-plombier-demo-v051','speedarti-plombier-demo-v040','speedarti-plombier-demo-v031'];
+const storeKey='speedarti-plombier-demo-v066';
+const legacyStoreKeys=['speedarti-plombier-demo-v065','speedarti-plombier-demo-v064','speedarti-plombier-demo-v063','speedarti-plombier-demo-v061','speedarti-plombier-demo-v060','speedarti-plombier-demo-v052','speedarti-plombier-demo-v051','speedarti-plombier-demo-v040','speedarti-plombier-demo-v031'];
 let step=0;
 let d=load()||initial();
 const q=s=>document.querySelector(s);
@@ -50,14 +50,14 @@ function initial(){
       annexe1:{}
     },
     petits_travaux:{prestations:[]},
-    settings:{annexe1:{},forfaits:{},services:{}}
+    settings:{annexe1:{},forfaits:{},services:{},component_preferences:{}}
   };
 }
 function save(show=false){localStorage.setItem(storeKey,JSON.stringify(d));if(show)flash('Brouillon enregistré','ok')}
 function migrateLegacyDraft(val){
   if(!val||typeof val!=='object')return val;
   const ps=val.petits_travaux?.prestations||[];ps.forEach(p=>{if(p?.type==='chauffe_eau'&&p.ce_type!=='reparation')delete p.duration_h});
-  val.installation=val.installation||{};val.installation.network=val.installation.network||{};val.installation.annexe1=val.installation.annexe1||{};val.settings=val.settings||{};val.settings.services=val.settings.services||{};
+  val.installation=val.installation||{};val.installation.network=val.installation.network||{};val.installation.annexe1=val.installation.annexe1||{};val.settings=val.settings||{};val.settings.services=val.settings.services||{};val.settings.component_preferences=val.settings.component_preferences||{};
   if(!val.installation.zones){val.installation.zones={rdc_sans:Number(val.installation.annexe1.attente_rdc||0)>0,r1_sans:Number(val.installation.annexe1.attente_r1||0)>0,rdc_avec:false,r1_avec:false}}
   const oldEqs=val.installation.equipments||[];const onlyZone=val.installation.zones.rdc_avec&&!val.installation.zones.r1_avec?'rdc':val.installation.zones.r1_avec&&!val.installation.zones.rdc_avec?'r1':'';if(onlyZone)oldEqs.forEach(eq=>{if(!eq.zone)eq.zone=onlyZone});
   if(!val.options?.type_projet){val.options=val.options||{};val.options.type_projet='installation_complete'}
@@ -196,7 +196,7 @@ function artisanOptions(){
   const gamme=`<div class="card"><h2>Réglages du chiffrage</h2><h3>Gamme matériel</h3><div class="gamme">${['eco','standard','premium'].map(v=>`<button class="choice ${d.options.gamme===v?'active':''}" data-gamme="${v}"><strong>${v==='eco'?'ECO':v==='standard'?'Standard':'Premium'}</strong></button>`).join('')}</div><h3 class="subhead">Complexité du chantier</h3><div class="gamme">${[['simple','Simple × 0,80'],['moyen','Moyen × 1'],['complexe','Complexe × 1,40']].map(([v,l])=>`<button class="choice ${d.options.complexite===v?'active':''}" data-complexite="${v}"><strong>${l}</strong></button>`).join('')}</div><p class="subtle">La complexité agit uniquement sur la main-d’œuvre.</p><h3 class="subhead">TVA</h3><div class="choice-grid">${choice('10','TVA 10 %','Rénovation éligible',String(d.options.taux_tva),'data-tva')}${choice('20','TVA 20 %','Neuf / cas standard',String(d.options.taux_tva),'data-tva')}</div></div>`;
   const eauChaude=`<div class="card"><h2>Équipements complémentaires</h2>${toggle('options.chauffe_eau.enabled','Ajouter un chauffe-eau','Sélection du modèle dans le catalogue')}${d.options.chauffe_eau.enabled?`<div class="inset">${cataloguePicker('options.chauffe_eau.catalogue','options.chauffe_eau.price_ht','chauffe_eau','un chauffe-eau',d.options.chauffe_eau.catalogue)}<div class="grid">${selectField('Type','options.chauffe_eau.type',[['cumulus','Cumulus électrique'],['ballon_thermo','Ballon thermodynamique'],['instantane','Instantané'],['chaudiere','Via chaudière']],d.options.chauffe_eau.type,'c4')}${selectField('Capacité','options.chauffe_eau.capacity',[[100,'100 L'],[150,'150 L'],[200,'200 L'],[300,'300 L']],d.options.chauffe_eau.capacity,'c4')}${numField('Temps de pose (h)','options.chauffe_eau.time_h',d.options.chauffe_eau.time_h,'c4',0,.25)}</div></div>`:''}${toggle('options.adoucisseur.enabled','Ajouter un adoucisseur','Sélection du modèle dans le catalogue')}${d.options.adoucisseur.enabled?`<div class="inset">${cataloguePicker('options.adoucisseur.catalogue','options.adoucisseur.price_ht','adoucisseur','un adoucisseur',d.options.adoucisseur.catalogue)}<div class="grid">${numField('Temps de pose (h)','options.adoucisseur.time_h',d.options.adoucisseur.time_h,'c4',0,.25)}</div></div>`:''}</div>`;
   const opts=`<div class="card"><h2>Options complémentaires</h2><div class="grid">${numField('Robinets extérieurs','installation.annexe1.robinet_exterieur',a.robinet_exterieur,'c6',0,1)}${numField('Limiteurs de pression','installation.annexe1.limiteur_pression',a.limiteur_pression,'c6',0,1)}</div><div class="choice-grid option-clean">${toggle('installation.annexe1.arret_general',"Alimentation + robinet d’arrêt général")}${toggle('installation.annexe1.raccordement_exterieur','Raccordement extérieur eau')}${toggle('installation.annexe1.ventilation_wc','Ventilation haute WC')}${toggle('installation.annexe1.ventilation_fosse','Ventilation fosse + extracteur')}${toggle('installation.annexe1.forfait_etage','Canalisation + alimentation étage')}${toggle('installation.annexe1.aleas','Aléas 4 %','Appliqués uniquement à la main-d’œuvre HT')}${['demolition','platrerie','raccordement','traversee','renovation','acces_difficile','boucle_ecs','pompe_relevage'].map(k=>toggle(`options.forfaits.${k}`,forfaitLabel(k),forfaitHelp(k))).join('')}</div></div>`;
-  return gamme+eauChaude+opts;
+  return gamme+componentPreferencesCard()+eauChaude+opts;
 }
 function renderSmallWorkflow(){
   const ps=d.petits_travaux.prestations||[];
@@ -231,6 +231,32 @@ function annexe2RoleStatus(def,eq){
   }
   return ['À associer si nécessaire','info'];
 }
+function autoComponentSourceLabel(source){
+  return source==='preference_entreprise'?'Habitude entreprise':source==='selection_artisan'?'Référence personnalisée':source==='inclus_catalogue'?'Compris dans le produit':'Défaut SpeedArti';
+}
+function autoComponentRow(eq,prefix,def,item){
+  const p=API.autoComponentProposal?.(d,eq,def.key);if(!p)return'';
+  const included=!!p.included;const sel=p.selection;const explicit=!!item.catalogue?.code;
+  const target=`${prefix}.annexe2_items.${def.key}.catalogue`;
+  const pricePath=`${prefix}.annexe2_items.${def.key}.price_ht`;
+  const includedPath=`${prefix}.annexe2_items.${def.key}.included_in_main`;
+  const qtyPath=`${prefix}.annexe2_items.${def.key}.quantite`;
+  if(included){
+    return `<div class="annexe2-row selectable auto-component-row"><div class="annexe2-row-head"><div><strong>${esc(def.label)}</strong><small>Automatisé par SpeedArti mais non chiffré car déclaré/compris dans le produit principal.</small></div><span class="annexe2-status auto">Compris</span></div>${toggle(includedPath,'Compris dans le produit principal','Décoche pour réactiver la référence automatique.')}</div>`;
+  }
+  const source=autoComponentSourceLabel(p.source);
+  const summary=sel?`<div class="auto-component-product"><div><span class="catalogue-badge">${esc(source)}</span><strong>${esc(sel.marque||'')} — ${esc(sel.produit||def.label)}</strong><small>${sel.variante?esc(sel.variante)+' · ':''}Code Téréva ${esc(sel.code)} · ${sel.prix!=null?eur(sel.prix):'prix manquant'}</small></div><div class="row wrap"><button type="button" class="btn secondary compact" data-open-catalogue data-catalogue-target="${esc(target)}" data-catalogue-price-path="${esc(pricePath)}" data-catalogue-context="${esc(def.context||'all')}" data-catalogue-label="${esc(def.label)}" data-catalogue-q="${esc(def.q||'')}" data-catalogue-auto-qty="${fmt(p.qty)}">Changer</button>${explicit?`<button type="button" class="btn ghost compact" data-clear-catalogue="${esc(target)}" data-catalogue-price-path="${esc(pricePath)}">Revenir au défaut</button>`:''}</div></div>`:`<div class="alert warn">Aucune référence automatique exploitable trouvée pour ${esc(def.label)}.</div>`;
+  return `<div class="annexe2-row selectable auto-component-row"><div class="annexe2-row-head"><div><strong>${esc(def.label)}</strong><small>Ajouté automatiquement au chiffrage. La pose reste comprise dans le temps de l’équipement.</small></div><span class="annexe2-status auto">${esc(source)}</span></div>${summary}<div class="grid annexe2-fields">${numField('Quantité',qtyPath,item.quantite??p.qty,'c4',1,1)}<div class="c8 auto-inclusion-toggle">${toggle(includedPath,'Compris dans le produit principal','Active cette option si le pack ou l’appareil contient déjà ce composant.')}</div></div></div>`;
+}
+function companyPreferenceRow(prefKey){
+  const info=API.companyComponentPreference?.(d,prefKey);if(!info)return'';
+  const custom=get(d,`settings.component_preferences.${prefKey}`);const sel=info.selection;const isCustom=!!custom?.code;
+  return `<div class="preference-row"><div><strong>${esc(info.label)}</strong><small>${isCustom?'Référence habituelle de l’entreprise':'Référence SpeedArti utilisée tant qu’aucune habitude entreprise n’est définie.'}</small>${sel?`<span>${esc(sel.marque||'')} — ${esc(sel.produit||'')} · Téréva ${esc(sel.code)} · ${eur(sel.prix)}</span>`:''}</div><div class="row wrap"><button type="button" class="btn secondary compact" data-open-catalogue data-catalogue-target="settings.component_preferences.${esc(prefKey)}" data-catalogue-context="${esc(info.context||'all')}" data-catalogue-label="${esc(info.label)}" data-catalogue-q="${esc(info.q||'')}">${isCustom?'Changer':'Définir mon habitude'}</button>${isCustom?`<button type="button" class="btn ghost compact" data-clear-catalogue="settings.component_preferences.${esc(prefKey)}">Revenir au défaut SpeedArti</button>`:''}</div></div>`;
+}
+function componentPreferencesCard(){
+  return `<div class="card preference-card"><div class="row between wrap"><div><h2>Habitudes de l’entreprise</h2><p class="muted">Ces références deviennent les choix automatiques pour les nouveaux sanitaires. Dans SpeedArti final, ce réglage sera rattaché à l’entreprise/artisan.</p></div><span class="pill">Préférences catalogue</span></div><div class="preference-list">${['lavabo_siphon','lavabo_bonde','lave_main_bonde'].map(companyPreferenceRow).join('')}</div></div>`;
+}
+
 function annexe2Panel(eq,prefix){
   const rawDefs=API.annexe2For?.(eq.kind,eq.subtype)||[];
   const defs=rawDefs.filter(def=>!(def.key==='mitigeur'&&(eq.kind==='meuble_vasque'||eq.kind==='lave_main')));
@@ -239,11 +265,13 @@ function annexe2Panel(eq,prefix){
     if(def.role!=='selectable'){
       const [status,kind]=annexe2RoleStatus(def,eq);return `<div class="annexe2-row"><div><strong>${esc(def.label)}</strong>${def.optional?'<small>Conditionnel</small>':''}</div><span class="annexe2-status ${kind}">${esc(status)}</span></div>`;
     }
-    const item=items[def.key]||{};const has=!!item.catalogue?.code;
+    const item=items[def.key]||{};
+    if(API.isAutoComponent?.(eq.kind,def.key))return autoComponentRow(eq,prefix,def,item);
+    const has=!!item.catalogue?.code;
     const picker=cataloguePicker(`${prefix}.annexe2_items.${def.key}.catalogue`,`${prefix}.annexe2_items.${def.key}.price_ht`,def.context||'all',def.label,item.catalogue,true,def.q||'');
     return `<div class="annexe2-row selectable"><div class="annexe2-row-head"><div><strong>${esc(def.label)}</strong>${def.optional?'<small>Conditionnel / si non compris dans le produit principal</small>':'<small>À vérifier selon le produit principal choisi</small>'}</div><span class="annexe2-status ${has?'ok':'info'}">${has?'Référence associée':'Non renseigné'}</span></div>${picker}${has?`<div class="grid annexe2-fields">${numField('Quantité',`${prefix}.annexe2_items.${def.key}.quantite`,item.quantite??1,'c4',0,1)}${textField('Note / inclusion pack',`${prefix}.annexe2_items.${def.key}.note`,item.note,'c4','optionnel')}</div>`:''}</div>`;
   }).join('');
-  return `<details class="annexe2-panel"><summary>📋 Composition de l’équipement — ${defs.length} poste(s)</summary><div class="annexe2-body"><p class="muted">Les alimentations et raccords déjà calculés par le réseau ne sont pas doublés. Les composants complémentaires sont pris en compte uniquement lorsqu’ils sont réellement nécessaires.</p>${rows}</div></details>`;
+  return `<details class="annexe2-panel" open><summary>📋 Composition de l’équipement — ${defs.length} poste(s)</summary><div class="annexe2-body"><p class="muted">Les alimentations et raccords déjà calculés par le réseau ne sont pas doublés. Siphons et bondes des lavabos/vasques/lave-mains peuvent être préremplis automatiquement et restent modifiables.</p>${rows}</div></details>`;
 }
 
 function equipmentOptionBlock(path,label,help,body=''){
@@ -299,7 +327,7 @@ function equipmentEditor(eq,index,scope,pid=''){
 function equipmentRuleNote(eq){
   if(eq.kind==='wc')return `<div class="info compact-info">Réglages de base disponibles selon le type de WC. Ils restent modifiables appareil par appareil.</div>`;
   if(eq.kind==='lave_linge'||eq.kind==='lave_vaisselle')return `<div class="info compact-info">La prestation unitaire et le réseau associé sont pris en compte automatiquement.</div>`;
-  return `<div class="subtle">Le catalogue Téréva reste facultatif : sans référence choisie, SpeedArti compte automatiquement un prix moyen de la gamme sélectionnée. Le temps de pose reste ajustable par l’artisan.</div>`;
+  const auto=API.AUTO_COMPONENT_DEFAULTS?.[eq.kind];return `<div class="subtle">Le catalogue Téréva reste facultatif : sans référence principale choisie, SpeedArti compte automatiquement un prix moyen de la gamme sélectionnée. ${auto?'Les composants récurrents préremplis restent visibles et modifiables. ':''}Le temps de pose reste ajustable par l’artisan.</div>`;
 }
 function findPrestationIndex(id){return (d.petits_travaux.prestations||[]).findIndex(p=>p.id===id)}
 function smallWorkOptions(){
@@ -355,7 +383,7 @@ function renderCatalogueModal(){
   catalogueHost.innerHTML=`<div class="catalogue-overlay" data-close-catalogue-overlay><section class="catalogue-modal" role="dialog" aria-modal="true"><header><div><span class="eyebrow">Catalogue Plombier</span><h2>${esc(catalogueUi.label||'Choisir un produit')}</h2><p>${fmt(CAT.count)} références · ${CATALOGUE_VERSION}</p></div><button type="button" class="catalogue-close" data-close-catalogue aria-label="Fermer">×</button></header><div class="catalogue-toolbar"><div class="catalogue-search"><span>🔎</span><input id="catalogueSearchInput" value="${esc(catalogueUi.q)}" data-catalogue-search placeholder="Produit, marque, finition, référence ou code Téréva…"></div><div class="catalogue-filters"><select data-catalogue-filter="brand">${opt(f.brands,catalogueUi.brand,'Toutes les marques')}</select><select data-catalogue-filter="type">${opt(f.types,catalogueUi.type,'Tous les types')}</select><select data-catalogue-filter="finish">${opt(f.finishes,catalogueUi.finish,'Toutes les finitions')}</select></div></div><div class="catalogue-count">${results.length} résultat(s) affiché(s)${results.length===40?' — affinez la recherche pour aller plus loin':''}</div><div class="catalogue-results">${results.length?results.map(a=>`<article class="catalogue-result"><div class="catalogue-result-main"><div class="row wrap"><span class="catalogue-brand">${esc(a.marque||'À identifier')}</span><span class="catalogue-type">${esc(a.type||'')}</span></div><h3>${esc(a.produit||'Référence catalogue')}</h3>${a.variante?`<p>${esc(a.variante)}</p>`:''}${a.finition?`<p>Finition : <b>${esc(a.finition)}</b></p>`:''}<small>Réf. fabricant ${esc(a.ref_fab||'—')} · Code Téréva <b>${esc(a.code||'—')}</b> · ${esc(a.source||'')}</small></div><div class="catalogue-result-action"><strong class="catalogue-price ${a.prix==null?'missing':''}">${a.prix==null?'Prix manquant':eur(a.prix)}</strong><button type="button" class="btn primary compact" data-select-catalogue-index="${a.__index}">Sélectionner</button></div></article>`).join(''):`<div class="empty-state">Aucun article ne correspond à ces critères.</div>`}</div><footer class="catalogue-modal-footer"><span>Le prix sélectionné est le prix exact de la base Téréva -20 %. La gamme ne le remultiplie pas.</span><button type="button" class="btn secondary" data-close-catalogue>Fermer</button></footer></section></div>`;
 }
 function openCatalogueFrom(el){
-  catalogueUi={open:true,target:el.dataset.catalogueTarget||'',pricePath:el.dataset.cataloguePricePath||'',context:el.dataset.catalogueContext||'all',label:el.dataset.catalogueLabel||'Choisir un produit',q:el.dataset.catalogueQ||'',brand:'',type:'',finish:'',mode:el.dataset.catalogueMode||'replace'};
+  catalogueUi={open:true,target:el.dataset.catalogueTarget||'',pricePath:el.dataset.cataloguePricePath||'',context:el.dataset.catalogueContext||'all',label:el.dataset.catalogueLabel||'Choisir un produit',q:el.dataset.catalogueQ||'',brand:'',type:'',finish:'',mode:el.dataset.catalogueMode||'replace',autoQty:Number(el.dataset.catalogueAutoQty||0)};
   renderCatalogueModal();setTimeout(()=>q('#catalogueSearchInput')?.focus(),0);
 }
 function closeCatalogue(){catalogueUi.open=false;if(catalogueRenderTimer){clearTimeout(catalogueRenderTimer);catalogueRenderTimer=null}renderCatalogueModal()}
@@ -381,7 +409,7 @@ function catalogueClickHandler(e){
     if(catalogueUi.mode==='append'){
       const target=catalogueUi.target||'options.articles_libres';let arr=get(d,target);if(!Array.isArray(arr))arr=[];arr.push({catalogue:sel,price_ht:sel.prix,quantite:1});set(d,target,arr);
     }else{
-      set(d,catalogueUi.target,sel);if(catalogueUi.pricePath)set(d,catalogueUi.pricePath,sel.prix==null?undefined:sel.prix);const a2=catalogueUi.target.match(/^(.*\.annexe2_items\.[^.]+)\.catalogue$/);if(a2&&get(d,`${a2[1]}.quantite`)==null)set(d,`${a2[1]}.quantite`,1);syncCatalogueSelectionToUi(catalogueUi.target,sel);
+      set(d,catalogueUi.target,sel);if(catalogueUi.pricePath)set(d,catalogueUi.pricePath,sel.prix==null?undefined:sel.prix);const a2=catalogueUi.target.match(/^(.*\.annexe2_items\.[^.]+)\.catalogue$/);if(a2&&get(d,`${a2[1]}.quantite`)==null)set(d,`${a2[1]}.quantite`,catalogueUi.autoQty>0?catalogueUi.autoQty:1);syncCatalogueSelectionToUi(catalogueUi.target,sel);
     }
     save(false);closeCatalogue();render();flash(`Référence Téréva ${sel.code} sélectionnée`,'ok');return;
   }
