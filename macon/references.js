@@ -8,6 +8,10 @@ export const PREFAB_H_PER_ML = { standard:1.55, hauteur_importante:1.90, lourd_c
 export const TRUCK_8X4_DEFAULT = 800;
 export const CONCRETE_CLASSES = ['C20/25','C25/30','C30/37','C35/45'];
 
+export const MASONRY_DEFAULTS = Object.freeze({
+  parpaing:Object.freeze({blocksPerM2:10,wallHPerM2:0.8})
+});
+
 // Référentiel métier Guillaume — valeurs commerciales / de chiffrage, jamais dimensionnement structurel.
 export const TREILLIS_GUILLAUME = {
   ST10:{label:'ST10',diametre:'5,5 mm',maille:'200 × 200',usage:'Petites dalles',priceM2:2.00,hPerM2:0.12},
