@@ -320,10 +320,10 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
     if(hasCatalogue(sel)){if(n(manualPrice,0)>0&&(sel.price_overridden||n(sel.prix,0)<=0))return {price:n(manualPrice),manual:true};return {price:n(sel.prix,0),manual:false}}
     return {price:n(manualPrice,0),manual:n(manualPrice,0)>0};
   }
-  function addNetworkUnit(lines,alerts,{id,label,qty,sel,manualPrice,uiBase}){
+  function addNetworkUnit(lines,alerts,{id,label,qty,sel,manualPrice,uiBase,category='Réseau'}){
     if(qty<=0)return;const pr=pricedSelection(sel,manualPrice);checkCatalogueSelection(sel,manualPrice,label,alerts);
-    if(pr.price>0){const extra=hasCatalogue(sel)?catalogueExtra(sel,`${uiBase}_catalogue`,pr.manual):{source:'saisie artisan',balise_ui:`${uiBase}_price_ht`,balise_prix:'manuel'};lines.push(line(id,hasCatalogue(sel)?(sel.produit||label):label,pr.price,qty,'unité','Réseau',{stockable:true,...extra}))}
-    else {lines.push(line(id,label,0,qty,'unité','Réseau',{stockable:true,source:'saisie requise',balise_ui:`${uiBase}_price_ht`,balise_prix:'manquant'}));alerts.push(`BALISE PRIX : prix catalogue ou manuel manquant pour « ${label} » (${qty} unité(s)).`)}
+    if(pr.price>0){const extra=hasCatalogue(sel)?catalogueExtra(sel,`${uiBase}_catalogue`,pr.manual):{source:'saisie artisan',balise_ui:`${uiBase}_price_ht`,balise_prix:'manuel'};lines.push(line(id,hasCatalogue(sel)?(sel.produit||label):label,pr.price,qty,'unité',category,{stockable:true,...extra}))}
+    else {lines.push(line(id,label,0,qty,'unité',category,{stockable:true,source:'saisie requise',balise_ui:`${uiBase}_price_ht`,balise_prix:'manquant'}));alerts.push(`BALISE PRIX : prix catalogue ou manuel manquant pour « ${label} » (${qty} unité(s)).`)}
   }
 
   function equipmentDefaults(eq){
@@ -510,8 +510,20 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
     const zones=d.installation?.zones;
     const hasZoneModel=!!zones;
     const noSanitaryZones=hasZoneModel?((zones.rdc_sans?1:0)+(zones.r1_sans?1:0)):0;
-    let efPoints=0,ecPoints=0,evacPoints=0,wcEvacPoints=0;
-    equipments.forEach(eq=>{const p=connectionProfile(eq);if(p.ef)efPoints++;if(p.ec)ecPoints++;if(p.evac){evacPoints++;if(eq.kind==='wc')wcEvacPoints++}});
+    let efPoints=0,ecPoints=0,evacPoints=0,wcEvacPoints=0,sanitaryEvacPoints=0,specificEvacPoints=0;
+    equipments.forEach(eq=>{
+      const p=connectionProfile(eq);
+      if(p.ef)efPoints++;
+      if(p.ec)ecPoints++;
+      if(p.evac){
+        evacPoints++;
+        if(eq.kind==='element_specifique')specificEvacPoints++;
+        else {
+          sanitaryEvacPoints++;
+          if(eq.kind==='wc')wcEvacPoints++;
+        }
+      }
+    });
     const ann=d.installation?.annexe1||{};
     const waitRdc=n(ann.attente_rdc,0),waitR1=n(ann.attente_r1,0);
     if(hasZoneModel){
@@ -533,15 +545,24 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
     const fittingUnits=waterEquipments+standaloneWaterPoints;
     const autoEF=efPoints*8;
     const autoEC=ecPoints*8+(hasHotBathroom?n(net.distance_ce_sdb,5):0)+(hasHotKitchen?n(net.distance_ce_cuisine,8):0);
-    const autoEvac=evacPoints*1;
+    const generalEvacPoints=Math.max(0,evacPoints-sanitaryEvacPoints);
+    const autoLocalEvac=sanitaryEvacPoints*1;
+    const autoGeneralEvac=generalEvacPoints*1;
+    const autoEvac=autoLocalEvac+autoGeneralEvac;
     const ef=net.manual_ef_ml!==undefined&&net.manual_ef_ml!==null&&net.manual_ef_ml!==''?n(net.manual_ef_ml):autoEF;
     const ec=net.manual_ec_ml!==undefined&&net.manual_ec_ml!==null&&net.manual_ec_ml!==''?n(net.manual_ec_ml):autoEC;
-    const evac=net.manual_evac_ml!==undefined&&net.manual_evac_ml!==null&&net.manual_evac_ml!==''?n(net.manual_evac_ml):autoEvac;
-    // 1 ml d'évacuation par sanitaire = raccordement local compris dans le temps sanitaire.
-    // Toute longueur au-delà, ainsi que les éléments spécifiques / zones réseau seul, relève du réseau général.
-    const sanitaryLocalEvacPoints=equipments.filter(eq=>eq.kind!=='element_specifique'&&connectionProfile(eq).evac).length;
-    const localEvacForLabor=Math.min(Math.max(0,evac),sanitaryLocalEvacPoints*1);
-    const generalEvacForLabor=Math.max(0,r2(evac-localEvacForLabor));
+    const legacyEvacManual=net.manual_evac_ml!==undefined&&net.manual_evac_ml!==null&&net.manual_evac_ml!=='';
+    const explicitLocal=net.manual_evac_local_ml!==undefined&&net.manual_evac_local_ml!==null&&net.manual_evac_local_ml!=='';
+    const explicitGeneral=net.manual_evac_general_ml!==undefined&&net.manual_evac_general_ml!==null&&net.manual_evac_general_ml!=='';
+    const legacyEvacAmbiguous=legacyEvacManual&&sanitaryEvacPoints>0&&generalEvacPoints>0&&!explicitLocal&&!explicitGeneral;
+    const localEvac=explicitLocal?n(net.manual_evac_local_ml):(!explicitGeneral&&legacyEvacManual&&generalEvacPoints===0?n(net.manual_evac_ml):autoLocalEvac);
+    const generalEvac=explicitGeneral?n(net.manual_evac_general_ml):(!explicitLocal&&legacyEvacManual&&sanitaryEvacPoints===0?n(net.manual_evac_ml):autoGeneralEvac);
+    const evac=r2(Math.max(0,localEvac)+Math.max(0,generalEvac));
+    // Guillaume : le raccordement local sanitaire reste local même si l'artisan modifie sa longueur.
+    // Le réseau général n'est jamais déduit d'un "surplus" de longueur sanitaire : il vient uniquement
+    // des points réseau/sans sanitaire ou d'un élément spécifique.
+    const localEvacForLabor=Math.max(0,localEvac);
+    const generalEvacForLabor=Math.max(0,generalEvac);
 
     // Accessoires proposés automatiquement à partir des appareils et des zones réseau seul.
     let autoPlatineEf=0,autoPlatineEc=0,autoPlatineEfEc=0,autoPlatineEvac=0;
@@ -551,19 +572,34 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
     }else{
       autoPlatineEf+=n(net.platines_ef,0);autoPlatineEc+=n(net.platines_ec,0);autoPlatineEfEc+=n(net.platines_ef_ec,0);autoPlatineEvac+=n(net.platines_evac,0);
     }
+    const autoPlatineEvacWc=wcEvacPoints;
+    const autoPlatineEvacOther=Math.max(0,sanitaryEvacPoints-wcEvacPoints);
+    const autoPlatineEvacGeneral=Math.max(0,autoPlatineEvac-sanitaryEvacPoints);
     const useOverride=(k,auto)=>net[k]!==undefined&&net[k]!==null&&net[k]!==''?Math.max(0,n(net[k])):auto;
     const platineEf=useOverride('manual_platine_ef_qty',autoPlatineEf);
     const platineEc=useOverride('manual_platine_ec_qty',autoPlatineEc);
     const platineEfEc=useOverride('manual_platine_ef_ec_qty',autoPlatineEfEc);
-    const platineEvac=useOverride('manual_platine_evac_qty',autoPlatineEvac);
+    const hasLegacyPlatineEvac=net.manual_platine_evac_qty!==undefined&&net.manual_platine_evac_qty!==null&&net.manual_platine_evac_qty!=='';
+    const hasNewEvacOverrides=(net.manual_platine_evac_wc_qty!==undefined&&net.manual_platine_evac_wc_qty!==null&&net.manual_platine_evac_wc_qty!=='')||(net.manual_platine_evac_other_qty!==undefined&&net.manual_platine_evac_other_qty!==null&&net.manual_platine_evac_other_qty!=='');
+    let platineEvacWc=useOverride('manual_platine_evac_wc_qty',autoPlatineEvacWc);
+    let platineEvacOther=useOverride('manual_platine_evac_other_qty',autoPlatineEvacOther);
+    const legacyPlatineEvacAmbiguous=hasLegacyPlatineEvac&&autoPlatineEvacWc>0&&autoPlatineEvacOther>0&&!hasNewEvacOverrides;
+    if(hasLegacyPlatineEvac&&!hasNewEvacOverrides&&!legacyPlatineEvacAmbiguous&&autoPlatineEvacGeneral===0){
+      const legacyTotal=Math.max(0,n(net.manual_platine_evac_qty));
+      if(autoPlatineEvacWc>0)platineEvacWc=legacyTotal;
+      else platineEvacOther=legacyTotal;
+    }
+    const platineEvacGeneral=autoPlatineEvacGeneral;
+    const platineEvac=platineEvacWc+platineEvacOther+platineEvacGeneral;
     const autoFittings=Math.ceil(fittingUnits*6*1.1);
     const fittings=useOverride('manual_fitting_qty',autoFittings);
     const autoStopValves=equipments.reduce((sum,eq)=>sum+stopValveCount(eq),0);
     const stopValves=useOverride('manual_stop_valve_qty',autoStopValves);
 
-    return {efPoints,ecPoints,evacPoints,fittingUnits,autoEF,autoEC,autoEvac,ef,ec,evac,hasHotBathroom,hasHotKitchen,
-      sanitaryLocalEvacPoints,localEvacForLabor,generalEvacForLabor,
-      noSanitaryZones,wcEvacPoints,otherEvacPoints:Math.max(0,evacPoints-wcEvacPoints),autoPlatineEf,autoPlatineEc,autoPlatineEfEc,autoPlatineEvac,platineEf,platineEc,platineEfEc,platineEvac,
+    return {efPoints,ecPoints,evacPoints,fittingUnits,autoEF,autoEC,autoEvac,autoLocalEvac,autoGeneralEvac,ef,ec,evac,localEvac,generalEvac,hasHotBathroom,hasHotKitchen,
+      sanitaryLocalEvacPoints:sanitaryEvacPoints,sanitaryEvacPoints,specificEvacPoints,generalEvacPoints,localEvacForLabor,generalEvacForLabor,legacyEvacAmbiguous,
+      noSanitaryZones,wcEvacPoints,otherEvacPoints:Math.max(0,sanitaryEvacPoints-wcEvacPoints),autoPlatineEf,autoPlatineEc,autoPlatineEfEc,autoPlatineEvac,autoPlatineEvacWc,autoPlatineEvacOther,autoPlatineEvacGeneral,
+      platineEf,platineEc,platineEfEc,platineEvac,platineEvacWc,platineEvacOther,platineEvacGeneral,legacyPlatineEvacAmbiguous,
       autoFittings,fittings,autoStopValves,stopValves};
   }
 
@@ -616,41 +652,47 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
       }
     }
 
-    // Évacuation : DN100 pour WC, DN40 pour les autres appareils/points. Les longueurs manuelles sont réparties proportionnellement aux points automatiques.
-    if(network.evac>0){
-      const totalPts=Math.max(1,network.evacPoints);const wcShare=Math.min(1,network.wcEvacPoints/totalPts);
-      const wcMl=r2(network.evac*wcShare),otherMl=r2(network.evac-wcMl);
-      if(otherMl>0)lines.push(line('evac_pvc40',TECH_REF.pvc40.produit+' DN40',TECH_REF.pvc40.prix,otherMl,'ml','Réseau',{stockable:true,...technicalCatalogueExtra(TECH_REF.pvc40,'installation.network.manual_evac_ml')}));
-      if(wcMl>0)lines.push(line('evac_pvc100',TECH_REF.pvc100.produit+' DN100',TECH_REF.pvc100.prix,wcMl,'ml','Réseau',{stockable:true,...technicalCatalogueExtra(TECH_REF.pvc100,'installation.network.manual_evac_ml')}));
+    // Évacuation locale sanitaire : DN100 pour WC, DN40 pour les autres sanitaires.
+    // Le réseau général reste séparé : aucun diamètre/raccord n'est inventé sans information explicite.
+    if(network.localEvac>0&&network.sanitaryEvacPoints>0){
+      const wcShare=Math.min(1,network.wcEvacPoints/Math.max(1,network.sanitaryEvacPoints));
+      const wcMl=r2(network.localEvac*wcShare),otherMl=r2(network.localEvac-wcMl);
+      if(otherMl>0)lines.push(line('evac_local_pvc40',TECH_REF.pvc40.produit+' DN40 — raccordement local',TECH_REF.pvc40.prix,otherMl,'ml','Raccordement local sanitaire',{stockable:true,...technicalCatalogueExtra(TECH_REF.pvc40,'installation.network.manual_evac_local_ml')}));
+      if(wcMl>0)lines.push(line('evac_local_pvc100',TECH_REF.pvc100.produit+' DN100 — raccordement local WC',TECH_REF.pvc100.prix,wcMl,'ml','Raccordement local sanitaire',{stockable:true,...technicalCatalogueExtra(TECH_REF.pvc100,'installation.network.manual_evac_local_ml')}));
     }
+    if(network.generalEvac>0){
+      alerts.push('BALISE ÉVACUATION GÉNÉRALE : une longueur de réseau général/spécifique est présente, mais aucun diamètre n’est défini. Créer/configurer un élément spécifique avec le diamètre/référence adéquat avant finalisation.');
+    }
+    if(network.legacyEvacAmbiguous)alerts.push('BALISE MIGRATION ÉVACUATION : une ancienne valeur globale d’évacuation ne peut pas être répartie automatiquement entre raccordement local et réseau général. Confirmer les deux longueurs séparément.');
+    if(network.legacyPlatineEvacAmbiguous)alerts.push('BALISE MIGRATION RACCORD ÉVACUATION : une ancienne quantité globale de raccordements ne peut pas être répartie automatiquement entre DN100 WC et DN40 autres sanitaires. Confirmer les deux quantités séparément.');
 
     const chosenSingle=net.platine_ef_catalogue||net.platine_ec_catalogue;
     const singleTech=pipeTech.platine_simple;const doubleTech=pipeTech.platine_double;
-    const addAutoUnit=(id,label,qty,selected,manualPrice,tech,uiBase)=>{
+    const addAutoUnit=(id,label,qty,selected,manualPrice,tech,uiBase,category='Réseau')=>{
       if(qty<=0)return;
-      if(hasCatalogue(selected)||n(manualPrice,0)>0)return addNetworkUnit(lines,alerts,{id,label,qty,sel:selected,manualPrice,uiBase});
-      if(tech&&n(tech.prix,0)>0)lines.push(line(id,tech.produit||label,tech.prix,qty,'unité','Réseau',{stockable:true,...technicalCatalogueExtra(tech,`${uiBase}_catalogue`)}));
-      else addNetworkUnit(lines,alerts,{id,label,qty,sel:selected,manualPrice,uiBase});
+      if(hasCatalogue(selected)||n(manualPrice,0)>0)return addNetworkUnit(lines,alerts,{id,label,qty,sel:selected,manualPrice,uiBase,category});
+      if(tech&&n(tech.prix,0)>0)lines.push(line(id,tech.produit||label,tech.prix,qty,'unité',category,{stockable:true,...technicalCatalogueExtra(tech,`${uiBase}_catalogue`)}));
+      else addNetworkUnit(lines,alerts,{id,label,qty,sel:selected,manualPrice,uiBase,category});
     };
-    addAutoUnit('platine_ef','Platine sanitaire EF',network.platineEf,net.platine_ef_catalogue,net.platine_ef_price_ht,singleTech,'installation.network.platine_ef');
-    addAutoUnit('platine_ec','Platine sanitaire EC',network.platineEc,net.platine_ec_catalogue,net.platine_ec_price_ht,singleTech,'installation.network.platine_ec');
-    addAutoUnit('platine_ef_ec','Platine sanitaire EF + EC',network.platineEfEc,net.platine_ef_ec_catalogue,net.platine_ef_ec_price_ht,doubleTech,'installation.network.platine_ef_ec');
-    const evacTech=network.wcEvacPoints>0&&network.otherEvacPoints===0?TECH_REF.evac100:TECH_REF.evac40;
-    addAutoUnit('platine_evac','Raccordement évacuation',network.platineEvac,net.platine_evac_catalogue,net.platine_evac_price_ht,evacTech,'installation.network.platine_evac');
+    addAutoUnit('platine_ef','Platine sanitaire EF',network.platineEf,net.platine_ef_catalogue,net.platine_ef_price_ht,singleTech,'installation.network.platine_ef','Raccordement local sanitaire');
+    addAutoUnit('platine_ec','Platine sanitaire EC',network.platineEc,net.platine_ec_catalogue,net.platine_ec_price_ht,singleTech,'installation.network.platine_ec','Raccordement local sanitaire');
+    addAutoUnit('platine_ef_ec','Platine sanitaire EF + EC',network.platineEfEc,net.platine_ef_ec_catalogue,net.platine_ef_ec_price_ht,doubleTech,'installation.network.platine_ef_ec','Raccordement local sanitaire');
+    addAutoUnit('platine_evac_wc','Raccordement évacuation WC DN100',network.platineEvacWc,net.platine_evac_wc_catalogue,net.platine_evac_wc_price_ht,TECH_REF.evac100,'installation.network.platine_evac_wc','Raccordement local sanitaire');
+    addAutoUnit('platine_evac_other','Raccordement évacuation autres sanitaires DN40',network.platineEvacOther,net.platine_evac_other_catalogue,net.platine_evac_other_price_ht,TECH_REF.evac40,'installation.network.platine_evac_other','Raccordement local sanitaire');
 
     const fittingQty=network.fittings;
     if(fittingQty>0){
       const sel=net.fitting_catalogue;const pr=pricedSelection(sel,net.fitting_price_ht);checkCatalogueSelection(sel,net.fitting_price_ht,`Raccords ${pipe}`,alerts);
       if(hasCatalogue(sel)&&!fittingCompatible(sel,pipe))alerts.push(`BALISE COMPATIBILITÉ : la référence raccord Téréva ${sel.code} n’est pas compatible avec le réseau ${pipe.toUpperCase()}.`);
-      if(pr.price>0)lines.push(line(`raccords_${pipe}`,hasCatalogue(sel)?(sel.produit||`Raccords ${pipe}`):`Raccords ${pipe}`,pr.price,fittingQty,'unité','Réseau',{stockable:true,...(hasCatalogue(sel)?catalogueExtra(sel,'installation.network.fitting_catalogue',pr.manual):{source:'saisie artisan',balise_ui:'installation.network.fitting_price_ht',balise_prix:'manuel'})}));
-      else if(pipeTech.raccord&&n(pipeTech.raccord.prix,0)>0)lines.push(line(`raccords_${pipe}`,pipeTech.raccord.produit,pipeTech.raccord.prix,fittingQty,'unité','Réseau',{stockable:true,...technicalCatalogueExtra(pipeTech.raccord,'installation.network.fitting_catalogue')}));
+      if(pr.price>0)lines.push(line(`raccords_${pipe}`,hasCatalogue(sel)?(sel.produit||`Raccords ${pipe}`):`Raccords ${pipe}`,pr.price,fittingQty,'unité','Raccordements EF/EC',{stockable:true,...(hasCatalogue(sel)?catalogueExtra(sel,'installation.network.fitting_catalogue',pr.manual):{source:'saisie artisan',balise_ui:'installation.network.fitting_price_ht',balise_prix:'manuel'})}));
+      else if(pipeTech.raccord&&n(pipeTech.raccord.prix,0)>0)lines.push(line(`raccords_${pipe}`,pipeTech.raccord.produit,pipeTech.raccord.prix,fittingQty,'unité','Raccordements EF/EC',{stockable:true,...technicalCatalogueExtra(pipeTech.raccord,'installation.network.fitting_catalogue')}));
       else alerts.push(`Référence réseau indisponible pour les raccords ${pipe}.`);
     }
     const stopValves=network.stopValves;
     if(stopValves>0){
       const sel=net.stop_valve_catalogue;const pr=pricedSelection(sel,net.stop_valve_price_ht);checkCatalogueSelection(sel,net.stop_valve_price_ht,'Robinets d’arrêt',alerts);
-      if(pr.price>0)lines.push(line('robinets_arret',hasCatalogue(sel)?(sel.produit||'Robinets d’arrêt'):'Robinets d’arrêt',pr.price,stopValves,'unité','Réseau',{stockable:true,...(hasCatalogue(sel)?catalogueExtra(sel,'installation.network.stop_valve_catalogue',pr.manual):{source:'saisie artisan',balise_ui:'installation.network.stop_valve_price_ht',balise_prix:'manuel'})}));
-      else lines.push(line('robinets_arret',TECH_REF.stop.produit,TECH_REF.stop.prix,stopValves,'unité','Réseau',{stockable:true,...technicalCatalogueExtra(TECH_REF.stop,'installation.network.stop_valve_catalogue')}));
+      if(pr.price>0)lines.push(line('robinets_arret',hasCatalogue(sel)?(sel.produit||'Robinets d’arrêt'):'Robinets d’arrêt',pr.price,stopValves,'unité','Raccordement local sanitaire',{stockable:true,...(hasCatalogue(sel)?catalogueExtra(sel,'installation.network.stop_valve_catalogue',pr.manual):{source:'saisie artisan',balise_ui:'installation.network.stop_valve_price_ht',balise_prix:'manuel'})}));
+      else lines.push(line('robinets_arret',TECH_REF.stop.produit,TECH_REF.stop.prix,stopValves,'unité','Raccordement local sanitaire',{stockable:true,...technicalCatalogueExtra(TECH_REF.stop,'installation.network.stop_valve_catalogue')}));
     }
 
     const networkLengthForLabor=network.ef+network.ec+network.generalEvacForLabor;
@@ -815,7 +857,7 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
       : [{poste:'Main-d’œuvre calculée',temps_heures:r2(laborHours),montant_ht:r2(laborTotal)}];
     return {
       mode,
-      surfaces:{totale:n(d.installation?.surface_maison_m2,0),nette:0,avec_pertes:0,detail_par_face:network?{EF_ml:r2(network.ef),EC_ml:r2(network.ec),evac_ml:r2(network.evac),points_EF:network.efPoints,points_EC:network.ecPoints,points_evac:network.evacPoints,platines_EF:network.platineEf,platines_EC:network.platineEc,platines_EF_EC:network.platineEfEc,platines_evac:network.platineEvac,raccords:network.fittings,robinets_arret:network.stopValves}:{}},
+      surfaces:{totale:n(d.installation?.surface_maison_m2,0),nette:0,avec_pertes:0,detail_par_face:network?{EF_ml:r2(network.ef),EC_ml:r2(network.ec),evac_ml:r2(network.evac),evac_locale_ml:r2(network.localEvac),evac_generale_ml:r2(network.generalEvac),points_EF:network.efPoints,points_EC:network.ecPoints,points_evac:network.evacPoints,platines_EF:network.platineEf,platines_EC:network.platineEc,platines_EF_EC:network.platineEfEc,platines_evac:network.platineEvac,evac_WC_DN100:network.platineEvacWc,evac_autres_DN40:network.platineEvacOther,raccords:network.fittings,robinets_arret:network.stopValves}:{}},
       materiaux:lines,
       main_oeuvre:{temps_estime_heures:r2(laborHours/workers),heures_homme:r2(laborHours),decomposition:[...decompositionBase,...(aleasHt>0?[{poste:'Aléas — 4 % de la main-d’œuvre HT',taux:4,montant_ht:r2(aleasHt)}]:[])],taux_horaire:n(d.options?.taux_horaire,52),nombre_ouvriers:workers,coefficient_complexite:complexiteCoef(d),cout_avant_aleas:r2(laborTotal),aleas_taux:aleasHt>0?4:0,aleas_ht:r2(aleasHt),cout_total:r2(laborTotal+aleasHt),balises:{heures_homme:r2(laborHours),taux_horaire:n(d.options?.taux_horaire,52),complexite:complexiteCoef(d),aleas_taux:aleasHt>0?4:0,aleas_ht:r2(aleasHt),formule:`${r2(laborHours)} × ${n(d.options?.taux_horaire,52)} × ${complexiteCoef(d)}${aleasHt>0?' + 4 % aléas MO':''}`}},
       totaux:{materiaux_ht:r2(lines.reduce((s,l)=>s+l.total_ht,0)),main_oeuvre_ht_avant_aleas:r2(laborTotal),aleas_ht:r2(aleasHt),main_oeuvre_ht:r2(laborTotal+aleasHt),total_ht:r2(ht),taux_tva:tvaRate,tva:r2(tva),total_ttc:r2(ht+tva)},
