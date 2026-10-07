@@ -1,15 +1,17 @@
-# SpeedArti — Plombier v0.6.8 — Contrôle ciblé
+# SpeedArti — Plombier v0.6.9 — Contrôle ciblé
 
 Date : 2026-10-07
 
-La suite logique complète passe à **553 / 553 assertions**.
+La suite logique complète passe à **580 / 580 assertions**.
 
-Points ciblés du sprint :
-- WC + douche : séparation effective DN100 / DN40 ;
-- raccordements locaux classés côté sanitaire ;
-- aucune référence DN40 silencieuse sur un WC ;
-- aucun diamètre inventé pour un réseau général/spécifique ;
-- longueur locale modifiée conservée comme locale ;
-- réponses Ángel cohérentes avec le moteur v0.6.8.
+Contrôle ciblé du sprint :
+- douche standard / extra-plate / italienne ;
+- baignoire ;
+- évier simple / double ;
+- WC à poser / suspendu ;
+- absence de référence automatique lorsqu'un choix dépend réellement de la pose ;
+- suppression du double comptage lorsqu'un composant est déclaré compris dans le produit principal ;
+- préférences entreprise ;
+- réponses Ángel Plombier v1.4 cohérentes avec le moteur.
 
 Le parcours visuel complet dans un navigateur réel reste à faire séparément avant validation ergonomique finale.
