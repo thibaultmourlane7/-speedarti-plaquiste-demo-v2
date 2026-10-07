@@ -48,13 +48,16 @@ function normalizeValue(el){
 }
 function bindDataField(el,obj,path,rerender=false){
   el.addEventListener('change',()=>{
-    setPath(obj,path,normalizeValue(el));
+    const value=normalizeValue(el);
+    setPath(obj,path,value);
+    if(path==='stack'){if(value&&!(num(obj.stackCount)>0))obj.stackCount=1;if(!value)obj.stackCount=0;}
+    if(path==='cap'){if(value&&!(num(obj.capCount)>0))obj.capCount=1;if(!value)obj.capCount=0;}
     saveState();
     if(rerender||el.type==='checkbox'||el.tagName==='SELECT')render();
   });
 }
 function resetSimple(){
-  state.simple={openings:[],refOverrides:{},chimneyOverrides:{},count:1,wallKind:'mur',concreteClass:''};
+  state.simple=structuredClone(defaultState().simple);
 }
 function findElement(id){return state.elements.find(e=>e.id===id);}
 function splitPair(v){const [id,idx]=String(v).split(':');return [id,Number(idx)];}
