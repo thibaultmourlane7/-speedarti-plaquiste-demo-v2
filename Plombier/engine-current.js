@@ -293,7 +293,7 @@
   }
 
   function addAnnexe2SelectedItems(eq,uiPath,alerts){
-    const out=[];const items=eq.annexe2_items||{};const allowed=new Map(annexe2For(eq.kind,eq.subtype).filter(x=>x.role==='selectable').map(x=>[x.key,x]));
+    const out=[];const items=eq.annexe2_items||{};const allowed=new Map(annexe2For(eq.kind,eq.subtype).filter(x=>x.role==='selectable'&&!(x.key==='mitigeur'&&(eq.kind==='meuble_vasque'||eq.kind==='lave_main'))).map(x=>[x.key,x]));
     Object.entries(items).forEach(([key,item])=>{
       const def=allowed.get(key);if(!def)return;
       const sel=item?.catalogue;const qty=n(item?.quantite,0);const manual=n(item?.price_ht,0);
@@ -332,7 +332,11 @@
         else if(def.dedicated==='paroi')status=eq.paroi?(hasCatalogue(eq.paroi_catalogue)?'option catalogue sélectionnée':'option activée à renseigner'):'non activé';
         else if(def.dedicated==='spec')status=eq.spec_mode?'prestation étanchéité sélectionnée':'non activé';
       }else if(def.role==='selectable'){
-        selected=items[def.key]?.catalogue||null;status=hasCatalogue(selected)?'référence associée':(def.optional?'conditionnel / non renseigné':'non renseigné');
+        if(def.key==='mitigeur'&&(eq.kind==='meuble_vasque'||eq.kind==='lave_main')){
+          selected=eq.robinet_catalogue||null;status=eq.robinet?(hasCatalogue(selected)?'géré par option robinetterie':'option robinetterie activée à renseigner'):'géré par option robinetterie';
+        }else{
+          selected=items[def.key]?.catalogue||null;status=hasCatalogue(selected)?'référence associée':(def.optional?'conditionnel / non renseigné':'non renseigné');
+        }
       }
       return {key:def.key,label:def.label,role:def.role,optional:!!def.optional,status,catalogue_code:selected?.code||'',catalogue_marque:selected?.marque||''};
     });
