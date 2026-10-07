@@ -5,7 +5,7 @@ for(const f of ['catalogue-data.js','catalogue-service.js','engine-current.js','
 const CAT=global.SpeedArtiCatalogueService,API=global.SpeedArtiPlombierCurrent,ANGEL=global.SpeedArtiAngelPlombierKnowledge,DB=global.SpeedArtiCataloguePlombier;
 let ok=0;function assert(cond,msg){if(!cond)throw new Error(`ASSERT ${ok+1}: ${msg}`);ok++}
 function approx(a,b,t=.011){return Math.abs(Number(a)-Number(b))<=t}
-function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.6.9',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{},services:{},component_preferences:{}}}}
+function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.7.0',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{},services:{},component_preferences:{}}}}
 function selectFirst(ctx,pred=()=>true){const a=CAT.search({context:ctx,limit:100}).find(x=>x.prix>0&&x.code&&pred(x));assert(!!a,`Référence exploitable contexte ${ctx}`);return CAT.selection(a)}
 function netRefs(d){const ctx=d.options.type_tuyau==='cuivre'?'raccord_cuivre':d.options.type_tuyau==='multicouche'?'raccord_multicouche':'raccord_per';d.installation.network.fitting_catalogue=selectFirst(ctx);d.installation.network.stop_valve_catalogue=selectFirst('robinet_arret');}
 
@@ -189,7 +189,7 @@ assert(approx(r1.controle_balises.tva_controlee,r1.totaux.tva),'Contrôle TVA = 
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const posData=html.indexOf('catalogue-data.js'),posService=html.indexOf('catalogue-service.js'),posEngine=html.indexOf('engine-current.js'),posAngel=html.indexOf('angel-knowledge.js'),posApp=html.indexOf('app.js');
 assert(posData>0&&posData<posService&&posService<posEngine&&posEngine<posAngel&&posAngel<posApp,'Ordre de chargement catalogue -> service -> moteur -> Angel -> app');
-assert(/v0\.6\.9/.test(html),'HTML annonce v0.6.9');
+assert(/v0\.7\.0/.test(html),'HTML annonce v0.7.0');
 
 // 22. Contrôles statiques UI / absence de règles cachées
 const appSrc=fs.readFileSync(path.join(root,'app.js'),'utf8'),engSrc=fs.readFileSync(path.join(root,'engine-current.js'),'utf8'),catSrc=fs.readFileSync(path.join(root,'catalogue-service.js'),'utf8');
@@ -307,8 +307,8 @@ assert(engSrc.includes("version:'BALISES-ABSOLUES-v1.8'"),'Moteur balises v1.8')
 
 
 // 29. Correctifs v0.5.2 issus du contrôle humain
-assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v069'"),'Clé de sauvegarde propre v0.6.9');
-assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v068','speedarti-plombier-demo-v067'"),'Migration des anciens brouillons prévue');
+assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v070'"),'Clé de sauvegarde propre v0.7.0');
+assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v069','speedarti-plombier-demo-v068'"),'Migration du brouillon v0.6.9 prévue');
 assert(appSrc.includes('function migrateLegacyDraft'),'Fonction de migration brouillon présente');
 assert(appSrc.includes("delete p.duration_h"),'Migration supprime les anciennes durées CE non validées');
 assert(appSrc.includes("catalogueRenderTimer=setTimeout"),'Recherche catalogue saisie rapide temporisée');
@@ -439,7 +439,7 @@ for(const [kind,price] of Object.entries(avgExpected)){
 }
 const avgLavEco=API.equipmentAveragePrice({kind:'lavabo'},'eco'),avgLavPremium=API.equipmentAveragePrice({kind:'lavabo'},'premium');
 assert(approx(avgLavEco.price,82.66)&&approx(avgLavPremium.price,231.37),'Gammes Éco/Premium lavabo exposées');
-assert(ANGEL&&ANGEL.version==='PLB-ANGEL-KB-v1.4','Base de connaissances Angel Plombier chargée');
+assert(ANGEL&&ANGEL.version==='PLB-ANGEL-KB-v1.5','Base de connaissances Angel Plombier chargée');
 assert(ANGEL.search('prix lavabo sans catalogue',3).some(x=>x.id==='PLB-PRIX-LAVABO'),'Angel retrouve la règle de prix lavabo sans catalogue');
 assert(/165,11/.test(ANGEL.answer('prix lavabo sans catalogue')),'Angel répond avec le prix moyen standard lavabo');
 assert(appSrc.includes('Prix moyen SpeedArti'),'UI affiche explicitement le prix moyen quand le catalogue n’est pas sélectionné');
@@ -588,5 +588,20 @@ assert(/4272991/.test(ANGEL.answer('bonde evier une cuve automatique'))&&/106674
 assert(/4273023/.test(ANGEL.answer('bonde evier deux cuves automatique')),'Angel connaît la bonde évier 2 cuves');
 assert(/1085426/.test(ANGEL.answer('fixation wc poser automatique')),'Angel connaît la fixation WC à poser');
 assert(/ne force pas de référence/i.test(ANGEL.answer('pipe wc douche italienne composant depend de la pose')),'Angel connaît les limites de l’automatisation');
+
+// 37. Sprint C v0.7.0 — Téréva source unique des références/prix réseau
+assert(typeof CAT.byCode==='function','Catalogue expose une résolution exacte par code');
+const exactPer=CAT.byCode('2272355');assert(exactPer?.code==='2272355'&&approx(exactPer.prix,70.04),'Résolution exacte tube PER depuis catalogue-data');
+const techPer=API.resolveTechnicalReference({code:'2272355',expected:'tube_per'});assert(techPer.status==='ok','Résolveur technique accepte le tube PER attendu');
+const techMissing=API.resolveTechnicalReference({code:'CODE-INEXISTANT-SPEEDARTI',expected:'tube_per'});assert(techMissing.status==='missing','Référence technique disparue détectée');
+const techIncompatible=API.resolveTechnicalReference({code:'044755V',expected:'raccord_per'});assert(techIncompatible.status==='incompatible','Référence technique incompatible détectée');
+assert(Object.keys(API.PIPE_FALLBACK).length===1&&API.PIPE_FALLBACK.cuivre===8,'Seul le fallback cuivre 8 €/ml est conservé');
+assert(!/prix:70\.04|prix:123\.06|prix:2\.77|prix:3\.14|prix:21\.26|prix:27\.67|prix:20\.12|prix:27\.00|prix:1\.28|prix:15\.94|prix:57\.63|prix:1\.88|prix:3\.76|prix:10\.24|prix:8\.70|prix:16\.48/.test(engSrc),'Aucun prix Téréva réseau recopié en dur');
+const cPer=base();cPer.installation.zones={rdc_sans:true,r1_sans:false,rdc_avec:false,r1_avec:false};cPer.installation.network.time_h=undefined;cPer.installation.network.evac_price_ml=undefined;
+const rcPer=API.calculate(cPer),catTubePer=CAT.byCode('2272355'),lineTubePer=rcPer.materiaux.find(x=>x.article_id==='tuyau_per');
+assert(lineTubePer?.catalogue_code==='2272355'&&approx(lineTubePer.prix_unitaire_ht,catTubePer.prix/120),'Prix tube PER lu depuis catalogue');
+const catFitPer=CAT.byCode('1098216'),lineFitPer=rcPer.materiaux.find(x=>x.article_id==='raccords_per');
+assert(lineFitPer?.catalogue_code==='1098216'&&approx(lineFitPer.prix_unitaire_ht,catFitPer.prix),'Prix raccord PER lu depuis catalogue');
+assert(/catalogue Téréva embarqué|codes métier|fallback silencieux/i.test(ANGEL.answer('source unique références réseau Téréva codes métier')),'Angel v1.5 connaît la source unique Téréva');
 
 console.log(JSON.stringify({status:'OK',assertions:ok,catalogueCount:CAT.count,priceCount:CAT.priceCount,knownPrice117_19:known[0].prix,balisesVersion:r1.controle_balises.version,networkOnly:{ef:r2.surfaces.detail_par_face.EF_ml,ec:r2.surfaces.detail_par_face.EC_ml},fittingsOneFixture:fittingsWC.quantite_finale},null,2));
