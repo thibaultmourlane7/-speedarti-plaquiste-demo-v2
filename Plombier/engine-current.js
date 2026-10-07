@@ -70,7 +70,8 @@
   const EF_KINDS=new Set(['lavabo','meuble_vasque','douche','baignoire','evier','wc','lave_main','lave_linge','lave_vaisselle']);
   const EVAC_KINDS=new Set(['lavabo','meuble_vasque','douche','baignoire','evier','wc','lave_main','lave_linge','lave_vaisselle']);
   // Annexe 2 Guillaume : nomenclature de référence par appareil.
-  // Aucun composant complémentaire n'est ajouté/prixé automatiquement : l'artisan choisit explicitement une référence exacte.
+  // v0.6.6 : certains composants récurrents peuvent être préremplis automatiquement avec une référence Téréva traçable.
+  // Une préférence entreprise ou une sélection explicite reste prioritaire et l'artisan peut déclarer un composant compris dans le produit principal.
   const ANNEXE2_COMPONENTS={
     lavabo:[
       {key:'ef',label:'Alimentation eau froide',role:'network'},{key:'ec',label:'Alimentation eau chaude',role:'network'},
@@ -195,7 +196,60 @@
       {key:'joints',label:'Joints',role:'selectable',optional:true,context:'all',q:'joint'}
     ]
   };
-  function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='suspendu')key='wc_suspendu';else if(subtype==='poser'||!subtype)key='wc_poser';else return []}const x=ANNEXE2_COMPONENTS[key];return typeof x==='string'?ANNEXE2_COMPONENTS[x]||[]:x||[]}
+    const AUTO_COMPONENT_PREFERENCES={
+    lavabo_siphon:{label:'Siphon lavabo / vasque',code:'1054371',context:'evacuation',q:'siphon lavabo'},
+    lavabo_bonde:{label:'Bonde lavabo / vasque',code:'2864095',context:'evacuation',q:'bonde lavabo'},
+    lave_main_bonde:{label:'Bonde lave-mains',code:'997361L',context:'evacuation',q:'bonde lave mains'}
+  };
+  const AUTO_COMPONENT_DEFAULTS={
+    lavabo:{siphon:'lavabo_siphon',bonde:'lavabo_bonde'},
+    meuble_vasque:{siphon:'lavabo_siphon',bonde:'lavabo_bonde'},
+    lave_main:{siphon:'lavabo_siphon',bonde:'lave_main_bonde'}
+  };
+
+  function catalogueSelectionByCode(code){
+    const CAT=window.SpeedArtiCatalogueService;if(!code||!CAT?.search||!CAT?.selection)return null;
+    const hit=CAT.search({q:String(code),context:'all',limit:10}).find(a=>String(a.code)===String(code));
+    return hit?CAT.selection(hit):null;
+  }
+  function preferenceSelection(d,prefKey){
+    const pref=d?.settings?.component_preferences?.[prefKey];
+    if(hasCatalogue(pref))return {selection:pref,source:'preference_entreprise'};
+    if(typeof pref==='string'&&pref){const s=catalogueSelectionByCode(pref);if(s)return {selection:s,source:'preference_entreprise'};}
+    const cfg=AUTO_COMPONENT_PREFERENCES[prefKey];const s=cfg?catalogueSelectionByCode(cfg.code):null;
+    return s?{selection:s,source:'defaut_speedarti'}:{selection:null,source:'introuvable'};
+  }
+  function autoComponentPreferenceKey(kind,key){return AUTO_COMPONENT_DEFAULTS[kind]?.[key]||''}
+  function isAutoComponent(kind,key){return !!autoComponentPreferenceKey(kind,key)}
+  function autoComponentQuantity(eq,key){
+    if(eq?.kind==='meuble_vasque'){
+      const vasques=(eq.additional_catalogue_items||[]).filter(x=>/vasque/i.test(`${x?.catalogue?.type||''} ${x?.catalogue?.produit||''}`)).reduce((s,x)=>s+Math.max(0,n(x?.quantite,1)),0);
+      if(vasques>0)return vasques;
+      return eq.subtype==='double'?2:1;
+    }
+    return 1;
+  }
+  function componentIncludedByProduct(eq,key){
+    const texts=[eq?.catalogue,...(eq?.additional_catalogue_items||[]).map(x=>x?.catalogue)].filter(Boolean).map(x=>`${x.produit||''} ${x.variante||''}`).join(' ');
+    if(key==='bonde')return /avec\s+vidage|bonde\s+(?:incluse|comprise)/i.test(texts);
+    if(key==='siphon')return /avec\s+siphon|siphon\s+(?:inclus|compris)/i.test(texts);
+    return false;
+  }
+  function autoComponentProposal(d,eq,key){
+    const prefKey=autoComponentPreferenceKey(eq?.kind,key);if(!prefKey)return null;
+    const item=eq?.annexe2_items?.[key]||{};
+    const autoQty=autoComponentQuantity(eq,key);
+    if(item.included_in_main||componentIncludedByProduct(eq,key))return {key,prefKey,included:true,selection:null,qty:0,source:item.included_in_main?'inclus_artisan':'inclus_catalogue'};
+    if(hasCatalogue(item.catalogue))return {key,prefKey,included:false,selection:item.catalogue,qty:n(item.quantite,autoQty)>0?n(item.quantite,autoQty):autoQty,source:'selection_artisan'};
+    const r=preferenceSelection(d,prefKey);
+    return {key,prefKey,included:false,selection:r.selection,qty:n(item.quantite,autoQty)>0?n(item.quantite,autoQty):autoQty,source:r.source};
+  }
+  function companyComponentPreference(d,prefKey){
+    const cfg=AUTO_COMPONENT_PREFERENCES[prefKey];if(!cfg)return null;
+    const r=preferenceSelection(d,prefKey);return {...cfg,selection:r.selection,source:r.source};
+  }
+
+function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='suspendu')key='wc_suspendu';else if(subtype==='poser'||!subtype)key='wc_poser';else return []}const x=ANNEXE2_COMPONENTS[key];return typeof x==='string'?ANNEXE2_COMPONENTS[x]||[]:x||[]}
 
   function r2(n){return Math.round((Number(n)||0)*100)/100}
   function n(v,d=0){const x=Number(v);return Number.isFinite(x)?x:d}
@@ -293,7 +347,7 @@
   }
 
   function addAnnexe2SelectedItems(eq,uiPath,alerts){
-    const out=[];const items=eq.annexe2_items||{};const allowed=new Map(annexe2For(eq.kind,eq.subtype).filter(x=>x.role==='selectable'&&!(x.key==='mitigeur'&&(eq.kind==='meuble_vasque'||eq.kind==='lave_main'))).map(x=>[x.key,x]));
+    const out=[];const items=eq.annexe2_items||{};const allowed=new Map(annexe2For(eq.kind,eq.subtype).filter(x=>x.role==='selectable'&&!isAutoComponent(eq.kind,x.key)&&!(x.key==='mitigeur'&&(eq.kind==='meuble_vasque'||eq.kind==='lave_main'))).map(x=>[x.key,x]));
     Object.entries(items).forEach(([key,item])=>{
       const def=allowed.get(key);if(!def)return;
       const sel=item?.catalogue;const qty=n(item?.quantite,0);const manual=n(item?.price_ht,0);
@@ -306,6 +360,23 @@
     });
     return out;
   }
+  function addAutoComponents(eq,d,uiPath,alerts){
+    const out=[];const defs=new Map(annexe2For(eq.kind,eq.subtype).map(x=>[x.key,x]));
+    const map=AUTO_COMPONENT_DEFAULTS[eq.kind]||{};
+    Object.keys(map).forEach(key=>{
+      const def=defs.get(key);if(!def)return;
+      const p=autoComponentProposal(d,eq,key);if(!p||p.included)return;
+      const sel=p.selection;
+      if(!hasCatalogue(sel)){alerts.push(`BALISE AUTO : référence Téréva automatique introuvable pour « ${def.label} » (${p.prefKey}).`);return}
+      const item=eq.annexe2_items?.[key]||{};const manual=n(item.price_ht,0);const pr=pricedSelection(sel,manual);
+      if(pr.price<=0){alerts.push(`BALISE AUTO : prix Téréva manquant pour « ${def.label} » (${sel.code}).`);return}
+      const source=p.source==='preference_entreprise'?'Habitude entreprise':p.source==='selection_artisan'?'Sélection artisan':'Référence SpeedArti par défaut';
+      const extra=catalogueExtra(sel,`${uiPath}.annexe2_items.${key}.catalogue`,pr.manual);
+      out.push(line(`auto_${eq.id}_${key}`,sel.produit||def.label,pr.price,p.qty,'unité','Fourniture automatique',{...extra,source:`${source} — Téréva ${sel.code}`,balise_prix:pr.manual?'manuel_sur_reference':p.source,stockable:true,parent_equipment_id:eq.id,annexe2_slot:key,annexe2_label:def.label,annexe2_source:'Annexe 2 Guillaume',auto_component:true,auto_component_source:p.source,auto_preference_key:p.prefKey}));
+    });
+    return out;
+  }
+
   function addAdditionalCatalogueItems(eq,uiPath,alerts){
     const out=[];const items=Array.isArray(eq.additional_catalogue_items)?eq.additional_catalogue_items:[];
     items.forEach((item,i)=>{
@@ -320,7 +391,7 @@
     return out;
   }
 
-  function annexe2Nomenclature(eq){
+  function annexe2Nomenclature(eq,d){
     const items=eq.annexe2_items||{};
     return annexe2For(eq.kind,eq.subtype).map(def=>{
       let status='à vérifier',selected=null;
@@ -334,6 +405,13 @@
       }else if(def.role==='selectable'){
         if(def.key==='mitigeur'&&(eq.kind==='meuble_vasque'||eq.kind==='lave_main')){
           selected=eq.robinet_catalogue||null;status=eq.robinet?(hasCatalogue(selected)?'géré par option robinetterie':'option robinetterie activée à renseigner'):'géré par option robinetterie';
+        }else if(isAutoComponent(eq.kind,def.key)){
+          const p=autoComponentProposal(d,eq,def.key);selected=p?.selection||null;
+          if(p?.included)status=p.source==='inclus_catalogue'?'compris d’après la référence principale':'déclaré compris dans le produit principal';
+          else if(p?.source==='preference_entreprise')status='automatique — habitude entreprise';
+          else if(p?.source==='selection_artisan')status='référence personnalisée';
+          else if(hasCatalogue(selected))status='automatique — défaut SpeedArti';
+          else status='automatique indisponible';
         }else{
           selected=items[def.key]?.catalogue||null;status=hasCatalogue(selected)?'référence associée':(def.optional?'conditionnel / non renseigné':'non renseigné');
         }
@@ -406,8 +484,9 @@
       else alerts.push(`BALISE SURFACE : surface manquante pour la prestation ${names[eq.spec_mode]||'douche italienne'}.`);
     }
     out.push(...addAdditionalCatalogueItems(eq,uiPath,alerts));
+    out.push(...addAutoComponents(eq,d,uiPath,alerts));
     out.push(...addAnnexe2SelectedItems(eq,uiPath,alerts));
-    return {lines:out,time,profile:connectionProfile(eq),nomenclature:annexe2Nomenclature(eq)};
+    return {lines:out,time,profile:connectionProfile(eq),nomenclature:annexe2Nomenclature(eq,d)};
   }
 
   function stopValveCount(eq){
@@ -734,5 +813,5 @@
     if(!d.nom_calcul)throw new Error('Le nom du calcul est requis');
     return d.options?.type_projet==='petits_travaux'?petits(d):complete(d);
   }
-  window.SpeedArtiPlombierCurrent={calculate,previewNetwork:(d)=>{const x=computeNetwork(d,d?.installation?.equipments||[]);return {...x,autoTimeH:networkTimeProposal(x,(d.options?.type_tuyau||'per').toLowerCase())}},ANNEXE1_DEFAULTS,FORFAITS_DEFAULTS,PIPE_FALLBACK,EQUIPMENT_AVERAGE_PRICES,equipmentAveragePrice,ANNEXE2_COMPONENTS,annexe2For};
+  window.SpeedArtiPlombierCurrent={calculate,previewNetwork:(d)=>{const x=computeNetwork(d,d?.installation?.equipments||[]);return {...x,autoTimeH:networkTimeProposal(x,(d.options?.type_tuyau||'per').toLowerCase())}},ANNEXE1_DEFAULTS,FORFAITS_DEFAULTS,PIPE_FALLBACK,EQUIPMENT_AVERAGE_PRICES,equipmentAveragePrice,ANNEXE2_COMPONENTS,annexe2For,AUTO_COMPONENT_PREFERENCES,AUTO_COMPONENT_DEFAULTS,isAutoComponent,autoComponentProposal,companyComponentPreference};
 })();
