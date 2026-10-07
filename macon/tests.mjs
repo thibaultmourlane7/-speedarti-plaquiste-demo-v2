@@ -10,7 +10,7 @@ import {
   TREILLIS_GUILLAUME, PUMP_DEFAULT_PRICE, TOUPIE_PRICE_M3, TOUPIE_MIN_BILLABLE_M3, TOUPIE_CAPACITY_M3,
   PREFAB_DEFAULT_PRICE_M2, LONGRINE_PRICE_ML, micropileSuggestedPrice, estimatedVerticalChainage, toupieEstimatedCount, DEMO_SPEEDARTI_CONTEXT, detectVatContext, effectiveVatRate, projectSummary, resultCostBreakdown
 } from './core.js';
-import { SpeedArtiAngelMaconKnowledge, searchAngelMacon, answerAngelMacon } from './angel-knowledge.js';
+import { SpeedArtiAngelMaconKnowledge, searchAngelMacon, answerAngelMacon, buildAngelMaconContext } from './angel-knowledge.js';
 import { SPEEDARTI_MACON_INTEGRATION_VERSION, SPEEDARTI_MACON_CONNECTORS, buildSpeedArtiMaconPayload, getIntegrationReadiness } from './speedarti-integration.js';
 
 const pass=[];
@@ -528,7 +528,7 @@ test('v2.5: Murs / Cloisons qualifie mur ou cloison non porteuse',()=>{
 
 test('Angèle Maçon: base chargée et 40 ouvrages synchronisés',()=>{
   assert.equal(SpeedArtiAngelMaconKnowledge.metier,'macon');
-  assert.equal(SpeedArtiAngelMaconKnowledge.version,'MAC-ANGEL-KB-v1.0');
+  assert.equal(SpeedArtiAngelMaconKnowledge.version,'MAC-ANGEL-KB-v1.1');
   assert.equal(SpeedArtiAngelMaconKnowledge.entries.filter(e=>e.topic==='ouvrage').length,WORKS.length);
 });
 
@@ -694,6 +694,37 @@ test('sprint raccordements: contrat reste sans connexion production',()=>{
   assert.ok(!/supabase\s*\./i.test(src));assert.ok(!/createClient\s*\(/i.test(src));assert.ok(!/https?:\/\//i.test(src));
   assert.match(src,/prepared-not-connected/);
   const app=fs.readFileSync(new URL('./app.js',import.meta.url),'utf8');assert.match(app,/speedarti-integration\.js/);
+});
+
+
+test('sprint Angèle: contexte courant expose étape, prix, TVA et sources',()=>{
+  const s=base();s.step=5;s.simpleType='dalle';Object.assign(s.simple,{surface:30,thickness:12,slabRef:'dallage_arme',concreteClass:'C25/30',fibres:true,fibreType:'courante',fibreDose:3});s.globals.toupie=true;s.taxContext={workType:'renovation',housingOver2Years:'oui',ecoRenovation:'non'};
+  const r=calculate(s),ctx=buildAngelMaconContext(s,r);
+  assert.equal(ctx.stepLabel,'Vérification');assert.equal(ctx.vat,10);assert.ok(ctx.lines.some(x=>x.id==='toupie'));assert.ok(ctx.missingPrices.some(x=>x.id==='Dalle-fibres'));
+  assert.ok(ctx.lines.every(x=>'source' in x&&'unit' in x));
+});
+
+test('sprint Angèle: explique la toupie avec les valeurs du chiffrage courant',()=>{
+  const s=base();s.simpleType='dalle';Object.assign(s.simple,{surface:30,thickness:12,slabRef:'dallage_arme',concreteClass:'C25/30'});s.globals.toupie=true;
+  const r=calculate(s),a=answerAngelMacon('Pourquoi la toupie facture 6 m3 ?',buildAngelMaconContext(s,r));
+  assert.match(a,/3,60 m³/);assert.match(a,/6,00 m³/);assert.match(a,/ne sont pas refacturées/i);
+});
+
+test('sprint Angèle: explique une fibre à confirmer sans inventer un prix',()=>{
+  const s=base();s.simpleType='dalle';Object.assign(s.simple,{surface:30,thickness:12,slabRef:'dallage_arme',concreteClass:'C25/30',fibres:true,fibreType:'courante',fibreDose:3});
+  const r=calculate(s),a=answerAngelMacon('Quel est le prix des fibres ?',buildAngelMaconContext(s,r));
+  assert.match(a,/10,80 kg/);assert.match(a,/à confirmer/i);
+});
+
+test('sprint Angèle: contexte n’affaiblit jamais la protection structurelle',()=>{
+  const s=base();const r=calculate(s),ctx=buildAngelMaconContext(s,r);
+  const a=answerAngelMacon('quel ferraillage pour une poutre de 6 mètres',ctx);
+  assert.match(a,/ne constituent en aucun cas un calcul réel de structure/i);assert.match(a,/ne doit jamais proposer seule/i);
+});
+
+test('sprint Angèle: la démo publie le contexte courant à chaque rendu',()=>{
+  const app=fs.readFileSync(new URL('./app.js',import.meta.url),'utf8');
+  assert.match(app,/SpeedArtiAngelMaconContext/);assert.match(app,/buildContext\(state,calculate\(state\)\)/);
 });
 
 console.log(`OK — V2.6 Maçon: ${pass.length} contrôles fonctionnels passés`);

@@ -246,3 +246,14 @@ Préparés : paramètres artisan, catalogue personnel/fournisseur/standard, stoc
 Le payload d’intégration conserve les unités, quantités, sources de prix, références catalogue, heures-homme, ventilation HT/TVA/TTC et identifie explicitement les postes « à confirmer ».
 
 **Statut : prepared-not-connected.** Le dépôt réel SpeedArti a uniquement été consulté en lecture seule.
+
+
+## Sprint Angèle — contexte de chiffrage
+
+Angèle Maçon passe en base **MAC-ANGEL-KB-v1.1**.
+
+- contexte courant exposé à chaque rendu : étape, mode, ouvrage, TVA, totaux, heures, lignes, unités, sources de prix et postes à confirmer ;
+- réponses contextuelles pour toupie, fibres, TVA, prix à confirmer, total et étape actuelle ;
+- les nouvelles règles UX (paramètres artisan automatiques, TVA en vérification, fibres à confirmer, minimum toupie, raccordements SpeedArti) sont ajoutées à la base ;
+- les protections structurelles restent prioritaires sur toute réponse contextuelle ;
+- futur raccordement prévu avec l’Angèle réelle de SpeedArti via le contrat d’intégration, sans seconde IA indépendante.

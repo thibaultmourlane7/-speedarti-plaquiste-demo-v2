@@ -1,7 +1,7 @@
 import {
-  STEPS, defaultState, renderStep, validateStep, newElement, setPath, getPath, num
+  STEPS, defaultState, renderStep, validateStep, newElement, setPath, getPath, num, calculate
 } from './core.js';
-import './angel-knowledge.js';
+import { SpeedArtiAngelMaconKnowledge } from './angel-knowledge.js';
 import './speedarti-integration.js';
 
 const STORAGE_KEY='speedarti-macon-demo-v2-catalogue';
@@ -33,6 +33,7 @@ function renderSteps(){
 function render(){
   renderSteps();
   $('#stepHost').innerHTML=renderStep(state);
+  globalThis.SpeedArtiAngelMaconContext=SpeedArtiAngelMaconKnowledge.buildContext(state,calculate(state));
   $('#prevBtn').disabled=state.step===0;
   $('#prevBtn').style.opacity=state.step===0?.45:1;
   $('#nextBtn').textContent=state.step===STEPS.length-1?'Recalculer':state.step===STEPS.length-2?'Voir le résultat':'Suivant →';

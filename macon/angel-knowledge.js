@@ -124,6 +124,36 @@ const baseEntries=[
     tags:['source','trace','tracabilite','quantite','unite','prix','calcul','catalogue'],
     title:'Traçabilité du chiffrage',
     answer:'La base Angèle Maçon est dérivée du référentiel et des règles réellement présents dans macon/references.js et macon/core.js. Une réponse Angèle doit distinguer quantité métier, unité, référence, prix, source, main-d’œuvre et règles de sécurité.'
+  },
+  {
+    id:'MAC-PARCOURS-PARAMETRES',topic:'parcours',
+    tags:['taux horaire','ouvrier','parametres artisan','profil','speedarti','cache','automatique'],
+    title:'Paramètres artisan dans le parcours',
+    answer:'Dans le parcours final SpeedArti, le taux horaire et l’effectif par défaut viennent des paramètres de l’artisan et ne doivent pas être redemandés pendant chaque chiffrage. La démo simule ces valeurs uniquement pour rester autonome.'
+  },
+  {
+    id:'MAC-TVA-VERIFICATION',topic:'tva',
+    tags:['tva','neuf','renovation','entretien','2 ans','5.5','10','20','verification'],
+    title:'TVA qualifiée avant le résultat',
+    answer:'La TVA chantier se qualifie à l’étape Vérification : construction neuve 20 % ; rénovation/entretien d’un logement de moins de 2 ans 20 % ; logement de plus de 2 ans 10 % ; rénovation énergétique 5,5 % seulement sous réserve d’éligibilité. Dans SpeedArti, le service TVA réel et le statut fiscal de l’entreprise restent la source de vérité.'
+  },
+  {
+    id:'MAC-FIBRES-PRIX',topic:'prix',
+    tags:['fibre','fibres','prix','catalogue','dosage','a confirmer','reference'],
+    title:'Prix des fibres à confirmer si le dosage produit n’est pas validé',
+    answer:'Une fibre générique ne reçoit plus automatiquement le prix d’une référence catalogue lorsque le dosage fabricant n’est pas validé avec le dosage métier. La quantité reste calculée, le prix reste « à confirmer » sans bloquer le résultat, et l’artisan peut choisir explicitement une référence compatible ou saisir son prix.'
+  },
+  {
+    id:'MAC-TOUPIE-MINIMUM',topic:'beton',
+    tags:['toupie','minimum fournisseur','volume reel','volume facture','double facturation'],
+    title:'Lecture du minimum toupie',
+    answer:'Le résultat distingue le volume de béton réellement nécessaire du volume minimum facturé par le fournisseur. Quand la toupie est active, les lignes béton physiques restent visibles pour la quantité mais sont incluses dans la fourniture toupie afin d’éviter toute double facturation.'
+  },
+  {
+    id:'MAC-RACCORDEMENTS-SPEEDARTI',topic:'integration',
+    tags:['raccordement','speedarti','catalogue','stock','client','chantier','satellite','calepinage','devis','historique','angel'],
+    title:'Raccordements préparés avec SpeedArti',
+    answer:'Le module prépare les raccordements aux paramètres artisan, catalogue, fournisseurs, stocks, client, chantier, mesures satellite, calepinage, historique, devis, TVA et Angèle. La démo reste déconnectée de la production : le fichier speedarti-integration.js décrit le contrat de données sans appeler Supabase ni une API de production.'
   }
 ];
 
@@ -206,8 +236,70 @@ export function searchAngelMacon(query,limit=5){
  const tokens=angelTokens(query);if(!tokens.length)return [];const q=norm(query),min=tokens.length===1?1:Math.ceil(tokens.length*.5);
  return ANGEL_MACON_ENTRIES.map(e=>{const title=norm(e.title),tags=(e.tags||[]).map(norm),hay=norm([e.id,e.sourceId,e.topic,e.title,e.answer,...(e.tags||[])].join(' '));let score=0,matched=0;if(q.length>=4&&hay.includes(q))score+=10;for(const t of tokens){let hit=false;if(hay.includes(t)){score++;hit=true}if(title.includes(t)){score+=3;hit=true}if(tags.some(x=>x.includes(t))){score+=3;hit=true}if(norm(e.id).includes(t)||norm(e.sourceId).includes(t)){score+=2;hit=true}if(hit)matched++}return{...e,score,matched}}).filter(e=>e.matched>=min&&e.score>=5).sort((a,b)=>b.score-a.score||b.matched-a.matched||a.id.localeCompare(b.id)).slice(0,Math.max(1,Math.min(10,Number(limit)||5)));
 }
-export function answerAngelMacon(query){
+const ANGEL_STEP_LABELS=['Mode','Ouvrage(s)','Configuration','Options','Prix / catalogue','Vérification','Résultat'];
+
+export function buildAngelMaconContext(state={},result={}){
+  const lines=(result.lines||[]).map(l=>({
+    id:l.id,name:l.name,category:l.category,qty:Number(l.qty||0),unit:l.unit,
+    price:Number(l.price||0),priceMode:l.priceMode,source:l.source||'',
+    catalogueReference:l.catalogueSelection||l.catalogueResolution?.product?.referenceCatalogue||null,
+    toConfirm:l.priceMode==='required'&&!(Number(l.price)>0)
+  }));
+  return {
+    metier:'macon',
+    step:Number(state.step||0),
+    stepLabel:ANGEL_STEP_LABELS[Number(state.step||0)]||'Inconnue',
+    mode:state.mode||'simple',
+    simpleType:state.simpleType||null,
+    simple:state.simple||{},
+    elements:state.elements||[],
+    taxContext:state.taxContext||{},
+    vat:Number(result.vat||0),
+    totals:{materials:Number(result.materials||0),labor:Number(result.laborCost||0),ht:Number(result.totalHT||0),tax:Number(result.tax||0),ttc:Number(result.ttc||0)},
+    hours:Number(result.hours||0),
+    workers:Number(result.workers||0),
+    lines,
+    missingPrices:lines.filter(l=>l.toConfirm).map(l=>({id:l.id,name:l.name,qty:l.qty,unit:l.unit})),
+    alerts:[...(result.alerts||[])],
+    recommendations:[...(result.reco||[])]
+  };
+}
+
+function contextualAngelAnswer(query,context){
+  if(!context)return '';
+  const q=norm(query),lines=context.lines||[];
+  if(/ou en suis|etape|etape actuelle|parcours/.test(q)){
+    return `Vous êtes à l’étape « ${context.stepLabel} » du chiffrage Maçon, en mode ${context.mode==='multiple'?'multi-éléments':'simple'}.`;
+  }
+  if(/toupie|beton livre|minim/.test(q)){
+    const t=lines.find(l=>l.id==='toupie');
+    if(t){
+      const concrete=lines.filter(l=>l.category==='Béton'&&l.unit==='m³').reduce((s,l)=>s+l.qty,0);
+      return `Sur ce chiffrage : ${fmt(concrete,2)} m³ de béton sont nécessaires et ${fmt(t.qty,2)} m³ sont facturés par la toupie à ${euro(t.price)}/m³. Les lignes béton physiques sont incluses dans cette fourniture et ne sont pas refacturées une seconde fois.`;
+    }
+  }
+  if(/fibre|fibres/.test(q)){
+    const fs=lines.filter(l=>/\bfibres?\b/i.test(l.name||''));
+    if(fs.length){
+      return fs.map(l=>`${l.name} : ${fmt(l.qty,2)} ${l.unit}. Prix ${l.toConfirm?'à confirmer':euro(l.price)+'/'+l.unit} ; source : ${l.source||'non renseignée'}.`).join('\n');
+    }
+  }
+  if(/tva|taxe/.test(q)&&context.vat>0){
+    return `TVA actuellement retenue pour ce chiffrage : ${fmt(context.vat,1)} %. Contexte : ${JSON.stringify(context.taxContext)}. Le service TVA réel SpeedArti reste la source de vérité lors du raccordement.`;
+  }
+  if(/prix|source|catalogue|a confirmer/.test(q)&&context.missingPrices?.length){
+    return `${context.missingPrices.length} poste${context.missingPrices.length>1?'s sont':' est'} encore à confirmer : ${context.missingPrices.map(x=>x.name).join(', ')}. Le chiffrage reste accessible et aucun prix n’est inventé.`;
+  }
+  if(/total|montant|combien.*ht|combien.*ttc/.test(q)&&context.totals){
+    return `Total actuel : ${euro(context.totals.ht)} HT ; TVA ${euro(context.totals.tax)} ; total TTC ${Number(context.totals.ttc||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} €.`;
+  }
+  return '';
+}
+
+export function answerAngelMacon(query,context=null){
  if(structuralSizingQuery(query))return `${STRUCTURE_WARNING}\n\nAngèle ne doit jamais proposer seule une profondeur, une section, un ferraillage ou un dimensionnement structurel : utiliser l’étude de sol / étude béton et les prescriptions du projet.`;
+ const contextual=contextualAngelAnswer(query,context);
+ if(contextual)return contextual;
  const hits=searchAngelMacon(query,3);return hits.length?hits.map(x=>x.answer).join('\n\n'):'Aucune règle Maçon correspondante dans la base Angèle. Ne pas inventer : demander ou vérifier la règle dans le moteur SpeedArti.';
 }
 export function getAngelMaconEntry(id){
@@ -215,12 +307,13 @@ export function getAngelMaconEntry(id){
 }
 
 export const SpeedArtiAngelMaconKnowledge=Object.freeze({
-  version:'MAC-ANGEL-KB-v1.0',
+  version:'MAC-ANGEL-KB-v1.1',
   metier:'macon',
-  source:'macon/references.js + macon/core.js + macon/catalogue-macon.js (main)',
+  source:'macon/references.js + macon/core.js + macon/catalogue-macon.js + macon/speedarti-integration.js (main)',
   entries:ANGEL_MACON_ENTRIES,
   search:searchAngelMacon,
   answer:answerAngelMacon,
+  buildContext:buildAngelMaconContext,
   getById:getAngelMaconEntry
 });
 

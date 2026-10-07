@@ -101,6 +101,12 @@ export function buildSpeedArtiMaconPayload(state,result){
       taux:Number(r.vat||0),
       future_service:'tvaService.detecterTauxTVA'
     },
+    angel_context:{
+      step:Number(state?.step||0),
+      mode:state?.mode||'simple',
+      type_ouvrage:state?.simpleType||null,
+      prix_a_confirmer:(r.missingPrices||[]).map(x=>x.id)
+    },
     lignes:(r.lines||[]).map(cloneLine),
     main_oeuvre:{
       heures_homme:Number(r.hours||0),
