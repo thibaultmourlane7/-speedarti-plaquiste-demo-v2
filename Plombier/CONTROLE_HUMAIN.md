@@ -1,9 +1,18 @@
-# SpeedArti — Plombier v0.6.4 — Contrôle ciblé
+# SpeedArti — Plombier v0.6.6 — Contrôle ciblé
 
-Date : 2026-10-06
+Date : 2026-10-07
 
-Le lot a été contrôlé principalement par le moteur automatisé : **490 assertions réussies sur 490**.
+La suite logique complète a été rejouée avec le catalogue Téréva embarqué : **522 assertions réussies sur 522**.
 
-Les contrôles couvrent notamment le réseau PER, multicouche et cuivre, le WC avec évacuation DN100, les références techniques Téréva, la priorité des choix artisan, l’override du temps réseau, les prix moyens d’appareillage sans sélection catalogue et l’interrogation de la base Angel.
+Les contrôles couvrent notamment :
+- réseau PER, multicouche, cuivre et évacuations ;
+- références techniques Téréva et priorités artisan ;
+- distances chauffe-eau SDB/cuisine ;
+- meuble vasque multi-articles et robinetterie rapide ;
+- éléments spécifiques et platines ;
+- composants automatiques siphon/bonde ;
+- préférences d’entreprise ;
+- non-double-comptage des composants compris dans un pack ;
+- base Angel Plombier v1.1.
 
-Le contrôle navigateur complet « comme un humain » n’est **pas revendiqué** pour ce passage. L’interface a été contrôlée statiquement et le moteur a été exécuté sur la version publiée.
+Le contrôle navigateur complet « comme un humain » n’est pas revendiqué dans ce fichier : les détails purement visuels doivent encore être vérifiés directement sur la démo.
