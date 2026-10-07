@@ -744,7 +744,7 @@ test('sprint S6: toutes les collections utilisent $',()=>{
 
 
 test('S6.1 mur élévation expose la classe béton pour chaînages et BA',()=>{
-  const s=base();s.mode='multiple';const e=newElement('murs_elevations');
+  const s=base();s.globals.concreteClass='';s.mode='multiple';const e=newElement('murs_elevations');
   Object.assign(e.data,{length:10,height:2.5,thickness:20,material:'parpaing',method:'tradi'});s.elements=[e];
   const html=renderConfig(s);
   assert.match(html,/Classe béton — chaînages \/ ouvrages BA/);
