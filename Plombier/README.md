@@ -1,6 +1,18 @@
-# SpeedArti — Plombier v0.6.7 — Cumul main-d'œuvre sanitaire / réseau
+# SpeedArti — Plombier v0.6.8 — Évacuations locales DN40 / DN100
 
 Cette version continue le module Plombier existant.
+
+## Lot v0.6.8 — évacuations locales et réseau général
+
+- correction du chantier mixte **WC + autre sanitaire** : le WC conserve son raccord local **DN100** et les autres sanitaires leur raccord local **DN40** ;
+- références techniques utilisées : WC tube `044788U` + raccord `027749Z` ; autres sanitaires tube `044755V` + raccord `059805D` ;
+- suppression de l’ancienne ligne générique de raccordement évacuation qui pouvait appliquer une référence DN40 à un WC ;
+- les évacuations locales sont classées **Raccordement local sanitaire** ;
+- les champs réseau distinguent maintenant **évacuation locale sanitaires** et **évacuation réseau général / spécifique** ;
+- une longueur locale modifiée reste locale : elle ne devient plus automatiquement un réseau général parce qu’elle dépasse 1 m ;
+- le réseau général/spécifique ne reçoit plus silencieusement un DN40 : sans diamètre explicite, la finalisation est bloquée avec une balise technique ;
+- les anciens brouillons possédant une valeur globale ambiguë d’évacuation demandent une confirmation au lieu d’être répartis silencieusement ;
+- Ángel Plombier est mis à jour en **v1.3** et testé après le correctif.
 
 ## Lot v0.6.7 — main-d’œuvre sanitaire, raccordements locaux et réseau général
 
