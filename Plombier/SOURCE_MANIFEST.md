@@ -1,4 +1,18 @@
-# SpeedArti — Plombier v0.6.9 — Sources du lot
+# SpeedArti — Plombier v0.7.0 — Sources du Sprint C
+
+## Sprint C — source unique Téréva réseau
+
+Source de vérité technique : `catalogue-data.js` via `catalogue-service.js`.
+
+Le moteur ne conserve plus de copie des prix/désignations/pages Téréva pour les références réseau. Il conserve uniquement les codes métier et, lorsque nécessaire, la longueur de conditionnement validée pour ramener le prix au ml.
+
+Contrôles ajoutés :
+- résolution exacte par code ;
+- détection d’une référence disparue ;
+- détection d’une référence incompatible avec l’usage attendu ;
+- blocage d’une référence technique sans prix exploitable ;
+- absence de fallback silencieux PER/multicouche ;
+- fallback cuivre 8 €/ml conservé comme exception explicitement validée.
 
 ## Base conservée
 - module Plombier SpeedArti existant ;
