@@ -1,4 +1,4 @@
-# SpeedArti — Plombier v0.6.8 — Sources du lot
+# SpeedArti — Plombier v0.6.9 — Sources du lot
 
 ## Base conservée
 - module Plombier SpeedArti existant ;
@@ -6,6 +6,24 @@
 - parcours chantier en 4 pages ;
 - balises, stock et approvisionnement existants ;
 - référentiel réseau Téréva de la v0.6.3 conservé.
+
+## Composition automatique étendue — v0.6.9
+
+Source métier : nomenclature sanitaire Guillaume (composition par appareil).
+
+Le moteur n'automatise que les composants pour lesquels un défaut générique suffisamment sûr a été vérifié dans le catalogue Téréva embarqué :
+- douche standard — bonde Ø90 : `4273010` ;
+- douche extra-plate — bonde extra-plate : `4281682` ;
+- baignoire — vidage avec trop-plein : `767547L` ;
+- baignoire — siphon : `4273012` ;
+- évier — siphon Ø40 : `1066748` ;
+- évier 1 cuve — bonde avec trop-plein : `4272991` ;
+- évier 2 cuves — bonde avec trop-plein : `4273023` ;
+- WC à poser — fixation au sol : `1085426`.
+
+Les éléments dépendants de la géométrie ou du produit principal restent à sélectionner : pipe WC, composants spécifiques de WC suspendu, douche italienne/caniveau/siphon spécifique, certains flexibles et fixations particulières.
+
+Priorité : sélection sanitaire > habitude entreprise > défaut SpeedArti.
 
 ## Évacuation locale / réseau général — v0.6.8
 
