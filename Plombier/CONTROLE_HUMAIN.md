@@ -4,14 +4,11 @@ Date : 2026-10-07
 
 La suite logique complète passe à **580 / 580 assertions**.
 
-Contrôle ciblé du sprint :
-- douche standard / extra-plate / italienne ;
-- baignoire ;
-- évier simple / double ;
-- WC à poser / suspendu ;
-- absence de référence automatique lorsqu'un choix dépend réellement de la pose ;
-- suppression du double comptage lorsqu'un composant est déclaré compris dans le produit principal ;
-- préférences entreprise ;
-- réponses Ángel Plombier v1.4 cohérentes avec le moteur.
+Points ciblés du sprint :
+- composition automatique étendue aux douches standard/extra-plates, baignoires, éviers et WC à poser ;
+- aucune automatisation silencieuse lorsque le choix dépend de la pose réelle ;
+- préférences entreprise disponibles pour toutes les nouvelles références automatiques ;
+- non-double-comptage lorsqu’un composant est compris dans le produit principal ;
+- réponses Ángel v1.4 cohérentes avec le moteur.
 
-Le parcours visuel complet dans un navigateur réel reste à faire séparément avant validation ergonomique finale.
+Le contrôle navigateur complet « comme un humain » reste à effectuer séparément avant validation ergonomique finale.
