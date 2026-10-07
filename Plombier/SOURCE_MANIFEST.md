@@ -1,4 +1,4 @@
-# SpeedArti — Plombier v0.6.4 — Sources du lot
+# SpeedArti — Plombier v0.6.6 — Sources du lot
 
 ## Base conservée
 - module Plombier SpeedArti existant ;
@@ -6,6 +6,16 @@
 - parcours chantier en 4 pages ;
 - balises, stock et approvisionnement existants ;
 - référentiel réseau Téréva de la v0.6.3 conservé.
+
+## Composants automatiques sanitaires v0.6.6
+
+Les références ci-dessous ont été vérifiées dans le catalogue Téréva 2026 embarqué. Le moteur résout les produits par code au moment du calcul afin de conserver le prix et les métadonnées du catalogue comme source de vérité.
+
+- `1054371` — Nicoll, **SIPHON LAVABO EASYPHON BM211**, Ø32, blanc ;
+- `2864095` — MB Expert, **BONDE LAVABO CLIC CLAC OU ÉCOULEMENT LIBRE**, chromé ;
+- `997361L` — Nicoll, **BONDE LAVE-MAINS À GRILLE L2263**, chromé.
+
+Ces références sont des défauts SpeedArti, pas des préférences imposées. Une référence habituelle de l’entreprise ou une sélection faite sur le sanitaire devient prioritaire. Un composant explicitement compris dans le produit principal n’est pas ajouté une seconde fois.
 
 ## Prix moyens d’appareillage sans sélection catalogue
 
