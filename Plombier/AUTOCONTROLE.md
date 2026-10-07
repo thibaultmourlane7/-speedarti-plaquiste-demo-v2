@@ -21,24 +21,22 @@ Balises : `BALISES-ABSOLUES-v1.8`.
 - évier 1 cuve : bonde `4272991` + siphon `1066748` ;
 - évier 2 cuves : bonde `4273023` + siphon `1066748` ;
 - WC à poser : fixation au sol `1085426` ;
-- aucune pipe WC automatique ;
-- aucun accessoire générique arbitraire ajouté au WC suspendu ;
-- composant déclaré compris dans le produit principal non doublé ;
-- préférences entreprise étendues à tous les nouveaux composants automatiques ;
-- UI conditionnelle selon type de douche / configuration d'évier / type de WC ;
-- Ángel Plombier v1.4 interrogé sur douche, baignoire, évier, WC et limites de l'automatisation.
+- pipe WC non automatisée ;
+- WC suspendu sans accessoire générique arbitraire ;
+- composant déclaré « compris dans le produit principal » non doublé ;
+- toutes les références automatiques sont exposées dans les habitudes entreprise ;
+- Ángel Plombier v1.4 interrogé sur douche, baignoire, évier, WC et limites de l’automatisation.
 
 ## Contrôles antérieurs conservés
 
-- évacuations locales DN40 / DN100 ;
-- réseau général sans diamètre inventé ;
+- évacuations DN100 WC / DN40 autres sanitaires ;
+- séparation raccordement local / réseau général ;
 - cumul main-d’œuvre sanitaire + réseau ;
 - distances chauffe-eau ;
-- platines EF/EC ;
 - meuble vasque multi-articles ;
 - robinetterie rapide ;
 - habitudes entreprise ;
-- TVA, complexité, aléas, approvisionnement et catalogue.
+- TVA, complexité, aléas, catalogue et approvisionnement.
 
 ## Limite
 
