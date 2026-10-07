@@ -25,6 +25,28 @@ Les éléments dépendants de la géométrie ou du produit principal restent à 
 
 Priorité : sélection sanitaire > habitude entreprise > défaut SpeedArti.
 
+## Composition sanitaire automatique — v0.6.9
+
+Source métier : nomenclature Guillaume par appareil.
+
+Le moteur conserve l’ensemble des postes de composition, mais n’attribue automatiquement une référence catalogue que lorsqu’un produit générique peut être retenu sans supposer la géométrie ou le système de pose.
+
+Références Téréva vérifiées dans le catalogue embarqué :
+- `4273010` — MB Expert — bonde de douche Ø90 avec capot ;
+- `4281682` — MB Expert — bonde de douche extra-plate sortie horizontale ;
+- `767547L` — Nicoll — vidage baignoire avec trop-plein souple ;
+- `4273012` — MB Expert — siphon baignoire sortie orientable ;
+- `1066748` — Nicoll — siphon évier Ø40 BM552 ;
+- `4272991` — MB Expert — bonde évier 1 cuve avec trop-plein ;
+- `4273023` — MB Expert — bonde évier 2 cuves avec trop-plein ;
+- `1085426` — MB Expert — fixation WC/bidet 70 × 6.
+
+Non automatisé volontairement :
+- douche italienne ;
+- pipe WC ;
+- accessoires WC suspendu ;
+- tout composant dont le choix dépend du produit principal ou de la géométrie réelle.
+
 ## Évacuation locale / réseau général — v0.6.8
 
 Règle Guillaume :
