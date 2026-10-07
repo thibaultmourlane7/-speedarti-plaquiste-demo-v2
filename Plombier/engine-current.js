@@ -400,7 +400,7 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
     return annexe2For(eq.kind,eq.subtype).map(def=>{
       let status='à vérifier',selected=null;
       if(def.role==='network')status='géré par réseau';
-      else if(def.role==='main')status=(hasCatalogue(eq.catalogue)||(Array.isArray(eq.additional_catalogue_items)&&eq.additional_catalogue_items.some(x=>hasCatalogue(x?.catalogue))))?'article principal / composition sélectionnée':'article principal à vérifier';
+      else if(def.role==='main')status=hasCatalogue(eq.catalogue)?'article principal sélectionné':((Array.isArray(eq.additional_catalogue_items)&&eq.additional_catalogue_items.some(x=>hasCatalogue(x?.catalogue)))?'composition multi-articles sélectionnée':'article principal à vérifier');
       else if(def.role==='service')status='compris dans prestation unitaire';
       else if(def.role==='dedicated'){
         if(def.dedicated==='mitigeur')status=eq.mitigeur?(hasCatalogue(eq.mitigeur_catalogue)?'option catalogue sélectionnée':'option activée à renseigner'):'non activé';
