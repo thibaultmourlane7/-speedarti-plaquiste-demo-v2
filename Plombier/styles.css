@@ -130,3 +130,10 @@
   .labor-breakdown-row{align-items:flex-start;flex-direction:column}
   .labor-breakdown-row>div:last-child{text-align:left}
 }
+
+
+/* v0.6.9 — préférences composants automatiques étendues */
+.preference-group{margin-top:10px;border:1px solid #dbeafe;border-radius:11px;background:#fff;overflow:hidden}
+.preference-group>summary{cursor:pointer;padding:11px 13px;font-weight:700;color:#1e3a8a;background:#f8fbff}
+.preference-group>.preference-list{padding:10px}
+.preference-group .preference-row+ .preference-row{margin-top:8px}
