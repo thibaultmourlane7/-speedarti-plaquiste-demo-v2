@@ -1,6 +1,19 @@
-# SpeedArti — Plombier v0.6.4 — Référentiel réseau Téréva
+# SpeedArti — Plombier v0.6.5 — Configuration sanitaire et réseau
 
-Cette version continue le module Plombier existant. Le parcours chantier est conservé ; le lot v0.6.4 ajoute des prix moyens d’appareillage quand aucune référence Téréva n’est sélectionnée et une base de connaissances Plombier interrogeable par Angel. Le référentiel réseau Téréva v0.6.3 reste conservé.
+Cette version continue le module Plombier existant.
+
+## Lot v0.6.5 — retour Guillaume
+
+- les accessoires de douche/baignoire restent visuellement attachés à l’option qui les active ;
+- le produit principal est replacé avant les accessoires pour éviter qu’il se retrouve en bas de la fiche ;
+- un meuble vasque peut désormais être composé de plusieurs références (meuble/pack + une ou plusieurs vasques) avec quantités ;
+- meuble vasque et lave-mains disposent d’une option rapide de robinetterie avec référence, quantité et temps total ;
+- un élément spécifique sans EF/EC/évacuation affiche clairement qu’aucune platine n’est calculée ; dès qu’un raccordement est coché, il alimente le réseau automatique ;
+- les distances chauffe-eau SDB/cuisine sont explicitement tracées dans l’aperçu réseau ;
+- les longueurs réseau modifiées manuellement peuvent être remises au calcul automatique ;
+- la surface reste une donnée chantier informative tant qu’aucune règle métier validée ne relie directement m² et métrés de tuyaux.
+
+ Le parcours chantier est conservé ; le lot v0.6.4 ajoute des prix moyens d’appareillage quand aucune référence Téréva n’est sélectionnée et une base de connaissances Plombier interrogeable par Angel. Le référentiel réseau Téréva v0.6.3 reste conservé.
 
 ## Principe de prix réseau
 
