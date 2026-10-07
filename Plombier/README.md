@@ -1,6 +1,20 @@
-# SpeedArti — Plombier v0.6.5 — Configuration sanitaire et réseau
+# SpeedArti — Plombier v0.6.6 — Composition automatique des sanitaires
 
 Cette version continue le module Plombier existant.
+
+## Lot v0.6.6 — composants automatiques et habitudes entreprise
+
+- lavabo, meuble vasque et lave-mains préremplissent désormais automatiquement les composants récurrents couverts par une référence Téréva vérifiée ;
+- défaut SpeedArti siphon lavabo/vasque : **Nicoll EASYPHON BM211 — code Téréva `1054371`** ;
+- défaut SpeedArti bonde lavabo/vasque : **code Téréva `2864095`** ;
+- défaut SpeedArti bonde lave-mains : **Nicoll L2263 — code Téréva `997361L`** ;
+- les prix ne sont pas recopiés en dur pour ces composants : le moteur résout le code dans le catalogue Téréva embarqué au moment du calcul ;
+- quantité automatique d’un meuble vasque : 1 en simple, 2 en double, ou quantité réelle des vasques ajoutées dans une composition multi-articles ;
+- l’artisan peut remplacer une référence automatique sur un sanitaire ;
+- il peut déclarer qu’un siphon/une bonde est déjà compris dans le produit principal pour supprimer le double comptage ;
+- une préférence enregistrée dans **Habitudes de l’entreprise** devient prioritaire sur le défaut SpeedArti ;
+- ordre de priorité : **sélection sanitaire > habitude entreprise > défaut SpeedArti** ;
+- la base Angel connaît maintenant ces règles et références.
 
 ## Lot v0.6.5 — retour Guillaume
 
