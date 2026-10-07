@@ -563,5 +563,26 @@ test('v2.6 audit catalogue inconnu',()=>{assert.equal(catalogueCandidatesForLine
 test('v2.6 audit Angel hors sujet',()=>{assert.equal(searchAngelMacon('prix d une grue mobile 60 tonnes',3).length,0);assert.equal(searchAngelMacon('quel dosage de mortier réfractaire pour un barbecue',3).length,0);});
 test('v2.6 audit Angel structure',()=>{assert.match(answerAngelMacon('quel ferraillage pour une poutre de 6 mètres'),/ne doit jamais proposer seule/i);});
 test('v2.6 audit UI',()=>{const app=fs.readFileSync(new URL('./app.js',import.meta.url),'utf8'),html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');assert.match(app,/scrollTo/);assert.ok(!/v2\.5/i.test(html));});
+
+test('v2.6 fibre vide ne bloque plus la fin du chiffrage',()=>{
+  const s=base();s.simpleType='dalle';Object.assign(s.simple,{surface:10,thickness:12,slabRef:'dallage_arme',concreteClass:'C25/30',fibres:true,fibreType:'courante',fibreDose:''});
+  const r=calculate(s),fibre=r.lines.find(x=>x.id==='Dalle-fibres');
+  assert.ok(fibre);assert.ok(Math.abs(fibre.qty-(10*.12*3))<1e-9);
+  assert.ok(!r.alerts.some(a=>/dosage fibres obligatoire/i.test(a)));
+  assert.equal(validateStep(s,4),'');
+  assert.ok(r.reco.some(x=>/3 kg\/m³/.test(x)&&/prérempli automatiquement/i.test(x)));
+});
+
+test('v2.6 fibre renforcée vide utilise 5 kg/m³',()=>{
+  const s=base();s.simpleType='dalle';Object.assign(s.simple,{surface:10,thickness:10,slabRef:'dallage_arme',concreteClass:'C25/30',fibres:true,fibreType:'renforcee',fibreDose:''});
+  const r=calculate(s),fibre=r.lines.find(x=>x.id==='Dalle-fibres');
+  assert.ok(Math.abs(fibre.qty-5)<1e-9);
+});
+
+test('v2.6 UI fibre préremplit automatiquement le minimum',()=>{
+  const s=base();s.simpleType='dalle';Object.assign(s.simple,{surface:10,thickness:12,slabRef:'dallage_arme',concreteClass:'C25/30',fibres:true,fibreType:'courante',fibreDose:''});
+  assert.match(renderOptions(s),/data-simple="fibreDose"[^>]*value="3"/);
+});
+
 console.log(`OK — V2.6 Maçon: ${pass.length} contrôles fonctionnels passés`);
 for(const x of pass)console.log(`✓ ${x}`);

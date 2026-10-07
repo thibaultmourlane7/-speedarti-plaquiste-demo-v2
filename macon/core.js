@@ -365,7 +365,7 @@ function renderAssociatedSlabControls(e,d,{surfaceKey,surfaceLabel,insulationKey
       <div class="panel soft">${ec(e,'Treillis soudé','treillis',!!d.treillis,'slabTreillis')}<br>${ec(e,'Fibres','fibres',!!d.fibres,'slabFibres')}</div>
       ${d.treillis?ef(e,'Type de treillis','treillisType',d.treillisType??'ST25C',{trace:'treillisType',options:treillisOptions()}):''}
       ${d.fibres?ef(e,'Type de fibres','fibreType',d.fibreType??'courante',{trace:'fibreType',options:Object.entries(FIBRES).map(([id,r])=>({value:id,label:`${r.label} — ${r.min} à ${r.max} kg/m³`}))}):''}
-      ${d.fibres?ef(e,'Dosage fibres (kg/m³)','fibreDose',d.fibreDose??'',{required:true,step:'0.1',trace:'fibreDose',help:'Le dosage reste une donnée de calcul explicite, même si un produit le préremplit.'}):''}
+      ${d.fibres?ef(e,'Dosage fibres (kg/m³)','fibreDose',num(d.fibreDose)>0?d.fibreDose:(FIBRES[d.fibreType||'courante']?.min??''),{required:true,step:'0.1',trace:'fibreDose',help:'Prérempli automatiquement avec le minimum de la plage métier. Modifiable.'}):''}
     </div>`;
   }
   return h;
@@ -578,7 +578,7 @@ function renderSlabElement(e){
     <div class="panel soft">${ec(e,'Treillis soudé','treillis',!!d.treillis,'slabTreillis')}<br>${ec(e,'Fibres','fibres',!!d.fibres,'slabFibres')}</div>
     ${d.treillis?ef(e,'Type de treillis','treillisType',d.treillisType??'ST25C',{trace:'treillisType',options:treillisOptions()}):''}
     ${d.fibres?ef(e,'Type de fibres','fibreType',d.fibreType??'courante',{trace:'fibreType',options:Object.entries(FIBRES).map(([id,r])=>({value:id,label:`${r.label} — ${r.min} à ${r.max} kg/m³`}))}):''}
-    ${d.fibres?ef(e,'Dosage fibres (kg/m³)','fibreDose',d.fibreDose??'',{required:true,step:'0.1',trace:'fibreDose'}):''}
+    ${d.fibres?ef(e,'Dosage fibres (kg/m³)','fibreDose',num(d.fibreDose)>0?d.fibreDose:(FIBRES[d.fibreType||'courante']?.min??''),{required:true,step:'0.1',trace:'fibreDose',help:'Prérempli automatiquement avec le minimum de la plage métier. Modifiable.'}):''}
   </div>${refId?renderRefOverrides('element',d,refId).replaceAll('data-field=',`data-el-id="${e.id}" data-field=`):''}`;
 }
 
@@ -679,7 +679,7 @@ export function renderOptions(state){
     specific=`<details class="accordion" open><summary>⬜ Options dalle</summary><div class="accordion-body">
       ${check('Treillis soudé','treillis',!!d.treillis,'simple','slabTreillis')}<br>${check('Fibres','fibres',!!d.fibres,'simple','slabFibres')}
       ${d.treillis?`<div class="grid cols-2" style="margin-top:10px">${field('Type de treillis','treillisType',d.treillisType??'ST25C',{trace:'treillisType',options:treillisOptions()})}<div class="info-box">ST25C est une proposition métier Guillaume sur les cas prévus, modifiable ; ce n’est pas un dimensionnement structurel automatique.</div></div>`:''}
-      ${d.fibres?`<div class="grid cols-2" style="margin-top:10px">${field('Type de fibres','fibreType',d.fibreType??'courante',{trace:'fibreType',options:Object.entries(FIBRES).map(([id,r])=>({value:id,label:`${r.label} — ${r.min} à ${r.max} kg/m³`}))})}${field('Dosage fibres (kg/m³)','fibreDose',d.fibreDose??'',{required:true,step:'0.1',trace:'fibreDose',help:'Le dosage reste la donnée exacte utilisée pour la quantité.'})}</div><div class="alert warn">${esc(FIBRE_WARNING)}</div>`:''}
+      ${d.fibres?`<div class="grid cols-2" style="margin-top:10px">${field('Type de fibres','fibreType',d.fibreType??'courante',{trace:'fibreType',options:Object.entries(FIBRES).map(([id,r])=>({value:id,label:`${r.label} — ${r.min} à ${r.max} kg/m³`}))})}${field('Dosage fibres (kg/m³)','fibreDose',num(d.fibreDose)>0?d.fibreDose:(FIBRES[d.fibreType||'courante']?.min??''),{required:true,step:'0.1',trace:'fibreDose',help:'Prérempli automatiquement avec le minimum de la plage métier. Modifiable.'})}</div><div class="alert warn">${esc(FIBRE_WARNING)}</div>`:''}
       ${state.simpleType==='terrasse'?`<div class="separator"></div>${check('Étanchéité terrasse','terraceWaterproof',!!d.terraceWaterproof,'simple','terraceWaterproof')}${d.terraceWaterproof?field('Prix HT / m² étanchéité','terraceWaterproofPrice',d.terraceWaterproofPrice??'',{step:'0.01',required:true,trace:'terraceWaterproofPrice'}):''}<br>${check('Isolation thermique sous dalle','terraceInsulation',!!d.terraceInsulation,'simple','terraceInsulation')}${d.terraceInsulation?field('Prix HT / m² isolation','terraceInsulationPrice',d.terraceInsulationPrice??'',{step:'0.01',required:true,trace:'terraceInsulationPrice'}):''}`:''}
     </div></details>`;
   }
@@ -897,10 +897,10 @@ function calcSlab(state,d,prefix,surface,lines,lab,alerts,reco,concreteClassOver
     }
   }
   if(d.fibres){
-    const f=FIBRES[d.fibreType||'courante'],dose=num(d.fibreDose);
-    if(!(dose>0))alerts.push(`🚨 ${prefix} : dosage fibres obligatoire.`);
-    if(dose>0&&surface>0&&ep>0){
+    const f=FIBRES[d.fibreType||'courante'],enteredDose=num(d.fibreDose),dose=enteredDose>0?enteredDose:f.min;
+    if(surface>0&&ep>0){
       lines.push(line(`${prefix}-fibres`,`Fibres — ${f.label}`,'Ferraillage',surface*(ep/100)*dose,'kg'));
+      if(enteredDose<=0)reco.push(`${prefix} : dosage fibres prérempli automatiquement à ${f.min} kg/m³, minimum de la plage métier « ${f.label} ». Modifiable.`);
       if(dose<f.min||dose>f.max)alerts.push(`⚠️ ${prefix} : dosage fibres hors plage indicative ${f.min}–${f.max} kg/m³.`);
     }
     alerts.push(FIBRE_WARNING);
