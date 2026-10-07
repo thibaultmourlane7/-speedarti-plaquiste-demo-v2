@@ -10,8 +10,8 @@ const steps=[
   ['Configuration & options','Réglages facultatifs'],
   ['Résultats','Contrôle avant devis']
 ];
-const storeKey='speedarti-plombier-demo-v068';
-const legacyStoreKeys=['speedarti-plombier-demo-v067','speedarti-plombier-demo-v066','speedarti-plombier-demo-v065','speedarti-plombier-demo-v064','speedarti-plombier-demo-v063','speedarti-plombier-demo-v061','speedarti-plombier-demo-v060','speedarti-plombier-demo-v052','speedarti-plombier-demo-v051','speedarti-plombier-demo-v040','speedarti-plombier-demo-v031'];
+const storeKey='speedarti-plombier-demo-v069';
+const legacyStoreKeys=['speedarti-plombier-demo-v068','speedarti-plombier-demo-v067','speedarti-plombier-demo-v066','speedarti-plombier-demo-v065','speedarti-plombier-demo-v064','speedarti-plombier-demo-v063','speedarti-plombier-demo-v061','speedarti-plombier-demo-v060','speedarti-plombier-demo-v052','speedarti-plombier-demo-v051','speedarti-plombier-demo-v040','speedarti-plombier-demo-v031'];
 let step=0;
 let d=load()||initial();
 const q=s=>document.querySelector(s);
@@ -256,7 +256,11 @@ function companyPreferenceRow(prefKey){
   return `<div class="preference-row"><div><strong>${esc(info.label)}</strong><small>${isCustom?'Référence habituelle de l’entreprise':'Référence SpeedArti utilisée tant qu’aucune habitude entreprise n’est définie.'}</small>${sel?`<span>${esc(sel.marque||'')} — ${esc(sel.produit||'')} · Téréva ${esc(sel.code)} · ${eur(sel.prix)}</span>`:''}</div><div class="row wrap"><button type="button" class="btn secondary compact" data-open-catalogue data-catalogue-target="settings.component_preferences.${esc(prefKey)}" data-catalogue-context="${esc(info.context||'all')}" data-catalogue-label="${esc(info.label)}" data-catalogue-q="${esc(info.q||'')}">${isCustom?'Changer':'Définir mon habitude'}</button>${isCustom?`<button type="button" class="btn ghost compact" data-clear-catalogue="settings.component_preferences.${esc(prefKey)}">Revenir au défaut SpeedArti</button>`:''}</div></div>`;
 }
 function componentPreferencesCard(){
-  return `<div class="card preference-card"><div class="row between wrap"><div><h2>Habitudes de l’entreprise</h2><p class="muted">Ces références deviennent les choix automatiques pour les nouveaux sanitaires. Dans SpeedArti final, ce réglage sera rattaché à l’entreprise/artisan.</p></div><span class="pill">Préférences catalogue</span></div><div class="preference-list">${['lavabo_siphon','lavabo_bonde','lave_main_bonde'].map(companyPreferenceRow).join('')}</div></div>`;
+  const keys=Object.keys(API.AUTO_COMPONENT_PREFERENCES||{});
+  const groups={};
+  keys.forEach(k=>{const g=API.AUTO_COMPONENT_PREFERENCES[k]?.group||'Autres';(groups[g]=groups[g]||[]).push(k)});
+  const body=Object.entries(groups).map(([group,ks])=>`<details class="preference-group"><summary>${esc(group)} — ${ks.length} référence(s) automatique(s)</summary><div class="preference-list">${ks.map(companyPreferenceRow).join('')}</div></details>`).join('');
+  return `<div class="card preference-card"><div class="row between wrap"><div><h2>Habitudes de l’entreprise</h2><p class="muted">Ces références deviennent les choix automatiques pour les nouveaux sanitaires. Elles remplacent les défauts SpeedArti sans modifier les règles métier.</p></div><span class="pill">Préférences catalogue</span></div>${body}</div>`;
 }
 
 function annexe2Panel(eq,prefix){
@@ -268,12 +272,13 @@ function annexe2Panel(eq,prefix){
       const [status,kind]=annexe2RoleStatus(def,eq);return `<div class="annexe2-row"><div><strong>${esc(def.label)}</strong>${def.optional?'<small>Conditionnel</small>':''}</div><span class="annexe2-status ${kind}">${esc(status)}</span></div>`;
     }
     const item=items[def.key]||{};
-    if(API.isAutoComponent?.(eq.kind,def.key))return autoComponentRow(eq,prefix,def,item);
+    const autoKind=API.autoComponentKind?.(eq)||eq.kind;
+    if(API.isAutoComponent?.(autoKind,def.key,eq.subtype||'',eq.config||''))return autoComponentRow(eq,prefix,def,item);
     const has=!!item.catalogue?.code;
     const picker=cataloguePicker(`${prefix}.annexe2_items.${def.key}.catalogue`,`${prefix}.annexe2_items.${def.key}.price_ht`,def.context||'all',def.label,item.catalogue,true,def.q||'');
     return `<div class="annexe2-row selectable"><div class="annexe2-row-head"><div><strong>${esc(def.label)}</strong>${def.optional?'<small>Conditionnel / si non compris dans le produit principal</small>':'<small>À vérifier selon le produit principal choisi</small>'}</div><span class="annexe2-status ${has?'ok':'info'}">${has?'Référence associée':'Non renseigné'}</span></div>${picker}${has?`<div class="grid annexe2-fields">${numField('Quantité',`${prefix}.annexe2_items.${def.key}.quantite`,item.quantite??1,'c4',0,1)}${textField('Note / inclusion pack',`${prefix}.annexe2_items.${def.key}.note`,item.note,'c4','optionnel')}</div>`:''}</div>`;
   }).join('');
-  return `<details class="annexe2-panel" open><summary>📋 Composition de l’équipement — ${defs.length} poste(s)</summary><div class="annexe2-body"><p class="muted">Les alimentations et raccords déjà calculés par le réseau ne sont pas doublés. Siphons et bondes des lavabos/vasques/lave-mains peuvent être préremplis automatiquement et restent modifiables.</p>${rows}</div></details>`;
+  return `<details class="annexe2-panel" open><summary>📋 Composition de l’équipement — ${defs.length} poste(s)</summary><div class="annexe2-body"><p class="muted">Les alimentations et raccordements locaux déjà calculés ne sont pas doublés. Les composants pour lesquels SpeedArti possède une référence Téréva sûre sont préremplis automatiquement ; les composants dépendants de la pose restent à vérifier. Tout reste modifiable ou déclarable « compris dans le produit principal ».</p>${rows}</div></details>`;
 }
 
 function equipmentOptionBlock(path,label,help,body=''){
