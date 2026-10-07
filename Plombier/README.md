@@ -1,6 +1,16 @@
-# SpeedArti — Plombier v0.6.6 — Composition automatique des sanitaires
+# SpeedArti — Plombier v0.6.7 — Cumul main-d'œuvre sanitaire / réseau
 
 Cette version continue le module Plombier existant.
+
+## Lot v0.6.7 — main-d’œuvre sanitaire, raccordements locaux et réseau général
+
+Règle issue des réponses Guillaume et du cahier de fonctionnement :
+- le **temps sanitaire** comprend la pose de l'appareil et son **raccordement local** : platine(s), bonde/siphon et petite évacuation locale ;
+- le **réseau général EF/EC/évacuation** est calculé et cumulé séparément ;
+- le mètre d'évacuation locale automatique par sanitaire n'ajoute plus une seconde fois du temps PVC au réseau ;
+- si l'évacuation saisie dépasse le raccordement local prévu, l'excédent est traité comme réseau général et ajoute son temps de pose ;
+- le résultat affiche désormais une décomposition visible : **sanitaires + raccordements locaux / réseau général / équipements complémentaires** ;
+- aucun temps arbitraire de pose de platine n'a été inventé.
 
 ## Lot v0.6.6 — composants automatiques et habitudes entreprise
 
