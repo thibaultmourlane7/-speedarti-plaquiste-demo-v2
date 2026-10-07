@@ -197,14 +197,26 @@
     ]
   };
     const AUTO_COMPONENT_PREFERENCES={
-    lavabo_siphon:{label:'Siphon lavabo / vasque',code:'1054371',context:'all',q:'siphon lavabo'},
-    lavabo_bonde:{label:'Bonde lavabo / vasque',code:'2864095',context:'all',q:'bonde lavabo'},
-    lave_main_bonde:{label:'Bonde lave-mains',code:'997361L',context:'all',q:'bonde lave mains'}
+    lavabo_siphon:{label:'Siphon lavabo / vasque',code:'1054371',context:'all',q:'siphon lavabo',group:'Lavabo / vasque'},
+    lavabo_bonde:{label:'Bonde lavabo / vasque',code:'2864095',context:'all',q:'bonde lavabo',group:'Lavabo / vasque'},
+    lave_main_bonde:{label:'Bonde lave-mains',code:'997361L',context:'all',q:'bonde lave mains',group:'Lave-mains'},
+    douche_bonde_standard:{label:'Bonde douche standard Ø90',code:'4273010',context:'all',q:'bonde douche 90',group:'Douche'},
+    douche_bonde_extra_plate:{label:'Bonde douche extra-plate',code:'4281682',context:'all',q:'bonde douche extra plate',group:'Douche'},
+    baignoire_vidage:{label:'Vidage baignoire avec trop-plein',code:'767547L',context:'all',q:'vidage baignoire trop plein',group:'Baignoire'},
+    baignoire_siphon:{label:'Siphon baignoire',code:'4273012',context:'all',q:'siphon baignoire',group:'Baignoire'},
+    evier_siphon:{label:'Siphon évier Ø40',code:'1066748',context:'all',q:'siphon evier',group:'Évier'},
+    evier_bonde_simple:{label:'Bonde évier 1 cuve avec trop-plein',code:'4272991',context:'all',q:'bonde evier 1 cuve trop plein',group:'Évier'},
+    evier_bonde_double:{label:'Bonde évier 2 cuves avec trop-plein',code:'4273023',context:'all',q:'bonde evier 2 cuves trop plein',group:'Évier'},
+    wc_poser_fixations:{label:'Fixations au sol WC',code:'1085426',context:'all',q:'fixation wc 70',group:'WC à poser'}
   };
   const AUTO_COMPONENT_DEFAULTS={
     lavabo:{siphon:'lavabo_siphon',bonde:'lavabo_bonde'},
     meuble_vasque:{siphon:'lavabo_siphon',bonde:'lavabo_bonde'},
-    lave_main:{siphon:'lavabo_siphon',bonde:'lave_main_bonde'}
+    lave_main:{siphon:'lavabo_siphon',bonde:'lave_main_bonde'},
+    douche:{bonde:{bac:'douche_bonde_standard',extra_plat:'douche_bonde_extra_plate'}},
+    baignoire:{vidage:'baignoire_vidage',siphon:'baignoire_siphon'},
+    evier:{siphon:'evier_siphon',bonde:{simple:'evier_bonde_simple',sous_plan_simple:'evier_bonde_simple',double:'evier_bonde_double',sous_plan_double:'evier_bonde_double'}},
+    wc_poser:{fixations_sol:'wc_poser_fixations'}
   };
 
   function catalogueSelectionByCode(code){
@@ -219,8 +231,17 @@
     const cfg=AUTO_COMPONENT_PREFERENCES[prefKey];const s=cfg?catalogueSelectionByCode(cfg.code):null;
     return s?{selection:s,source:'defaut_speedarti'}:{selection:null,source:'introuvable'};
   }
-  function autoComponentPreferenceKey(kind,key){return AUTO_COMPONENT_DEFAULTS[kind]?.[key]||''}
-  function isAutoComponent(kind,key){return !!autoComponentPreferenceKey(kind,key)}
+  function autoComponentKind(eq){
+    if(eq?.kind!=='wc')return eq?.kind||'';
+    return eq?.subtype==='suspendu'?'wc_suspendu':eq?.subtype==='urinoir'||eq?.subtype==='urinoir_bati'?'':'wc_poser';
+  }
+  function autoComponentPreferenceKey(kind,key,subtype='',config=''){
+    const def=AUTO_COMPONENT_DEFAULTS[kind]?.[key];
+    if(!def)return '';
+    if(typeof def==='string')return def;
+    return def[config]||def[subtype]||def.default||'';
+  }
+  function isAutoComponent(kind,key,subtype='',config=''){return !!autoComponentPreferenceKey(kind,key,subtype,config)}
   function autoComponentQuantity(eq,key){
     if(eq?.kind==='meuble_vasque'){
       const vasques=(eq.additional_catalogue_items||[]).filter(x=>/vasque/i.test(`${x?.catalogue?.type||''} ${x?.catalogue?.produit||''}`)).reduce((s,x)=>s+Math.max(0,n(x?.quantite,1)),0);
@@ -231,12 +252,15 @@
   }
   function componentIncludedByProduct(eq,key){
     const texts=[eq?.catalogue,...(eq?.additional_catalogue_items||[]).map(x=>x?.catalogue)].filter(Boolean).map(x=>`${x.produit||''} ${x.variante||''}`).join(' ');
-    if(key==='bonde')return /avec\s+vidage|bonde\s+(?:incluse|comprise)/i.test(texts);
-    if(key==='siphon')return /avec\s+siphon|siphon\s+(?:inclus|compris)/i.test(texts);
+    if(key==='bonde')return /avec\s+(?:une\s+)?bonde|bonde\s+(?:incluse|comprise)/i.test(texts);
+    if(key==='siphon')return /avec\s+(?:un\s+)?siphon|siphon\s+(?:inclus|compris)/i.test(texts);
+    if(key==='vidage')return /avec\s+(?:un\s+)?vidage|vidage\s+(?:inclus|compris)/i.test(texts);
+    if(key==='trop_plein')return /avec\s+(?:un\s+)?trop[- ]?plein|trop[- ]?plein\s+(?:inclus|compris)/i.test(texts);
+    if(key==='fixations_sol')return /avec\s+(?:les\s+)?fixations|fixations?\s+(?:incluses?|comprises?)/i.test(texts);
     return false;
   }
   function autoComponentProposal(d,eq,key){
-    const prefKey=autoComponentPreferenceKey(eq?.kind,key);if(!prefKey)return null;
+    const kind=autoComponentKind(eq);const prefKey=autoComponentPreferenceKey(kind,key,eq?.subtype||'',eq?.config||'');if(!prefKey)return null;
     const item=eq?.annexe2_items?.[key]||{};
     const autoQty=autoComponentQuantity(eq,key);
     if(item.included_in_main||componentIncludedByProduct(eq,key))return {key,prefKey,included:true,selection:null,qty:0,source:item.included_in_main?'inclus_artisan':'inclus_catalogue'};
@@ -353,7 +377,7 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
   }
 
   function addAnnexe2SelectedItems(eq,uiPath,alerts){
-    const out=[];const items=eq.annexe2_items||{};const allowed=new Map(annexe2For(eq.kind,eq.subtype).filter(x=>x.role==='selectable'&&!isAutoComponent(eq.kind,x.key)&&!(x.key==='mitigeur'&&(eq.kind==='meuble_vasque'||eq.kind==='lave_main'))).map(x=>[x.key,x]));
+    const out=[];const items=eq.annexe2_items||{};const autoKind=autoComponentKind(eq);const allowed=new Map(annexe2For(eq.kind,eq.subtype).filter(x=>x.role==='selectable'&&!isAutoComponent(autoKind,x.key,eq.subtype||'',eq.config||'')&&!(x.key==='mitigeur'&&(eq.kind==='meuble_vasque'||eq.kind==='lave_main'))).map(x=>[x.key,x]));
     Object.entries(items).forEach(([key,item])=>{
       const def=allowed.get(key);if(!def)return;
       const sel=item?.catalogue;const qty=n(item?.quantite,0);const manual=n(item?.price_ht,0);
@@ -368,7 +392,7 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
   }
   function addAutoComponents(eq,d,uiPath,alerts){
     const out=[];const defs=new Map(annexe2For(eq.kind,eq.subtype).map(x=>[x.key,x]));
-    const map=AUTO_COMPONENT_DEFAULTS[eq.kind]||{};
+    const autoKind=autoComponentKind(eq);const map=AUTO_COMPONENT_DEFAULTS[autoKind]||{};
     Object.keys(map).forEach(key=>{
       const def=defs.get(key);if(!def)return;
       const p=autoComponentProposal(d,eq,key);if(!p||p.included)return;
@@ -413,7 +437,7 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
       }else if(def.role==='selectable'){
         if(def.key==='mitigeur'&&(eq.kind==='meuble_vasque'||eq.kind==='lave_main')){
           selected=eq.robinet_catalogue||null;status=eq.robinet?(hasCatalogue(selected)?'géré par option robinetterie':'option robinetterie activée à renseigner'):'géré par option robinetterie';
-        }else if(isAutoComponent(eq.kind,def.key)){
+        }else if(isAutoComponent(autoComponentKind(eq),def.key,eq.subtype||'',eq.config||'')){
           const p=autoComponentProposal(d,eq,def.key);selected=p?.selection||null;
           if(p?.included)status=p.source==='inclus_catalogue'?'compris d’après la référence principale':'déclaré compris dans le produit principal';
           else if(p?.source==='preference_entreprise')status='automatique — habitude entreprise';
@@ -877,5 +901,5 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
     if(!d.nom_calcul)throw new Error('Le nom du calcul est requis');
     return d.options?.type_projet==='petits_travaux'?petits(d):complete(d);
   }
-  window.SpeedArtiPlombierCurrent={calculate,previewNetwork:(d)=>{const x=computeNetwork(d,d?.installation?.equipments||[]);return {...x,autoTimeH:networkTimeProposal(x,(d.options?.type_tuyau||'per').toLowerCase())}},ANNEXE1_DEFAULTS,FORFAITS_DEFAULTS,PIPE_FALLBACK,EQUIPMENT_AVERAGE_PRICES,equipmentAveragePrice,ANNEXE2_COMPONENTS,annexe2For,AUTO_COMPONENT_PREFERENCES,AUTO_COMPONENT_DEFAULTS,isAutoComponent,autoComponentProposal,companyComponentPreference};
+  window.SpeedArtiPlombierCurrent={calculate,previewNetwork:(d)=>{const x=computeNetwork(d,d?.installation?.equipments||[]);return {...x,autoTimeH:networkTimeProposal(x,(d.options?.type_tuyau||'per').toLowerCase())}},ANNEXE1_DEFAULTS,FORFAITS_DEFAULTS,PIPE_FALLBACK,EQUIPMENT_AVERAGE_PRICES,equipmentAveragePrice,ANNEXE2_COMPONENTS,annexe2For,AUTO_COMPONENT_PREFERENCES,AUTO_COMPONENT_DEFAULTS,autoComponentKind,isAutoComponent,autoComponentProposal,companyComponentPreference};
 })();
