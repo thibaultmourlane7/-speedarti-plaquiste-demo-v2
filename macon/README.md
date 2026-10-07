@@ -235,3 +235,14 @@ Priorité de connaissance : **moteur réel SpeedArti → référentiel validé �
 - l’étape Prix / catalogue montre d’abord le produit retenu et le prix ; références et conditionnements sont repliés dans « Voir / modifier le produit » ;
 - le résultat sépare matériaux, transport/livraison, options/prestations, main-d’œuvre et TVA ;
 - saisie numérique améliorée sur mobile et retour d’étape renforcé avec défilement vers le haut du wizard.
+
+
+## Sprint raccordements SpeedArti
+
+Le fichier `speedarti-integration.js` formalise les futurs raccordements sans ouvrir aucune connexion vers la production.
+
+Préparés : paramètres artisan, catalogue personnel/fournisseur/standard, stocks, client, chantier, mesures satellite, calepinage, historique des chiffrages, création de devis, moteur TVA et Angèle.
+
+Le payload d’intégration conserve les unités, quantités, sources de prix, références catalogue, heures-homme, ventilation HT/TVA/TTC et identifie explicitement les postes « à confirmer ».
+
+**Statut : prepared-not-connected.** Le dépôt réel SpeedArti a uniquement été consulté en lecture seule.

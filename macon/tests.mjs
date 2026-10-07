@@ -11,6 +11,7 @@ import {
   PREFAB_DEFAULT_PRICE_M2, LONGRINE_PRICE_ML, micropileSuggestedPrice, estimatedVerticalChainage, toupieEstimatedCount, DEMO_SPEEDARTI_CONTEXT, detectVatContext, effectiveVatRate, projectSummary, resultCostBreakdown
 } from './core.js';
 import { SpeedArtiAngelMaconKnowledge, searchAngelMacon, answerAngelMacon } from './angel-knowledge.js';
+import { SPEEDARTI_MACON_INTEGRATION_VERSION, SPEEDARTI_MACON_CONNECTORS, buildSpeedArtiMaconPayload, getIntegrationReadiness } from './speedarti-integration.js';
 
 const pass=[];
 function test(name,fn){try{fn();pass.push(name)}catch(e){console.error(`FAIL — ${name}`);throw e}}
@@ -669,6 +670,30 @@ test('sprint UX résultat: ventilation matériaux transport options reste égale
 test('sprint UX saisie: champs numériques sont optimisés mobile et scroll cible le wizard',()=>{
   const s=base();s.simpleType='dalle';const html=renderConfig(s),app=fs.readFileSync(new URL('./app.js',import.meta.url),'utf8');
   assert.match(html,/inputmode="decimal"/);assert.match(app,/\.select\(\)/);assert.match(app,/scrollIntoView/);assert.match(app,/requestAnimationFrame/);
+});
+
+
+test('sprint raccordements: tous les points SpeedArti sont préparés',()=>{
+  assert.equal(SPEEDARTI_MACON_INTEGRATION_VERSION,'MACON-INTEGRATION-v1');
+  for(const id of ['parametres','catalogue','stocks','client','chantier','satellite','calepinage','historique','devis','tva','angel']){
+    assert.equal(SPEEDARTI_MACON_CONNECTORS[id]?.status,'prepared',id);
+  }
+  assert.equal(getIntegrationReadiness().length,11);
+});
+
+test('sprint raccordements: payload conserve unités, prix, sources, MO et TVA',()=>{
+  const s=base();s.simpleType='dalle';Object.assign(s.simple,{surface:20,thickness:12,slabRef:'dallage_arme',concreteClass:'C25/30'});s.taxContext={workType:'renovation',housingOver2Years:'oui',ecoRenovation:'non'};
+  const r=calculate(s),p=buildSpeedArtiMaconPayload(s,r);
+  assert.equal(p.metier,'maçon');assert.equal(p.tva.taux,10);assert.equal(p.totaux.total_ht,r.totalHT);
+  assert.equal(p.main_oeuvre.heures_homme,r.hours);assert.ok(p.lignes.length>0);
+  assert.ok(p.lignes.every(x=>typeof x.quantite==='number'&&typeof x.unite==='string'&&'source_prix' in x));
+});
+
+test('sprint raccordements: contrat reste sans connexion production',()=>{
+  const src=fs.readFileSync(new URL('./speedarti-integration.js',import.meta.url),'utf8');
+  assert.ok(!/supabase\s*\./i.test(src));assert.ok(!/createClient\s*\(/i.test(src));assert.ok(!/https?:\/\//i.test(src));
+  assert.match(src,/prepared-not-connected/);
+  const app=fs.readFileSync(new URL('./app.js',import.meta.url),'utf8');assert.match(app,/speedarti-integration\.js/);
 });
 
 console.log(`OK — V2.6 Maçon: ${pass.length} contrôles fonctionnels passés`);

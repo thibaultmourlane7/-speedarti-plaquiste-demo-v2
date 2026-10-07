@@ -2,6 +2,7 @@ import {
   STEPS, defaultState, renderStep, validateStep, newElement, setPath, getPath, num
 } from './core.js';
 import './angel-knowledge.js';
+import './speedarti-integration.js';
 
 const STORAGE_KEY='speedarti-macon-demo-v2-catalogue';
 const TRUCK_PREF_KEY='speedarti-macon-truck-default';
