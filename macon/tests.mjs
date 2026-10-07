@@ -8,7 +8,7 @@ import {
   calculate, validateStep, assertBalisage,
   WORKS, WORK_BY_ID, FIBRES, PREFAB_H_PER_ML, TRUCK_8X4_DEFAULT, TRACE_TARGETS,
   TREILLIS_GUILLAUME, PUMP_DEFAULT_PRICE, TOUPIE_PRICE_M3, TOUPIE_MIN_BILLABLE_M3, TOUPIE_CAPACITY_M3,
-  PREFAB_DEFAULT_PRICE_M2, LONGRINE_PRICE_ML, micropileSuggestedPrice, estimatedVerticalChainage, toupieEstimatedCount, DEMO_SPEEDARTI_CONTEXT, detectVatContext, effectiveVatRate, projectSummary, resultCostBreakdown
+  PREFAB_DEFAULT_PRICE_M2, LONGRINE_PRICE_ML, micropileSuggestedPrice, estimatedVerticalChainage, toupieEstimatedCount, DEMO_SPEEDARTI_CONTEXT, detectVatContext, effectiveVatRate, projectSummary, resultCostBreakdown, MASONRY_DEFAULTS, masonryRatio, roundMoney
 } from './core.js';
 import { SpeedArtiAngelMaconKnowledge, searchAngelMacon, answerAngelMacon, buildAngelMaconContext } from './angel-knowledge.js';
 import { SPEEDARTI_MACON_INTEGRATION_VERSION, SPEEDARTI_MACON_CONNECTORS, buildSpeedArtiMaconPayload, getIntegrationReadiness } from './speedarti-integration.js';
@@ -740,6 +740,78 @@ test('sprint S6: toutes les collections utilisent $',()=>{
   const bad=app.split('\n').filter(l=>/^\s*\$\([^)]*\)\.forEach/.test(l));
   assert.deepEqual(bad,[]);
   assert.match(app,/\$\$\('\[data-mode\]'\)\.forEach/);
+});
+
+
+test('S6.1 mur élévation expose la classe béton pour chaînages et BA',()=>{
+  const s=base();s.mode='multiple';const e=newElement('murs_elevations');
+  Object.assign(e.data,{length:10,height:2.5,thickness:20,material:'parpaing',method:'tradi'});s.elements=[e];
+  const html=renderConfig(s);
+  assert.match(html,/Classe béton — chaînages \/ ouvrages BA/);
+  assert.match(html,/data-field="concreteClass"/);
+  assert.match(validateStep(s,2),/Classe béton obligatoire/i);
+  e.data.concreteClass='C25/30';
+  assert.equal(validateStep(s,2),'');
+});
+
+test('S6.1 parpaing utilise les ratios préremplis sans blocage',()=>{
+  assert.deepEqual(MASONRY_DEFAULTS.parpaing,{blocksPerM2:10,wallHPerM2:0.8});
+  const s=base();s.mode='multiple';const e=newElement('murs_elevations');
+  Object.assign(e.data,{length:10,height:2.5,thickness:20,material:'parpaing',method:'tradi',concreteClass:'C25/30'});s.elements=[e];
+  assert.equal(masonryRatio(e.data,'blocksPerM2'),10);
+  assert.equal(masonryRatio(e.data,'wallHPerM2'),0.8);
+  const r=calculate(s);
+  assert.ok(!r.alerts.some(a=>/consommation blocs|temps de pose/i.test(a)));
+  const blockLine=r.lines.find(x=>x.id.startsWith(e.id+'-blocks'));
+  assert.equal(blockLine.qty,250);
+  assert.match(renderConfig(s),/<details class="accordion" open><summary>⚙️ Réglages métier avancés — maçonnerie/);
+});
+
+test('S6.1 autres matériaux ne reçoivent pas le ratio parpaing',()=>{
+  const s=base();s.mode='multiple';const e=newElement('murs_elevations');
+  Object.assign(e.data,{length:10,height:2.5,thickness:20,material:'brique',method:'tradi',concreteClass:'C25/30'});s.elements=[e];
+  assert.equal(masonryRatio(e.data,'blocksPerM2'),0);
+  assert.match(validateStep(s,2),/consommation blocs/i);
+});
+
+test('S6.1 cheminée sélectionnée avec quantité 0 est signalée',()=>{
+  const s=base();s.simpleType='cheminee';
+  Object.assign(s.simple,{height:5,count:1,conduit:'20x20',stack:'simple',stackCount:0,cap:'standard',capCount:0});
+  const r=calculate(s);
+  assert.ok(r.alerts.some(a=>/Souche sélectionnée/i.test(a)));
+  assert.ok(r.alerts.some(a=>/Chapeau sélectionné/i.test(a)));
+  const app=fs.readFileSync(new URL('./app.js',import.meta.url),'utf8');
+  assert.match(app,/path==='stack'/);assert.match(app,/obj\.stackCount=1/);assert.match(app,/obj\.capCount=1/);
+});
+
+test('S6.1 cheminée quantités à 1 restent chiffrées',()=>{
+  const s=base();s.simpleType='cheminee';
+  Object.assign(s.simple,{height:5,count:1,conduit:'20x20',stack:'simple',stackCount:1,cap:'standard',capCount:1});
+  const r=calculate(s);
+  assert.equal(qty(r,'simple-chimney-stack'),1);
+  assert.equal(qty(r,'simple-chimney-cap'),1);
+  assert.ok(r.canFinalize);
+});
+
+test('S6.1 arrondis : TTC égale HT arrondi + TVA arrondie',()=>{
+  const s=base();s.simpleType='fondations';
+  Object.assign(s.simple,{foundationRef:'semelle_filante',length:20,widthCm:50,heightCm:30,concreteClass:'C25/30'});
+  s.taxContext={workType:'neuf',housingOver2Years:'',ecoRenovation:'non'};
+  const r=calculate(s);
+  assert.equal(r.totalHT,roundMoney(r.materials+r.laborCost));
+  assert.equal(r.tax,roundMoney(r.totalHT*.20));
+  assert.equal(r.ttc,roundMoney(r.totalHT+r.tax));
+});
+
+test('S6.1 simple mur affiche la classe béton quand un ouvrage BA la nécessite',()=>{
+  const s=base();s.simpleType='murs';
+  Object.assign(s.simple,{length:10,height:2.5,thickness:20,material:'parpaing',openings:[{width:1,height:1,associated:'linteau_ba_courant'}]});
+  assert.match(renderOptions(s),/Classe béton — ouvrages BA \/ chaînages/);
+});
+
+test('S6.1 Angèle connaît les nouvelles règles',()=>{
+  assert.equal(SpeedArtiAngelMaconKnowledge.version,'MAC-ANGEL-KB-v1.2');
+  for(const q of ['ratio parpaing','classe béton chaînage mur','quantité souche chapeau','arrondi TTC TVA'])assert.ok(searchAngelMacon(q,5).length>0,q);
 });
 
 console.log(`OK — V2.6 Maçon: ${pass.length} contrôles fonctionnels passés`);
