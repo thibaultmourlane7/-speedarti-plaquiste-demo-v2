@@ -6,7 +6,7 @@ import {
   WORKS, WORK_BY_ID
 } from './references.js';
 import {
-  CATALOGUE_MACON, catalogueCandidatesForLine, resolveCatalogueProduct, catalogueLabel
+  CATALOGUE_MACON, catalogueCandidatesForLine, resolveCatalogueProduct, catalogueLabel, genericRebarPricePerKg
 } from './catalogue-macon.js';
 
 export const STEPS = ['Mode', 'Ouvrage(s)', 'Configuration', 'Options', 'Prix / catalogue', 'Résultat'];
@@ -773,6 +773,12 @@ function resolveAutomaticCataloguePrice(line,preferredRef=''){
   }
   return {referenceCatalogue:'',resolved:null,automatic:false};
 }
+function referenceFallbackPrice(line){
+  if(line?.category==='Béton'&&line?.unit==='m³')return {price:TOUPIE_PRICE_M3,source:`Référence SpeedArti béton prêt à l’emploi — ${money(TOUPIE_PRICE_M3)}/m³`,kind:'beton_reference'};
+  if(line?.category==='Ferraillage'&&line?.unit==='kg'){const price=genericRebarPricePerKg();if(price>0)return {price,source:'Catalogue Maçon SpeedArti — fer à béton converti au kg depuis dimensions catalogue',kind:'acier_reference'};}
+  return null;
+}
+
 
 function chimneyResolved(d,kind,id,base){
   const ov=d.chimneyOverrides?.[kind]?.[id]||{};
@@ -1034,7 +1040,7 @@ function calcElevationWall(state,e,lines,lab,alerts,reco){
   const openings=d.openings||[];
   const openingArea=openings.reduce((s,o)=>s+num(o.width)*num(o.height),0);
   if(openingArea>gross){alerts.push(`🚨 ${e.name} : ouvertures supérieures à la surface du mur.`);return;}
-  const pignonArea=(d.pignons||[]).reduce((s,pn)=>s+(num(pn.width)*num(pn.width)*(num(pn.slope)/100)/2),0);
+  const pignonArea=(d.pignons||[]).reduce((s,pn)=>s+(num(pn.width)*num(pn.width)*(num(pn.slope)/100)/4),0);
   const net=Math.max(0,gross-openingArea)+pignonArea;
   if(d.material==='beton_banche'){
     if(d.method==='prefabrique'){
@@ -1115,8 +1121,9 @@ function addCommonOptions(state,lines,lab,alerts,reco){
     }
     if(totalConcrete>0){
       const billed=Math.max(totalConcrete,TOUPIE_MIN_BILLABLE_M3);
+      for(const concreteLine of lines)if(concreteLine.category==='Béton'&&concreteLine.unit==='m³'&&concreteLine.priceMode!=='included'){concreteLine.price=0;concreteLine.priceMode='included';concreteLine.includedByToupie=true;}
       addDirectPricedLine(lines,'toupie','Béton livré par toupie — facturation volume','Transport béton',billed,'m³',priceM3);
-      reco.push(`Facturation toupie Guillaume : ${money(priceM3)}/m³, minimum ${TOUPIE_MIN_BILLABLE_M3} m³ (${money(priceM3*TOUPIE_MIN_BILLABLE_M3)}).`);
+      reco.push(`Facturation toupie Guillaume : ${money(priceM3)}/m³, minimum ${TOUPIE_MIN_BILLABLE_M3} m³ (${money(priceM3*TOUPIE_MIN_BILLABLE_M3)}). Les lignes béton physiques restent visibles mais sont incluses afin d’éviter toute double facturation.`);
     }else alerts.push('🚨 Toupie : aucun volume béton calculé à facturer.');
   }
   if(g.concreteControlMode==='betonniere')reco.push(`Contrôle productivité bétonnière : ${fmt(totalConcrete*4,2)} h-homme pour ${fmt(totalConcrete,3)} m³. Non additionné automatiquement aux temps ouvrage.`);
@@ -1181,9 +1188,11 @@ export function calculate(state){
       if(num(l.price)>0){
         return {...l,source:'prix de référence SpeedArti',catalogueSelection:storedRef||null,catalogueResolution:null,automaticCatalogue:false};
       }
+      const fallback=referenceFallbackPrice(l);
+      if(fallback)return {...l,price:fallback.price,source:fallback.source,referenceFallback:fallback.kind,catalogueSelection:storedRef||null,catalogueResolution:null,automaticCatalogue:false};
       return {...l,price:0,source:'prix à confirmer',catalogueSelection:storedRef||null,catalogueResolution:null,automaticCatalogue:false,unpriced:true};
     }
-    return {...l,source:l.priceMode==='validated'?'référence validée':l.priceMode==='included'?'inclus dans le forfait':'saisie explicite'};
+    return {...l,source:l.priceMode==='validated'?'référence validée':l.includedByToupie?'inclus dans la fourniture toupie':l.priceMode==='included'?'inclus dans le forfait':'saisie explicite'};
   });
   const missingPrices=pricedLines.filter(l=>l.qty>0&&l.priceMode==='required'&&!(l.price>0));
   missingPrices.forEach(l=>{

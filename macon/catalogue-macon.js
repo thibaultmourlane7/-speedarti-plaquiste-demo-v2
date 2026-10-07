@@ -213,6 +213,7 @@ function conversionPlan(line,product){
 
 export function catalogueCandidatesForLine(line,limit=8){
   const families=familyHints(line);
+  if(!families.length)return [];
   const kws=queryKeywords(line);
   const thick=thicknessMm(line);
   return CATALOGUE_MACON
@@ -242,7 +243,8 @@ export function resolveCatalogueProduct(line,referenceCatalogue){
   const product=CATALOGUE_BY_REF[referenceCatalogue];
   if(!product)return {compatible:false,reason:'Article catalogue introuvable.'};
   const families=familyHints(line);
-  if(families.length&&!families.includes(product.famille))return {compatible:false,product,reason:'Article incompatible avec la famille métier calculée.'};
+  if(!families.length)return {compatible:false,product,reason:'Aucune famille catalogue métier fiable pour ce poste.'};
+  if(!families.includes(product.famille))return {compatible:false,product,reason:'Article incompatible avec la famille métier calculée.'};
   if(!productRoleCompatible(line,product))return {compatible:false,product,reason:'Article incompatible avec le type d’ouvrage calculé.'};
   const plan=conversionPlan(line,product);
   if(!plan.compatible)return {compatible:false,product,reason:`${plan.reason} Saisir un prix personnel ou choisir un autre article.`};
@@ -256,3 +258,13 @@ export function catalogueLabel(product){
   const price=product.prixArtisanHt>0?`${Number(product.prixArtisanHt).toFixed(2)} € HT / ${product.uniteVente}`:'prix à renseigner';
   return `${product.marque} — ${product.produit} — réf. ${product.referenceCatalogue} — ${price}`;
 }
+function rebarMassKg(product){
+  if(!product||product.famille!=='Aciers / armatures'||product.typeArticle!=='Fer à béton')return 0;
+  const text=String(product.produit||'').replace(/,/g,'.'),d=text.match(/[Øø]\s*(\d+(?:\.\d+)?)\s*mm/i),l=text.match(/(?:barre\s*)?(\d+(?:\.\d+)?)\s*m\b/i);
+  if(!d||!l)return 0;const dm=Number(d[1])/1000,lm=Number(l[1]);return dm>0&&lm>0?Math.PI*(dm*dm/4)*lm*7850:0;
+}
+export function genericRebarPricePerKg(){
+  const v=CATALOGUE_MACON.map(p=>{const m=rebarMassKg(p),pr=Number(p.prixArtisanHt);return m>0&&pr>0?pr/m:0}).filter(x=>x>0).sort((a,b)=>a-b);
+  if(!v.length)return 0;const mid=Math.floor(v.length/2);return v.length%2?v[mid]:(v[mid-1]+v[mid])/2;
+}
+

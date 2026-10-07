@@ -199,31 +199,17 @@ export const ANGEL_MACON_ENTRIES=[
   ...micropileEntries
 ];
 
+const ANGEL_STOP_WORDS=new Set(['le','la','les','un','une','des','du','de','d','a','au','aux','et','ou','pour','par','avec','sans','dans','sur','sous','quel','quelle','quels','quelles','combien','faire','fait','est','sont','mon','ma','mes','ton','ta','tes','son','sa','ses']);
+function angelTokens(q){return norm(q).split(/\s+/).filter(t=>t.length>=3&&!ANGEL_STOP_WORDS.has(t)&&!/^\d+$/.test(t))}
+function structuralSizingQuery(q){q=norm(q);return /dimension|dimensionnement|ferraillage|section|portee|profondeur|diametre|charge|charges|epaisseur minimale|quelle armature|quel acier/.test(q)&&/fondation|semelle|radier|poutre|poteau|mur porteur|soutenement|dalle|plancher|chainage|micro pieu|micropieu/.test(q)}
 export function searchAngelMacon(query,limit=5){
-  const tokens=norm(query).split(/\s+/).filter(Boolean);
-  if(!tokens.length)return ANGEL_MACON_ENTRIES.slice(0,Math.max(1,Math.min(10,Number(limit)||5)));
-  const q=norm(query);
-  return ANGEL_MACON_ENTRIES.map(e=>{
-    const title=norm(e.title),tags=(e.tags||[]).map(norm),hay=norm([e.id,e.sourceId,e.topic,e.title,e.answer,...(e.tags||[])].join(' '));
-    let score=0;
-    if(q&&hay.includes(q))score+=8;
-    for(const t of tokens){
-      if(hay.includes(t))score+=1;
-      if(title.includes(t))score+=3;
-      if(tags.some(x=>x.includes(t)))score+=3;
-      if(norm(e.id).includes(t)||norm(e.sourceId).includes(t))score+=2;
-    }
-    return {...e,score};
-  }).filter(e=>e.score>0)
-    .sort((a,b)=>b.score-a.score||a.id.localeCompare(b.id))
-    .slice(0,Math.max(1,Math.min(10,Number(limit)||5)));
+ const tokens=angelTokens(query);if(!tokens.length)return [];const q=norm(query),min=tokens.length===1?1:Math.ceil(tokens.length*.5);
+ return ANGEL_MACON_ENTRIES.map(e=>{const title=norm(e.title),tags=(e.tags||[]).map(norm),hay=norm([e.id,e.sourceId,e.topic,e.title,e.answer,...(e.tags||[])].join(' '));let score=0,matched=0;if(q.length>=4&&hay.includes(q))score+=10;for(const t of tokens){let hit=false;if(hay.includes(t)){score++;hit=true}if(title.includes(t)){score+=3;hit=true}if(tags.some(x=>x.includes(t))){score+=3;hit=true}if(norm(e.id).includes(t)||norm(e.sourceId).includes(t)){score+=2;hit=true}if(hit)matched++}return{...e,score,matched}}).filter(e=>e.matched>=min&&e.score>=5).sort((a,b)=>b.score-a.score||b.matched-a.matched||a.id.localeCompare(b.id)).slice(0,Math.max(1,Math.min(10,Number(limit)||5)));
 }
-
 export function answerAngelMacon(query){
-  const hits=searchAngelMacon(query,3);
-  return hits.length?hits.map(x=>x.answer).join('\n\n'):'Aucune règle Maçon correspondante dans la base Angèle. Ne pas inventer : demander ou vérifier la règle dans le moteur SpeedArti.';
+ if(structuralSizingQuery(query))return `${STRUCTURE_WARNING}\n\nAngèle ne doit jamais proposer seule une profondeur, une section, un ferraillage ou un dimensionnement structurel : utiliser l’étude de sol / étude béton et les prescriptions du projet.`;
+ const hits=searchAngelMacon(query,3);return hits.length?hits.map(x=>x.answer).join('\n\n'):'Aucune règle Maçon correspondante dans la base Angèle. Ne pas inventer : demander ou vérifier la règle dans le moteur SpeedArti.';
 }
-
 export function getAngelMaconEntry(id){
   return ANGEL_MACON_ENTRIES.find(e=>e.id===id||e.sourceId===id)||null;
 }
@@ -231,7 +217,7 @@ export function getAngelMaconEntry(id){
 export const SpeedArtiAngelMaconKnowledge=Object.freeze({
   version:'MAC-ANGEL-KB-v1.0',
   metier:'macon',
-  source:'macon/references.js + macon/core.js (main)',
+  source:'macon/references.js + macon/core.js + macon/catalogue-macon.js (main)',
   entries:ANGEL_MACON_ENTRIES,
   search:searchAngelMacon,
   answer:answerAngelMacon,

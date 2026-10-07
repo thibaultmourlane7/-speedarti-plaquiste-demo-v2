@@ -42,13 +42,13 @@ Conversions automatiques autorisées uniquement lorsque l'unité est démontrabl
 - m / ml ↔ mètre ou pièce avec longueur explicite ;
 - m³ ↔ m³.
 
-Si la conversion n'est pas fiable, le résultat reste bloqué jusqu'à la saisie d'un prix personnel ou le choix d'un autre article.
+Si la conversion n'est pas fiable, le poste reste « à confirmer » sans bloquer l'accès au résultat. L'artisan peut saisir un prix personnel ou choisir un autre article.
 
 ## Priorité des prix
 
 1. prix personnel renseigné par l'artisan ;
 2. article sélectionné dans le Catalogue Maçon SpeedArti avec conversion compatible ;
-3. saisie manuelle obligatoire si aucun prix exploitable n'est disponible.
+3. prix de référence SpeedArti lorsque sa source est démontrable ; sinon poste « à confirmer », sans blocage.
 
 ## Balisage
 
@@ -66,7 +66,7 @@ Les tests couvrent la V2 métier existante et l'intégration catalogue :
 
 - persistance des sélections ;
 - 40 ouvrages accessibles et calculables ;
-- blocage des prix manquants ;
+- prix manquants non bloquants et clairement signalés ;
 - parité simple / multi ;
 - conditionnement au cent ;
 - arrondi des sacs au conditionnement complet ;
@@ -196,3 +196,14 @@ API disponible :
 - `getAngelMaconEntry(id)`.
 
 Priorité de connaissance : **moteur réel SpeedArti → référentiel validé → base Angèle → connecteurs → raisonnement IA**. En absence de règle vérifiée, Angèle doit signaler qu’elle ne possède pas la règle au lieu de l’inventer.
+
+
+## v2.6 — sécurisation audit complet
+
+- double facturation béton/toupie neutralisée ;
+- formule des pignons corrigée ;
+- prix de référence béton 190 €/m³ et acier générique converti au kg ;
+- catalogue inconnu non associé au hasard ;
+- recherche Angèle sécurisée ;
+- retour en haut à chaque changement d’étape ;
+- affichage V2.6 aligné.

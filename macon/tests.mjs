@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
-  CATALOGUE_MACON, catalogueCandidatesForLine, resolveCatalogueProduct
+  CATALOGUE_MACON, catalogueCandidatesForLine, resolveCatalogueProduct, genericRebarPricePerKg
 } from './catalogue-macon.js';
 import {
   defaultState, newElement, renderMode, renderWorks, renderConfig, renderOptions, renderPrices, renderResult,
@@ -89,10 +89,9 @@ test('prix catalogue automatique: aucun prix personnel requis pour continuer',()
   const html=renderPrices(s);assert.match(html,/Sélection automatique SpeedArti/);assert.match(html,/Prix U\. HT personnel/);
 });
 
-test('absence de prix catalogue ne bloque plus le résultat',()=>{
-  const s=base();s.simpleType='fondations';Object.assign(s.simple,{foundationRef:'semelle_filante',length:10,widthCm:40,heightCm:30,concreteClass:'C25/30'});
-  const r=calculate(s);assert.ok(r.missingPrices.length>0);assert.equal(r.canFinalize,true);assert.equal(validateStep(s,4),'');
-  const html=renderResult(s);assert.match(html,/Résultat du chiffrage/);assert.match(html,/provisoire/i);assert.match(html,/data-root-field="manualPrices\./);
+test('absence de famille catalogue fiable ne bloque plus le résultat',()=>{
+  const s=base();s.mode='multiple';const e=newElement('murs_elevations');Object.assign(e.data,{length:10,height:2.5,thickness:20,material:'parpaing',method:'tradi',blocksPerM2:10,mortarKgM2:20,wallHPerM2:.8,concreteClass:'C25/30',decoration:'genoise_simple'});s.elements=[e];
+  const r=calculate(s),decor=r.lines.find(x=>x.id.includes('-decor-'));assert.equal(decor.price,0);assert.ok(r.missingPrices.some(x=>x.id===decor.id));assert.equal(r.canFinalize,true);
 });
 
 test('options visibles ont une case prix immédiate',()=>{
@@ -171,8 +170,8 @@ test('option fondation sélectionnée produit une ligne au prix explicite',()=>{
 test('pignon ajoute sa surface sans coefficient silencieux',()=>{
   const s=base();s.mode='multiple';const e=newElement('murs_elevations');Object.assign(e.data,{length:10,height:2.5,thickness:20,material:'parpaing',method:'tradi',blocksPerM2:10,wallHPerM2:1,pignons:[{width:5,slope:40}]});s.elements=[e];
   const r=calculate(s);const blocks=r.lines.find(x=>x.id.startsWith(`${e.id}-blocks`));
-  // mur 25 m² + pignon 5²×0,40/2 = 5 m² => 30 m² × 10 blocs
-  assert.equal(blocks.qty,300);assert.equal(r.labor.find(x=>x.name===e.name).hours,30);
+  // pignon 5 m, pente 40 % => surface 2,5 m²
+  assert.equal(blocks.qty,275);assert.equal(r.labor.find(x=>x.name===e.name).hours,27.5);
 });
 
 test('poutre BA détaillée utilise longueur × section et référentiel',()=>{
@@ -555,5 +554,14 @@ test('Angèle Maçon: sécurité structurelle disponible à l’interrogation',(
   assert.match(a,/ne constituent en aucun cas un calcul réel de structure/i);
 });
 
+
+test('v2.6 audit toupie',()=>{const s=base();s.simpleType='dalle';Object.assign(s.simple,{surface:50,thickness:15,slabRef:'dallage_arme',concreteClass:'C25/30'});s.globals.toupie=true;const r=calculate(s),c=r.lines.find(x=>x.category==='Béton'&&x.unit==='m³');assert.equal(c.priceMode,'included');assert.equal(c.source,'inclus dans la fourniture toupie');});
+test('v2.6 audit beton ref',()=>{const s=base();s.simpleType='dalle';Object.assign(s.simple,{surface:20,thickness:10,slabRef:'dallage_non_arme',concreteClass:'C25/30'});assert.equal(calculate(s).lines.find(x=>x.category==='Béton').price,190);});
+test('v2.6 audit acier ref',()=>{assert.ok(genericRebarPricePerKg()>0);});
+test('v2.6 audit 40 ouvrages prix',()=>{for(const w of WORKS){const s=base();s.mode='multiple';const e=newElement('ouvrage_ba');Object.assign(e.data,{workRef:w.id,quantity:1,concreteClass:'C25/30'});s.elements=[e];assert.equal(calculate(s).missingPrices.length,0,w.id)}});
+test('v2.6 audit catalogue inconnu',()=>{assert.equal(catalogueCandidatesForLine({id:'decor',name:'génoise simple',category:'Décoration extérieure',qty:10,unit:'ml'},8).length,0);});
+test('v2.6 audit Angel hors sujet',()=>{assert.equal(searchAngelMacon('prix d une grue mobile 60 tonnes',3).length,0);assert.equal(searchAngelMacon('quel dosage de mortier réfractaire pour un barbecue',3).length,0);});
+test('v2.6 audit Angel structure',()=>{assert.match(answerAngelMacon('quel ferraillage pour une poutre de 6 mètres'),/ne doit jamais proposer seule/i);});
+test('v2.6 audit UI',()=>{const app=fs.readFileSync(new URL('./app.js',import.meta.url),'utf8'),html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');assert.match(app,/scrollTo/);assert.ok(!/v2\.5/i.test(html));});
 console.log(`OK — V2.6 Maçon: ${pass.length} contrôles fonctionnels passés`);
 for(const x of pass)console.log(`✓ ${x}`);

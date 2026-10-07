@@ -117,13 +117,8 @@ function bindEvents(){
   });
 }
 
-$('#prevBtn').onclick=()=>{if(state.step>0){state.step--;saveState();render();}};
-$('#nextBtn').onclick=()=>{
-  if(state.step===STEPS.length-1){render();return;}
-  const err=validateStep(state,state.step);
-  if(err){alert(err);return;}
-  state.step++;
-  saveState();render();
-};
+function scrollWizardTop(){globalThis.scrollTo?.({top:0,behavior:'smooth'});}
+$('#prevBtn').onclick=()=>{if(state.step>0){state.step--;saveState();render();scrollWizardTop();}};
+$('#nextBtn').onclick=()=>{if(state.step===STEPS.length-1){render();scrollWizardTop();return;}const err=validateStep(state,state.step);if(err){alert(err);return;}state.step++;saveState();render();scrollWizardTop();};
 
 render();
