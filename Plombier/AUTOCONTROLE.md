@@ -1,26 +1,21 @@
-# SpeedArti — Plombier v0.6.4 — Auto-contrôle
+# SpeedArti — Plombier v0.6.5 — Auto-contrôle ciblé
 
-Date : 2026-10-06
+Date : 2026-10-07
 
-## Contrôles effectués
-- conservation de tous les contrôles historiques du module Plombier ;
-- catalogue Téréva embarqué : 7 456 références, dont 7 451 avec prix exploitable ;
-- références Téréva réseau automatiques pour PER, multicouche, PVC, platines, raccords et robinets d’arrêt ;
-- conservation du fallback cuivre 8 €/ml uniquement parce que le catalogue Téréva 2026 ne publie pas de prix exploitable pour le tube cuivre ;
-- temps réseau proposé automatiquement à partir du référentiel CYPE France, mais toujours modifiable par l’artisan ;
-- priorité conservée à une référence Téréva choisie par l’artisan ;
-- prix moyen automatique pour lavabo, meuble vasque, receveur/douche, baignoire, évier et lave-main quand aucune référence Téréva ni prix manuel n’est fourni ;
-- contrôle des trois gammes Éco / Standard / Premium ;
-- traçabilité des prix moyens avec la balise `moyenne_catalogue` ;
-- base de connaissances Angel chargée et interrogeable ;
-- recherche Angel vérifiée sur le cas « prix lavabo sans catalogue » ;
-- interface vérifiée statiquement pour l’affichage « Prix moyen SpeedArti » ;
-- ordre de chargement catalogue → service → moteur → Angel → app vérifié.
+## Contrôles effectués sur le lot v0.6.5
+- syntaxe de `app.js`, `engine-current.js` et `autocontrol.test.js` contrôlée ;
+- distances chauffe-eau vérifiées : 5 m SDB + 8 m cuisine donnent 29 ml EC sur le scénario douche + évier ; 10 m + 10 m donnent 36 ml EC ;
+- élément spécifique vérifié : aucune platine sans EF/EC/évacuation ; platine EF+EC + raccordement évacuation dès que ces raccordements sont activés ;
+- meuble vasque multi-articles vérifié avec 1 meuble + 2 vasques ;
+- robinetterie rapide meuble vasque vérifiée avec quantité 2 ;
+- ancienne sélection « mitigeur » de la composition détaillée ignorée sur meuble vasque / lave-mains pour éviter un double comptage avec la nouvelle option rapide ;
+- retour aux valeurs réseau automatiques présent dans l’interface après une modification manuelle ;
+- avertissement visible prévu pour les éléments spécifiques sans raccordement défini.
 
-## Résultat
+## Base précédente conservée
 
-**490 / 490 assertions réussies.**
+Le dernier contrôle complet documenté avant ce lot était celui de la v0.6.4 : **490 / 490 assertions réussies**.
 
-Balises : `BALISES-ABSOLUES-v1.8`.
+Cette valeur n’est pas présentée comme un nouveau résultat v0.6.5 : le lot actuel a reçu des contrôles ciblés supplémentaires, mais le parcours navigateur Chromium complet et la relance intégrale de toute la suite avec le catalogue embarqué doivent encore être effectués avant de déclarer la v0.6.5 totalement validée.
 
-Le contrôle a été relancé sur les fichiers réellement présents sur la branche `main` après publication.
+Balises conservées : `BALISES-ABSOLUES-v1.8`.
