@@ -1,6 +1,18 @@
-# SpeedArti — Plombier v0.6.9 — Composition automatique étendue
+# SpeedArti — Plombier v0.7.0 — Téréva source unique réseau
 
 Cette version continue le module Plombier existant.
+
+## Sprint C v0.7.0 — Téréva source unique pour le réseau
+
+- `engine-current.js` ne recopie plus les prix ni les métadonnées des références techniques réseau Téréva ;
+- le moteur conserve uniquement les codes métier nécessaires et les conditionnements utiles au calcul au ml ;
+- `catalogue-service.js` expose une résolution exacte `byCode()` depuis `catalogue-data.js` ;
+- tubes PER/multicouche, raccords, platines, PVC DN40/DN100 et robinets d’arrêt utilisent le prix réel du catalogue embarqué au moment du calcul ;
+- une référence technique absente, incompatible ou sans prix exploitable génère un blocage explicite ;
+- les fallbacks PER/multicouche ont été supprimés ;
+- seul le fallback cuivre validé à **8 €/ml** est conservé, car le prix du tube cuivre n’est pas publié de façon exploitable dans Téréva ;
+- Ángel Plombier passe en **v1.5** et connaît cette règle de source unique.
+
 
 ## Lot v0.6.9 — composition automatique WC / douche / baignoire / évier
 
