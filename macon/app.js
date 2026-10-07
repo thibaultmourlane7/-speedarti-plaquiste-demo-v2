@@ -60,7 +60,7 @@ function findElement(id){return state.elements.find(e=>e.id===id);}
 function splitPair(v){const [id,idx]=String(v).split(':');return [id,Number(idx)];}
 
 function bindEvents(){
-  $('input[type="number"]').forEach(el=>el.addEventListener('focus',()=>{try{el.select()}catch{}}));
+  $$('input[type="number"]').forEach(el=>el.addEventListener('focus',()=>{try{el.select()}catch{}}));
   $('[data-mode]').forEach(b=>b.onclick=()=>{
     state.mode=b.dataset.mode;
     if(state.mode==='simple')state.elements=[]; else resetSimple();
