@@ -306,12 +306,26 @@
     });
     return out;
   }
+  function addAdditionalCatalogueItems(eq,uiPath,alerts){
+    const out=[];const items=Array.isArray(eq.additional_catalogue_items)?eq.additional_catalogue_items:[];
+    items.forEach((item,i)=>{
+      const sel=item?.catalogue;const qty=Math.max(0,n(item?.quantite,1));const manual=n(item?.price_ht,0);
+      if(!hasCatalogue(sel)){alerts.push(`BALISE CATALOGUE : article complémentaire ${i+1} de « ${labelFor(eq)} » sans référence catalogue valide.`);return}
+      checkCatalogueSelection(sel,manual,sel.produit||`Article complémentaire ${i+1}`,alerts);
+      if(qty<=0){alerts.push(`BALISE QUANTITÉ : article complémentaire « ${sel.produit||sel.code} » avec quantité nulle.`);return}
+      const pr=pricedSelection(sel,manual);
+      if(pr.price<=0){alerts.push(`BALISE PRIX : prix manquant pour l’article complémentaire « ${sel.produit||sel.code} ».`);return}
+      out.push(line(`equip_${eq.id}_extra_${i}`,sel.produit||`Article Téréva ${sel.code}`,pr.price,qty,'unité','Composition sanitaire',{stockable:true,parent_equipment_id:eq.id,equipment_extra:true,...catalogueExtra(sel,`${uiPath}.additional_catalogue_items.${i}.catalogue`,pr.manual)}));
+    });
+    return out;
+  }
+
   function annexe2Nomenclature(eq){
     const items=eq.annexe2_items||{};
     return annexe2For(eq.kind,eq.subtype).map(def=>{
       let status='à vérifier',selected=null;
       if(def.role==='network')status='géré par réseau';
-      else if(def.role==='main')status=hasCatalogue(eq.catalogue)?'article principal sélectionné':'article principal à vérifier';
+      else if(def.role==='main')status=(hasCatalogue(eq.catalogue)||(Array.isArray(eq.additional_catalogue_items)&&eq.additional_catalogue_items.some(x=>hasCatalogue(x?.catalogue))))?'article principal / composition sélectionnée':'article principal à vérifier';
       else if(def.role==='service')status='compris dans prestation unitaire';
       else if(def.role==='dedicated'){
         if(def.dedicated==='mitigeur')status=eq.mitigeur?(hasCatalogue(eq.mitigeur_catalogue)?'option catalogue sélectionnée':'option activée à renseigner'):'non activé';
@@ -332,9 +346,10 @@
     const manualOverride=catalogueSelected&&!!eq.catalogue.price_overridden;
     const average=equipmentAveragePrice(eq,d.options?.gamme||'standard');
     const hasManualPrice=eq.price_ht!==undefined&&eq.price_ht!==null&&eq.price_ht!==''&&n(eq.price_ht,0)>0;
-    const usingAverage=!catalogueSelected&&!isUnitForfait&&!hasManualPrice&&!!average;
+    const hasAdditionalCatalogueItems=Array.isArray(eq.additional_catalogue_items)&&eq.additional_catalogue_items.some(x=>hasCatalogue(x?.catalogue)&&n(x?.quantite,1)>0);
+    const usingAverage=!catalogueSelected&&!isUnitForfait&&!hasManualPrice&&!hasAdditionalCatalogueItems&&!!average;
     const serviceDefault=eq.kind==='lave_linge'?annexPrice(d,'robinet_mll'):eq.kind==='lave_vaisselle'?annexPrice(d,'robinet_mlv'):def.price;
-    const fallback=isUnitForfait?serviceDefault:hasManualPrice?n(eq.price_ht,0):(average?.price??def.price);
+    const fallback=isUnitForfait?serviceDefault:hasManualPrice?n(eq.price_ht,0):hasAdditionalCatalogueItems?0:(average?.price??def.price);
     let basePrice=catalogueSelected&&!manualOverride?cataloguePrice(eq.catalogue,fallback):fallback;
     let price=basePrice;
     // Une référence catalogue exacte ou un prix manuel garde son prix exact. Les moyennes sont déjà ventilées par gamme.
@@ -343,7 +358,7 @@
     let time=baseTime;
     if(eq.kind==='douche'&&eq.subtype==='italienne')time*=1.4;
     const label=def.label||labelFor(eq);
-    if(price<=0){alerts.push(`Prix catalogue manquant pour « ${label} ». La finalisation doit demander un prix manuel.`)}
+    if(price<=0&&!hasAdditionalCatalogueItems){alerts.push(`Prix catalogue manquant pour « ${label} ». La finalisation doit demander un prix manuel.`)}
     if(time<=0 && !isUnitForfait){alerts.push(`Temps de pose manquant pour « ${label} ». Le traceur doit remonter cette donnée.`)}
     if(price>0){
       const extra=catalogueSelected?catalogueExtra(eq.catalogue,`${uiPath}.catalogue`,manualOverride):isUnitForfait?{source:'Paramètres entreprise — Annexe 1 Guillaume',balise_ui:eq.kind==='lave_linge'?'settings.annexe1.robinet_mll':'settings.annexe1.robinet_mlv',balise_prix:'parametre_entreprise'}:usingAverage?{source:`Prix moyen SpeedArti — Téréva 2026 -20 % — ${average.retained}/${average.sample} références retenues`,balise_ui:'options.gamme',balise_prix:'moyenne_catalogue',prix_moyen_gamme:average.gamme,prix_moyen_echantillon:average.retained,prix_moyen_source:'Téréva 2026 -20 %',prix_moyen_methode:average.method}:{source:basePrice===def.price?'défaut SpeedArti / Guillaume':'saisie artisan',balise_ui:`${uiPath}.price_ht`,balise_prix:basePrice===def.price?'defaut_guillaume':'manuel'};
@@ -367,6 +382,15 @@
       if(op>0)out.push(line(`baignoire_${eq.id}_colonne`,hasCatalogue(sel)?(sel.produit||'Colonne / ensemble douche baignoire'):'Colonne / ensemble douche baignoire',op,1,'unité','Option sanitaire',{...(hasCatalogue(sel)?catalogueExtra(sel,`${uiPath}.colonne_catalogue`,overridden):{source:'catalogue / saisie',balise_ui:`${uiPath}.colonne_price_ht`,balise_prix:'manuel'}),stockable:true})); else alerts.push('Prix catalogue manquant pour la colonne de baignoire.');
       if(ot>0)time+=ot; else alerts.push('Temps de pose manquant pour la colonne de baignoire.');
     }
+    if((eq.kind==='meuble_vasque'||eq.kind==='lave_main')&&eq.robinet){
+      const sel=eq.robinet_catalogue;const name=eq.kind==='meuble_vasque'?'Robinetterie meuble vasque':'Robinetterie lave-mains';
+      const qty=Math.max(1,n(eq.robinet_qty,eq.kind==='meuble_vasque'&&eq.subtype==='double'?2:1));
+      checkCatalogueSelection(sel,eq.robinet_price_ht,name,alerts);
+      const overridden=hasCatalogue(sel)&&!!sel.price_overridden;
+      const op=hasCatalogue(sel)&&!overridden?cataloguePrice(sel,0):n(eq.robinet_price_ht,0),ot=n(eq.robinet_time_h,0);
+      if(op>0)out.push(line(`robinet_${eq.id}`,hasCatalogue(sel)?(sel.produit||name):name,op,qty,'unité','Option sanitaire',{...(hasCatalogue(sel)?catalogueExtra(sel,`${uiPath}.robinet_catalogue`,overridden):{source:'catalogue / saisie',balise_ui:`${uiPath}.robinet_price_ht`,balise_prix:'manuel'}),stockable:true})); else alerts.push(`Prix catalogue manquant pour « ${name} ».`);
+      if(ot>0)time+=ot; else alerts.push(`Temps de pose manquant pour « ${name} ».`);
+    }
     if(eq.pmr_wc&&eq.kind==='wc')out.push(line(`pmr_wc_${eq.id}`,'Forfait PMR WC',300,1,'forfait','Forfait complet',{source:'Guillaume',balise_ui:`${uiPath}.pmr_wc`,balise_prix:'forfait_guillaume'}));
     if(eq.pmr_douche&&eq.kind==='douche')out.push(line(`pmr_douche_${eq.id}`,'Forfait PMR douche',300,1,'forfait','Forfait complet',{source:'Guillaume',balise_ui:`${uiPath}.pmr_douche`,balise_prix:'forfait_guillaume'}));
     if(eq.kind==='douche'&&eq.subtype==='italienne'&&eq.spec_mode){
@@ -377,6 +401,7 @@
       if(surface>0&&rate>0)out.push(line(`douche_${eq.id}_${eq.spec_mode}`,names[eq.spec_mode],rate,surface,'m²','Prestation fourniture + MO',{includes_labor:true,source:'Guillaume',balise_ui:`${uiPath}.spec_mode`,balise_prix:'forfait_guillaume'}));
       else alerts.push(`BALISE SURFACE : surface manquante pour la prestation ${names[eq.spec_mode]||'douche italienne'}.`);
     }
+    out.push(...addAdditionalCatalogueItems(eq,uiPath,alerts));
     out.push(...addAnnexe2SelectedItems(eq,uiPath,alerts));
     return {lines:out,time,profile:connectionProfile(eq),nomenclature:annexe2Nomenclature(eq)};
   }
