@@ -96,7 +96,7 @@ function cataloguePicker(target,pricePath,context,label,sel,compact=false,prefil
   return `<div class="catalogue-picker ${compact?'compact-picker':''}">${has?`<div class="catalogue-selected"><div><span class="catalogue-badge">${esc(current.catalogue||CATALOGUE_VERSION)}</span><strong>${esc(current.marque||'')} — ${esc(current.produit||'Référence catalogue')}</strong><small>${current.variante?esc(current.variante):''}${current.finition?` · ${esc(current.finition)}`:''}</small><small>Code Téréva ${esc(current.code)} · ${current.prix!=null?eur(current.prix):'prix manquant'}${current.price_overridden?' · prix manuel actif':''}</small></div><div class="row"><button type="button" class="btn secondary compact" data-open-catalogue data-catalogue-target="${esc(target)}" data-catalogue-price-path="${esc(pricePath||'')}" data-catalogue-context="${esc(context||'all')}" data-catalogue-label="${esc(label)}" data-catalogue-q="${esc(prefill)}">Changer</button><button type="button" class="btn ghost compact" data-clear-catalogue="${esc(target)}" data-catalogue-price-path="${esc(pricePath||'')}">Retirer</button></div></div>`:`<button type="button" class="btn catalogue-search-btn" data-open-catalogue data-catalogue-target="${esc(target)}" data-catalogue-price-path="${esc(pricePath||'')}" data-catalogue-context="${esc(context||'all')}" data-catalogue-label="${esc(label)}" data-catalogue-q="${esc(prefill)}">🔎 Rechercher ${esc(label)} dans Téréva</button>`}</div>`;
 }
 function averageEquipmentHint(eq){
-  if(eq?.catalogue?.code)return'';
+  if(eq?.catalogue?.code||(Array.isArray(eq?.additional_catalogue_items)&&eq.additional_catalogue_items.some(x=>x?.catalogue?.code)))return'';
   const avg=API.equipmentAveragePrice?.(eq,d.options.gamme||'standard');if(!avg)return'';
   const gammeLabel={eco:'Éco',standard:'Standard',premium:'Premium'}[avg.gamme]||avg.gamme;
   return `<div class="c12 info compact-info"><b>Sans référence Téréva : prix moyen SpeedArti ${eur(avg.price)} HT</b><br><small>Gamme ${esc(gammeLabel)} · calculé sur ${fmt(avg.retained)} références Téréva 2026 retenues après filtrage. Ce prix est compté automatiquement dans le total.</small></div>`;
@@ -232,7 +232,9 @@ function annexe2RoleStatus(def,eq){
   return ['À associer si nécessaire','info'];
 }
 function annexe2Panel(eq,prefix){
-  const defs=API.annexe2For?.(eq.kind,eq.subtype)||[];if(!defs.length)return'';const items=eq.annexe2_items||{};
+  const rawDefs=API.annexe2For?.(eq.kind,eq.subtype)||[];
+  const defs=rawDefs.filter(def=>!(def.key==='mitigeur'&&(eq.kind==='meuble_vasque'||eq.kind==='lave_main')));
+  if(!defs.length)return'';const items=eq.annexe2_items||{};
   const rows=defs.map(def=>{
     if(def.role!=='selectable'){
       const [status,kind]=annexe2RoleStatus(def,eq);return `<div class="annexe2-row"><div><strong>${esc(def.label)}</strong>${def.optional?'<small>Conditionnel</small>':''}</div><span class="annexe2-status ${kind}">${esc(status)}</span></div>`;
