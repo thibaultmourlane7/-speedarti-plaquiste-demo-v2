@@ -5,7 +5,7 @@ for(const f of ['catalogue-data.js','catalogue-service.js','engine-current.js','
 const CAT=global.SpeedArtiCatalogueService,API=global.SpeedArtiPlombierCurrent,ANGEL=global.SpeedArtiAngelPlombierKnowledge,DB=global.SpeedArtiCataloguePlombier;
 let ok=0;function assert(cond,msg){if(!cond)throw new Error(`ASSERT ${ok+1}: ${msg}`);ok++}
 function approx(a,b,t=.011){return Math.abs(Number(a)-Number(b))<=t}
-function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.6.7',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{},services:{},component_preferences:{}}}}
+function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.6.8',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{},services:{},component_preferences:{}}}}
 function selectFirst(ctx,pred=()=>true){const a=CAT.search({context:ctx,limit:100}).find(x=>x.prix>0&&x.code&&pred(x));assert(!!a,`Référence exploitable contexte ${ctx}`);return CAT.selection(a)}
 function netRefs(d){const ctx=d.options.type_tuyau==='cuivre'?'raccord_cuivre':d.options.type_tuyau==='multicouche'?'raccord_multicouche':'raccord_per';d.installation.network.fitting_catalogue=selectFirst(ctx);d.installation.network.stop_valve_catalogue=selectFirst('robinet_arret');}
 
@@ -189,7 +189,7 @@ assert(approx(r1.controle_balises.tva_controlee,r1.totaux.tva),'Contrôle TVA = 
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const posData=html.indexOf('catalogue-data.js'),posService=html.indexOf('catalogue-service.js'),posEngine=html.indexOf('engine-current.js'),posAngel=html.indexOf('angel-knowledge.js'),posApp=html.indexOf('app.js');
 assert(posData>0&&posData<posService&&posService<posEngine&&posEngine<posAngel&&posAngel<posApp,'Ordre de chargement catalogue -> service -> moteur -> Angel -> app');
-assert(/v0\.6\.7/.test(html),'HTML annonce v0.6.7');
+assert(/v0\.6\.8/.test(html),'HTML annonce v0.6.8');
 
 // 22. Contrôles statiques UI / absence de règles cachées
 const appSrc=fs.readFileSync(path.join(root,'app.js'),'utf8'),engSrc=fs.readFileSync(path.join(root,'engine-current.js'),'utf8'),catSrc=fs.readFileSync(path.join(root,'catalogue-service.js'),'utf8');
@@ -307,8 +307,8 @@ assert(engSrc.includes("version:'BALISES-ABSOLUES-v1.8'"),'Moteur balises v1.8')
 
 
 // 29. Correctifs v0.5.2 issus du contrôle humain
-assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v067'"),'Clé de sauvegarde propre v0.6.7');
-assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v066','speedarti-plombier-demo-v065'"),'Migration des anciens brouillons prévue');
+assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v068'"),'Clé de sauvegarde propre v0.6.8');
+assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v067','speedarti-plombier-demo-v066'"),'Migration des anciens brouillons prévue');
 assert(appSrc.includes('function migrateLegacyDraft'),'Fonction de migration brouillon présente');
 assert(appSrc.includes("delete p.duration_h"),'Migration supprime les anciennes durées CE non validées');
 assert(appSrc.includes("catalogueRenderTimer=setTimeout"),'Recherche catalogue saisie rapide temporisée');
@@ -399,8 +399,8 @@ assert(rPer.materiaux.find(x=>x.article_id==='tuyau_per')?.catalogue_code==='227
 assert(Math.abs(rPer.materiaux.find(x=>x.article_id==='tuyau_per')?.prix_unitaire_ht-.58)<.011,'Couronne PER ramenée au prix au ml');
 assert(rPer.materiaux.find(x=>x.article_id==='tuyau_per')?.balise_prix==='reference_technique_tereva','Tube PER trace la référence technique');
 assert(rPer.materiaux.find(x=>x.article_id==='platine_ef_ec')?.catalogue_code==='3160404','Platine double PER Téréva automatique');
-assert(rPer.materiaux.find(x=>x.article_id==='evac_pvc40')?.catalogue_code==='044755V','Évacuation DN40 Téréva automatique');
-assert(rPer.materiaux.find(x=>x.article_id==='platine_evac')?.catalogue_code==='059805D','Raccordement évacuation DN40 Téréva automatique');
+assert(!rPer.materiaux.some(x=>x.article_id==='evac_local_pvc40'||x.article_id==='platine_evac_other'),'Zone réseau seul ne reçoit plus silencieusement un DN40 sanitaire');
+assert(rPer.blocages.some(x=>/ÉVACUATION GÉNÉRALE/.test(x)),'Zone réseau seul exige un diamètre explicite pour l’évacuation générale');
 assert(rPer.materiaux.find(x=>x.article_id==='raccords_per')?.catalogue_code==='1098216','Raccord PER Téréva automatique');
 assert(!rPer.alertes.some(x=>/prix catalogue manquant|temps de pose réseau manquant/i.test(x)),'Réseau PER standard sans alerte référentiel manquant');
 
@@ -419,8 +419,8 @@ assert(rCu.materiaux.find(x=>x.article_id==='platine_ef_ec')?.catalogue_code==='
 assert(pCu.autoTimeH>pPer.autoTimeH,'Temps technique cuivre supérieur au PER pour longueur identique');
 
 const tWc=base();tWc.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:true,r1_avec:false};tWc.installation.network.time_h=undefined;tWc.installation.network.evac_price_ml=undefined;tWc.installation.network.fitting_catalogue=undefined;tWc.installation.equipments=[{id:'wc-tech',kind:'wc',subtype:'poser',catalogue:wcSel,price_ht:wcSel.prix,time_h:2}];const rWc=API.calculate(tWc);
-assert(rWc.materiaux.find(x=>x.article_id==='evac_pvc100')?.catalogue_code==='044788U','WC utilise tube évacuation DN100 Téréva');
-assert(rWc.materiaux.find(x=>x.article_id==='platine_evac')?.catalogue_code==='027749Z','WC utilise raccordement évacuation DN100 Téréva');
+assert(rWc.materiaux.find(x=>x.article_id==='evac_local_pvc100')?.catalogue_code==='044788U','WC utilise tube local évacuation DN100 Téréva');
+assert(rWc.materiaux.find(x=>x.article_id==='platine_evac_wc')?.catalogue_code==='027749Z','WC utilise raccordement local évacuation DN100 Téréva');
 assert(rWc.materiaux.find(x=>x.article_id==='robinets_arret')?.catalogue_code==='142568G','Robinet d’arrêt Téréva automatique');
 const tManual=base();tManual.installation.zones={rdc_sans:true,r1_sans:false,rdc_avec:false,r1_avec:false};tManual.installation.network.time_h=3.5;tManual.installation.network.fitting_catalogue=undefined;const rManual=API.calculate(tManual);assert(Math.abs(rManual.main_oeuvre.heures_homme-3.5)<.011,'Temps artisan remplace la proposition technique automatique');
 const chosen=selectFirst('raccord_per');const tChosen=base();tChosen.installation.network.ef_only=1;tChosen.installation.network.fitting_catalogue=chosen;const rChosen=API.calculate(tChosen);assert(rChosen.materiaux.find(x=>x.article_id==='raccords_per')?.catalogue_code===chosen.code,'Référence choisie par artisan reste prioritaire sur référence technique');
@@ -439,7 +439,7 @@ for(const [kind,price] of Object.entries(avgExpected)){
 }
 const avgLavEco=API.equipmentAveragePrice({kind:'lavabo'},'eco'),avgLavPremium=API.equipmentAveragePrice({kind:'lavabo'},'premium');
 assert(approx(avgLavEco.price,82.66)&&approx(avgLavPremium.price,231.37),'Gammes Éco/Premium lavabo exposées');
-assert(ANGEL&&ANGEL.version==='PLB-ANGEL-KB-v1.2','Base de connaissances Angel Plombier chargée');
+assert(ANGEL&&ANGEL.version==='PLB-ANGEL-KB-v1.3','Base de connaissances Angel Plombier chargée');
 assert(ANGEL.search('prix lavabo sans catalogue',3).some(x=>x.id==='PLB-PRIX-LAVABO'),'Angel retrouve la règle de prix lavabo sans catalogue');
 assert(/165,11/.test(ANGEL.answer('prix lavabo sans catalogue')),'Angel répond avec le prix moyen standard lavabo');
 assert(appSrc.includes('Prix moyen SpeedArti'),'UI affiche explicitement le prix moyen quand le catalogue n’est pas sélectionné');
@@ -502,13 +502,39 @@ assert(approx(moSan?.temps_heures,2),'Décomposition MO sanitaire/raccordement l
 assert(approx(moNet?.temps_heures,1.34),'Décomposition MO réseau général = 1,34 h');
 
 const moExtraEvac=base();delete moExtraEvac.installation.network.time_h;moExtraEvac.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:true,r1_avec:false};
-moExtraEvac.installation.equipments=[{id:'mo-lav2',kind:'lavabo',zone:'rdc',time_h:2}];moExtraEvac.installation.network.manual_evac_ml=3;
+moExtraEvac.installation.equipments=[{id:'mo-lav2',kind:'lavabo',zone:'rdc',time_h:2}];moExtraEvac.installation.network.manual_evac_local_ml=3;
 const pMoExtra=API.previewNetwork(moExtraEvac);
-assert(pMoExtra.localEvacForLabor===1&&pMoExtra.generalEvacForLabor===2,'Évacuation au-delà du mètre local bascule en réseau général');
-assert(approx(pMoExtra.autoTimeH,1.58),'2 m évacuation générale ajoutent leur temps réseau sans redoubler le mètre local');
+assert(pMoExtra.localEvacForLabor===3&&pMoExtra.generalEvacForLabor===0,'Évacuation locale modifiée reste un raccordement local sanitaire');
+assert(approx(pMoExtra.autoTimeH,1.34),'Allonger le raccordement local ne crée pas artificiellement du temps de réseau général');
 assert(appSrc.includes('Temps pose sanitaire + raccordements locaux (h)'),'UI distingue le temps sanitaire + raccordements locaux');
 assert(appSrc.includes('Temps de pose réseau général (h)'),'UI distingue le temps du réseau général');
 assert(appSrc.includes('Détail du cumul main-d’œuvre'),'Résultat affiche le cumul MO détaillé');
 assert(/raccordement local/i.test(ANGEL.answer('temps réseau platine raccordement local')),'Angel explique que le raccordement local est inclus dans le temps sanitaire');
+
+// 35. v0.6.8 — évacuations mixtes DN100/DN40 et séparation local/général
+const mixedEvac=base();delete mixedEvac.installation.network.time_h;mixedEvac.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:true,r1_avec:false};
+mixedEvac.installation.equipments=[{id:'mix-wc',kind:'wc',subtype:'poser',time_h:2},{id:'mix-douche',kind:'douche',subtype:'bac',time_h:2}];
+const pMixed=API.previewNetwork(mixedEvac);const rMixed=API.calculate(mixedEvac);
+assert(pMixed.autoPlatineEvacWc===1&&pMixed.autoPlatineEvacOther===1,'Chantier mixte sépare 1 raccord WC DN100 et 1 raccord autre DN40');
+assert(rMixed.materiaux.find(x=>x.article_id==='platine_evac_wc')?.catalogue_code==='027749Z','Raccord WC mixte reste DN100');
+assert(rMixed.materiaux.find(x=>x.article_id==='platine_evac_other')?.catalogue_code==='059805D','Raccord douche mixte reste DN40');
+assert(rMixed.materiaux.find(x=>x.article_id==='evac_local_pvc100')?.catalogue_code==='044788U','Tube local WC mixte = DN100');
+assert(rMixed.materiaux.find(x=>x.article_id==='evac_local_pvc40')?.catalogue_code==='044755V','Tube local douche mixte = DN40');
+assert(rMixed.materiaux.find(x=>x.article_id==='platine_evac_wc')?.categorie==='Raccordement local sanitaire','Raccord WC classé en raccordement local');
+assert(rMixed.materiaux.find(x=>x.article_id==='platine_evac_other')?.categorie==='Raccordement local sanitaire','Raccord autre sanitaire classé en raccordement local');
+assert(!rMixed.materiaux.some(x=>x.article_id==='platine_evac'),'Ancienne ligne générique évacuation supprimée');
+assert(!rMixed.blocages.some(x=>/ÉVACUATION GÉNÉRALE/.test(x)),'Chantier sanitaire mixte local ne déclenche pas de faux réseau général');
+
+const specificEvac=base();delete specificEvac.installation.network.time_h;specificEvac.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:true,r1_avec:false};
+specificEvac.installation.equipments=[{id:'spec-evac',kind:'element_specifique',label:'Équipement spécial',evac:true,time_h:1,price_ht:50}];
+const pSpecEvac=API.previewNetwork(specificEvac),rSpecEvac=API.calculate(specificEvac);
+assert(pSpecEvac.autoGeneralEvac===1&&pSpecEvac.autoLocalEvac===0,'Évacuation élément spécifique classée réseau général/spécifique');
+assert(rSpecEvac.blocages.some(x=>/ÉVACUATION GÉNÉRALE/.test(x)),'Élément spécifique évacuation sans diamètre ne reçoit pas de DN inventé');
+assert(!rSpecEvac.materiaux.some(x=>x.article_id==='platine_evac_other'||x.article_id==='platine_evac_wc'),'Élément spécifique sans diamètre ne reçoit pas de raccord sanitaire automatique');
+
+assert(appSrc.includes('Évacuation locale sanitaires')&&appSrc.includes('Évacuation réseau général / spécifique'),'UI sépare les longueurs local/général');
+assert(appSrc.includes('Raccords évacuation WC DN100')&&appSrc.includes('Raccords évacuation autres sanitaires DN40'),'UI sépare les raccords DN100/DN40');
+assert(/DN100/.test(ANGEL.answer('wc evacuation raccord dn100'))&&/DN40/.test(ANGEL.answer('wc evacuation raccord dn100')),'Angel connaît la séparation DN100 WC / DN40 autres');
+assert(/ne choisit pas silencieusement un diamètre/i.test(ANGEL.answer('evacuation reseau general element specifique diamètre')),'Angel interdit le DN inventé sur réseau général');
 
 console.log(JSON.stringify({status:'OK',assertions:ok,catalogueCount:CAT.count,priceCount:CAT.priceCount,knownPrice117_19:known[0].prix,balisesVersion:r1.controle_balises.version,networkOnly:{ef:r2.surfaces.detail_par_face.EF_ml,ec:r2.surfaces.detail_par_face.EC_ml},fittingsOneFixture:fittingsWC.quantite_finale},null,2));
