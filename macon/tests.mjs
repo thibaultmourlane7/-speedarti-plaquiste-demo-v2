@@ -727,5 +727,12 @@ test('sprint Angèle: la démo publie le contexte courant à chaque rendu',()=>{
   assert.match(app,/SpeedArtiAngelMaconContext/);assert.match(app,/buildContext\(state,calculate\(state\)\)/);
 });
 
+
+test('sprint S6: bindEvents utilise la collection pour les champs numériques',()=>{
+  const app=fs.readFileSync(new URL('./app.js',import.meta.url),'utf8');
+  assert.match(app,/\$\$\('input\[type="number"\]'\)\.forEach/);
+  assert.ok(!/\$\('input\[type="number"\]'\)\.forEach/.test(app));
+});
+
 console.log(`OK — V2.6 Maçon: ${pass.length} contrôles fonctionnels passés`);
 for(const x of pass)console.log(`✓ ${x}`);
