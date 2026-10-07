@@ -1,10 +1,10 @@
-# SpeedArti — Plombier v0.6.7 — Auto-contrôle
+# SpeedArti — Plombier v0.6.8 — Auto-contrôle
 
 Date : 2026-10-07
 
 ## Résultat
 
-**533 / 533 assertions réussies** sur la suite complète chargée avec le catalogue Téréva réel embarqué.
+**553 / 553 assertions réussies** avec le catalogue Téréva réel embarqué.
 
 Catalogue contrôlé :
 - 7 456 références ;
@@ -12,28 +12,28 @@ Catalogue contrôlé :
 
 Balises : `BALISES-ABSOLUES-v1.8`.
 
-## Contrôles ajoutés en v0.6.7
+## Contrôles ajoutés en v0.6.8
 
-- séparation explicite de la main-d’œuvre sanitaire/raccordements locaux et du réseau général ;
-- un lavabo à 2 h avec son réseau PER automatique donne :
-  - 2,00 h pose sanitaire + raccordements locaux ;
-  - 1,34 h réseau général ;
-  - 3,34 h cumulées ;
-- le mètre d'évacuation locale du lavabo n'ajoute pas de temps PVC réseau supplémentaire ;
-- si l'évacuation passe de 1 m local à 3 m, seuls les 2 m supplémentaires sont traités comme évacuation générale ;
-- décomposition des heures affichée dans le résultat ;
-- libellés UI précisent que platines/raccordements locaux sont compris dans le temps sanitaire ;
-- règle connue par Angel Plombier v1.2.
+- chantier mixte WC + douche : 1 raccord WC DN100 + 1 raccord douche DN40 ;
+- raccord WC Téréva `027749Z` et tube local `044788U` ;
+- raccord autre sanitaire Téréva `059805D` et tube local `044755V` ;
+- suppression de l’ancienne ligne générique `platine_evac` ;
+- catégories locales séparées du réseau général ;
+- une évacuation locale augmentée reste locale et ne génère plus artificiellement du temps réseau général ;
+- élément spécifique avec évacuation mais sans diamètre : aucun DN inventé et blocage explicite ;
+- UI séparée local / général et DN100 / DN40 ;
+- Ángel Plombier v1.3 chargé et interrogé sur WC + douche, longueur locale, réseau général et platines.
 
 ## Contrôles antérieurs conservés
 
-- distances chauffe-eau SDB/cuisine ;
-- platines et éléments spécifiques ;
+- cumul main-d’œuvre sanitaire + réseau ;
+- distances chauffe-eau ;
+- platines EF/EC ;
 - meuble vasque multi-articles ;
 - robinetterie rapide ;
-- composants automatiques siphon/bonde ;
-- habitudes d'entreprise ;
-- non-double-comptage des composants compris dans un produit principal.
+- composants automatiques ;
+- habitudes entreprise ;
+- TVA, complexité, aléas et catalogue.
 
 ## Limite
 
