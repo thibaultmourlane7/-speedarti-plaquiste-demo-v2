@@ -439,7 +439,7 @@ for(const [kind,price] of Object.entries(avgExpected)){
 }
 const avgLavEco=API.equipmentAveragePrice({kind:'lavabo'},'eco'),avgLavPremium=API.equipmentAveragePrice({kind:'lavabo'},'premium');
 assert(approx(avgLavEco.price,82.66)&&approx(avgLavPremium.price,231.37),'Gammes Éco/Premium lavabo exposées');
-assert(ANGEL&&ANGEL.version==='PLB-ANGEL-KB-v1.1','Base de connaissances Angel Plombier chargée');
+assert(ANGEL&&ANGEL.version==='PLB-ANGEL-KB-v1.2','Base de connaissances Angel Plombier chargée');
 assert(ANGEL.search('prix lavabo sans catalogue',3).some(x=>x.id==='PLB-PRIX-LAVABO'),'Angel retrouve la règle de prix lavabo sans catalogue');
 assert(/165,11/.test(ANGEL.answer('prix lavabo sans catalogue')),'Angel répond avec le prix moyen standard lavabo');
 assert(appSrc.includes('Prix moyen SpeedArti'),'UI affiche explicitement le prix moyen quand le catalogue n’est pas sélectionné');
@@ -509,5 +509,6 @@ assert(approx(pMoExtra.autoTimeH,1.58),'2 m évacuation générale ajoutent leur
 assert(appSrc.includes('Temps pose sanitaire + raccordements locaux (h)'),'UI distingue le temps sanitaire + raccordements locaux');
 assert(appSrc.includes('Temps de pose réseau général (h)'),'UI distingue le temps du réseau général');
 assert(appSrc.includes('Détail du cumul main-d’œuvre'),'Résultat affiche le cumul MO détaillé');
+assert(/raccordement local/i.test(ANGEL.answer('temps réseau platine raccordement local')),'Angel explique que le raccordement local est inclus dans le temps sanitaire');
 
 console.log(JSON.stringify({status:'OK',assertions:ok,catalogueCount:CAT.count,priceCount:CAT.priceCount,knownPrice117_19:known[0].prix,balisesVersion:r1.controle_balises.version,networkOnly:{ef:r2.surfaces.detail_par_face.EF_ml,ec:r2.surfaces.detail_par_face.EC_ml},fittingsOneFixture:fittingsWC.quantite_finale},null,2));
