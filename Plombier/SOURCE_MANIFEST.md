@@ -1,4 +1,4 @@
-# SpeedArti — Plombier v0.6.6 — Sources du lot
+# SpeedArti — Plombier v0.6.7 — Sources du lot
 
 ## Base conservée
 - module Plombier SpeedArti existant ;
@@ -6,6 +6,17 @@
 - parcours chantier en 4 pages ;
 - balises, stock et approvisionnement existants ;
 - référentiel réseau Téréva de la v0.6.3 conservé.
+
+## Règle main-d’œuvre v0.6.7
+
+Source métier : réponses Guillaume + cahier de fonctionnement Plombier.
+- un sanitaire comprend sa fourniture/configuration, son raccordement local et sa main-d'œuvre ;
+- le raccordement local (platine(s), bonde/siphon, petite évacuation locale) ne doit pas être facturé une seconde fois dans le temps réseau ;
+- les EF/EC et l'évacuation générale restent un poste réseau distinct ;
+- les temps visibles restent modifiables par l'artisan ;
+- en l'absence de temps fiable, le module doit alerter plutôt qu'inventer.
+
+Conséquence moteur : le temps automatique réseau conserve les rendements techniques EF/EC, mais exclut le mètre d'évacuation locale par sanitaire. Toute longueur d'évacuation au-delà de ce local est traitée comme évacuation générale.
 
 ## Composants automatiques sanitaires v0.6.6
 
