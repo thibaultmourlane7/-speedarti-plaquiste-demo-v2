@@ -1,7 +1,7 @@
 import {
   STRUCTURE_WARNING, FIBRE_WARNING, PREFAB_TEAM_ADVICE, PREFAB_H_PER_ML,
   TRUCK_8X4_DEFAULT, FIBRES, CHIMNEY_CONDUITS, CHIMNEY_STACKS, CHIMNEY_CAPS,
-  CONCRETE_CLASSES, TREILLIS_GUILLAUME, MICROPILE_PRICE_BY_DEPTH, LONGRINE_PRICE_ML,
+  CONCRETE_CLASSES, MASONRY_DEFAULTS, TREILLIS_GUILLAUME, MICROPILE_PRICE_BY_DEPTH, LONGRINE_PRICE_ML,
   PREFAB_DEFAULT_PRICE_M2, PUMP_DEFAULT_PRICE, TOUPIE_PRICE_M3, TOUPIE_MIN_BILLABLE_M3, TOUPIE_CAPACITY_M3,
   WORKS, WORK_BY_ID
 } from './references.js';
@@ -156,6 +156,15 @@ export function toupieEstimatedCount(volumeM3){
   return v>0?Math.ceil(v/TOUPIE_CAPACITY_M3):0;
 }
 
+export function masonryDefaultsFor(material='parpaing'){
+  return MASONRY_DEFAULTS[material]||null;
+}
+export function masonryRatio(container,key){
+  const explicit=num(container?.[key]);
+  if(explicit>0)return explicit;
+  return num(masonryDefaultsFor(container?.material||'parpaing')?.[key]);
+}
+export const roundMoney = n => Math.round((Number(n||0)+Number.EPSILON)*100)/100;
 export const fmt = (n,d=2) => Number(n||0).toLocaleString('fr-FR',{minimumFractionDigits:d,maximumFractionDigits:d});
 export const money = n => `${fmt(n,2)} €`;
 export const esc = s => String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -304,10 +313,10 @@ export function renderSimpleConfig(state){
       ${field('Hauteur (m)','height',d.height??'',{required:true,step:'0.1',trace:'wallHeight'})}
       ${field('Épaisseur (cm)','thickness',d.thickness??'',{required:true,step:'1',trace:'wallThickness'})}
     </div>
-    <details class="accordion"><summary>⚙️ Réglages métier avancés</summary><div class="accordion-body"><div class="grid cols-3">
-      ${field('Consommation blocs (u/m²)','blocksPerM2',d.blocksPerM2??'',{required:true,step:'0.1',trace:'wallBlocksPerM2'})}
+    <details class="accordion" open><summary>⚙️ Réglages métier avancés</summary><div class="accordion-body"><div class="grid cols-3">
+      ${field('Consommation blocs (u/m²)','blocksPerM2',masonryRatio(d,'blocksPerM2')||'',{required:true,step:'0.1',trace:'wallBlocksPerM2',help:masonryDefaultsFor(d.material||'parpaing')?'Proposition parpaing préremplie, modifiable.':'Valeur à renseigner pour ce matériau.'})}
       ${field('Mortier / colle (kg/m²)','mortarKgM2',d.mortarKgM2??'',{step:'0.1',trace:'wallMortarKgM2'})}
-      ${field('Temps de pose (h-homme/m²)','wallHPerM2',d.wallHPerM2??'',{required:true,step:'0.01',trace:'wallHoursPerM2'})}
+      ${field('Temps de pose (h-homme/m²)','wallHPerM2',masonryRatio(d,'wallHPerM2')||'',{required:true,step:'0.01',trace:'wallHoursPerM2',help:masonryDefaultsFor(d.material||'parpaing')?'Proposition parpaing préremplie, modifiable.':'Valeur à renseigner pour ce matériau.'})}
     </div><div class="info-box">Ces ratios restent nécessaires au calcul tant que le référentiel automatique correspondant n’est pas fourni au moteur.</div></div></details>${openingRowsSimple(d)}`;
 
   if(['dalle','terrasse'].includes(state.simpleType)){
@@ -519,17 +528,17 @@ function renderElevationElement(e){
     ${ef(e,'Hauteur (m)','height',d.height??'',{required:true,step:'0.1',trace:'elevationHeight'})}
     ${ef(e,'Épaisseur (cm)','thickness',d.thickness??20,{required:true,step:'1',trace:'elevationThickness'})}
   </div>
-  <div class="grid ${d.material==='beton_banche'?'cols-5':'cols-2'}" style="margin-top:14px">
+  <div class="grid ${d.material==='beton_banche'?'cols-5':'cols-3'}" style="margin-top:14px">
     ${ef(e,'Matériau','material',d.material??'parpaing',{trace:'elevationMaterial',options:[{value:'parpaing',label:'Parpaing'},{value:'brique',label:'Brique'},{value:'siporex',label:'Siporex'},{value:'beton_banche',label:'Béton banché'}]})}
     ${ef(e,d.material==='beton_banche'?'Méthode':'Méthode de pose','method',d.material==='beton_banche'?(d.method==='prefabrique'?'prefabrique':'coule_sur_place'):(['colle','tradi'].includes(d.method)?d.method:'colle'),{trace:'elevationMethod',options:d.material==='beton_banche'?[{value:'coule_sur_place',label:'Coulé sur place'},{value:'prefabrique',label:'Préfabriqué'}]:[{value:'colle',label:'Collé'},{value:'tradi',label:'Traditionnel'}]})}
-    ${d.material==='beton_banche'&&d.method!=='prefabrique'?ef(e,'Classe béton','concreteClass',d.concreteClass??'',{required:true,trace:'concreteClass',options:[{value:'',label:'Choisir…'},...concreteClassOptions()]}):''}
+    ${ef(e,d.material==='beton_banche'?'Classe béton':'Classe béton — chaînages / ouvrages BA','concreteClass',d.concreteClass??'',{required:true,trace:'concreteClass',options:[{value:'',label:'Choisir…'},...concreteClassOptions()]})}
     ${d.material==='beton_banche'&&d.method==='prefabrique'?ef(e,'Type préfabriqué','prefabType',d.prefabType??'standard',{trace:'prefabType',options:[{value:'standard',label:'Standard — 1,55 h-homme/ml'},{value:'hauteur_importante',label:'Hauteur importante — 1,90 h-homme/ml'},{value:'lourd_complexe',label:'Lourd / complexe — 2,75 h-homme/ml'}]}):''}
     ${d.material==='beton_banche'&&d.method==='prefabrique'?ef(e,'Prix total HT / m² — posé, livré, gruté','prefabPriceM2',d.prefabPriceM2??PREFAB_DEFAULT_PRICE_M2,{step:'1',trace:'prefabPriceM2'}):''}
   </div>`;
-  if(d.material!=='beton_banche') h+=`<details class="accordion"><summary>⚙️ Réglages métier avancés — maçonnerie</summary><div class="accordion-body"><div class="grid cols-3">
-    ${ef(e,'Consommation blocs (u/m²)','blocksPerM2',d.blocksPerM2??'',{required:true,step:'0.1',trace:'elevationBlocksPerM2'})}
+  if(d.material!=='beton_banche') h+=`<details class="accordion" open><summary>⚙️ Réglages métier avancés — maçonnerie</summary><div class="accordion-body"><div class="grid cols-3">
+    ${ef(e,'Consommation blocs (u/m²)','blocksPerM2',masonryRatio(d,'blocksPerM2')||'',{required:true,step:'0.1',trace:'elevationBlocksPerM2',help:masonryDefaultsFor(d.material||'parpaing')?'Proposition parpaing préremplie, modifiable.':'Valeur à renseigner pour ce matériau.'})}
     ${ef(e,'Mortier / colle (kg/m²)','mortarKgM2',d.mortarKgM2??'',{step:'0.1',trace:'elevationMortarKgM2'})}
-    ${ef(e,'Temps pose (h-homme/m²)','wallHPerM2',d.wallHPerM2??'',{required:true,step:'0.01',trace:'elevationHoursPerM2'})}
+    ${ef(e,'Temps pose (h-homme/m²)','wallHPerM2',masonryRatio(d,'wallHPerM2')||'',{required:true,step:'0.01',trace:'elevationHoursPerM2',help:masonryDefaultsFor(d.material||'parpaing')?'Proposition parpaing préremplie, modifiable.':'Valeur à renseigner pour ce matériau.'})}
   </div></div></details>`;
   else if(d.method==='prefabrique') h+=`<div class="info-box">Préfabriqué : prix Guillaume par m², modifiable. Pose incluse dans le prix commercial ; planning séparé.</div>`;
   else h+=renderRefOverrides('element',d,'mur_banche_courant').replaceAll('data-field=',`data-el-id="${e.id}" data-field=`);
@@ -698,11 +707,12 @@ export function renderOptions(state){
     const simplePerimeter=num(d.width)>0?2*(num(d.length)+num(d.width)):num(d.length);
     const simpleVEstimate=estimatedVerticalChainage(simplePerimeter,d.height);
     const isBanche=d.material==='beton_banche';
+    const simpleNeedsConcreteClass=isBanche||!!d.chainH||!!d.chainV||(d.openings||[]).some(o=>['appui_fenetre_ba','seuil_ba','linteau_ba_courant','linteau_ba_renforce'].includes(o.associated));
     specific=`<details class="accordion" open><summary>🏗️ Matériaux de construction</summary><div class="accordion-body">
-      <div class="grid ${isBanche?'cols-5':'cols-2'}">
+      <div class="grid ${isBanche?'cols-5':simpleNeedsConcreteClass?'cols-3':'cols-2'}">
         ${field('Type de bloc / matériau','material',d.material??'parpaing',{trace:'wallMaterial',options:[{value:'parpaing',label:'Parpaing creux'},{value:'brique',label:'Brique de terre cuite'},{value:'beton_cellulaire',label:'Béton cellulaire (Siporex)'},{value:'pierre',label:'Pierre naturelle'},{value:'beton_banche',label:'Béton banché'}]})}
         ${field(isBanche?'Méthode':'Méthode de pose','method',isBanche?(d.method==='prefabrique'?'prefabrique':'coule_sur_place'):(['tradi','colle'].includes(d.method)?d.method:'tradi'),{trace:'wallMethod',options:isBanche?[{value:'coule_sur_place',label:'Coulé sur place'},{value:'prefabrique',label:'Préfabriqué'}]:[{value:'tradi',label:'Traditionnelle (mortier)'},{value:'colle',label:'Collée (joint mince)'}]})}
-        ${isBanche&&d.method!=='prefabrique'?field('Classe béton','concreteClass',d.concreteClass??'',{required:true,trace:'concreteClass',options:[{value:'',label:'Choisir…'},...concreteClassOptions()]}):''}
+        ${simpleNeedsConcreteClass?field(isBanche?'Classe béton':'Classe béton — ouvrages BA / chaînages','concreteClass',d.concreteClass??'',{required:true,trace:'concreteClass',options:[{value:'',label:'Choisir…'},...concreteClassOptions()]}):''}
         ${isBanche&&d.method==='prefabrique'?field('Type préfabriqué','prefabType',d.prefabType??'standard',{trace:'prefabType',options:[{value:'standard',label:'Standard — 1,55 h-homme/ml'},{value:'hauteur_importante',label:'Hauteur importante — 1,90 h-homme/ml'},{value:'lourd_complexe',label:'Lourd / complexe — 2,75 h-homme/ml'}]}):''}
         ${isBanche&&d.method==='prefabrique'?field('Prix total HT / m² — posé, livré, gruté','prefabPriceM2',d.prefabPriceM2??PREFAB_DEFAULT_PRICE_M2,{step:'1',trace:'prefabPriceM2'}):''}
       </div><div class="separator"></div>
@@ -840,6 +850,7 @@ function calcChimney(d,prefix='chimney'){
     validatedLaborValue+=(r.total-r.supply)*height*count;
   }
   const stackCount=num(d.stackCount);
+  if(d.stack&&!(stackCount>0))alerts.push('🚨 Souche sélectionnée : quantité obligatoire. La sélection propose 1 par défaut.');
   if(d.stack&&stackCount>0){
     const base=CHIMNEY_STACKS[d.stack],r=chimneyResolved(d,'stack',d.stack,base);
     lines.push(line(`${prefix}-stack`,r.label,'Cheminée',stackCount,'unité',r.supply,'validated'));
@@ -847,6 +858,7 @@ function calcChimney(d,prefix='chimney'){
     validatedLaborValue+=(r.total-r.supply)*stackCount;
   }
   const capCount=num(d.capCount);
+  if(d.cap&&!(capCount>0))alerts.push('🚨 Chapeau sélectionné : quantité obligatoire. La sélection propose 1 par défaut.');
   if(d.cap&&capCount>0){
     const base=CHIMNEY_CAPS[d.cap],r=chimneyResolved(d,'cap',d.cap,base);
     lines.push(line(`${prefix}-cap`,r.label,'Cheminée',capCount,'unité',r.supply,'validated'));
@@ -904,11 +916,11 @@ function calcWallSimple(state,lines,lab,alerts,reco){
       lab.push(labor('Mur banché',addRefLines(lines,ref,net,'simple-wall-banche',cc)));
     }
   }else{
-    if(!(num(d.blocksPerM2)>0))alerts.push('🚨 Consommation blocs/m² obligatoire dans les réglages métier avancés.');
-    if(!(num(d.wallHPerM2)>0))alerts.push('🚨 Temps de pose h-homme/m² obligatoire dans les réglages métier avancés.');
-    if(net>0&&num(d.blocksPerM2)>0)lines.push(line(`simple-wall-block-${d.material||'parpaing'}-${T}`,`${d.material||'parpaing'} ${T} cm`,'Maçonnerie',net*num(d.blocksPerM2),'unité'));
+    if(!(masonryRatio(d,'blocksPerM2')>0))alerts.push('🚨 Consommation blocs/m² obligatoire dans les réglages métier avancés.');
+    if(!(masonryRatio(d,'wallHPerM2')>0))alerts.push('🚨 Temps de pose h-homme/m² obligatoire dans les réglages métier avancés.');
+    if(net>0&&masonryRatio(d,'blocksPerM2')>0)lines.push(line(`simple-wall-block-${d.material||'parpaing'}-${T}`,`${d.material||'parpaing'} ${T} cm`,'Maçonnerie',net*masonryRatio(d,'blocksPerM2'),'unité'));
     if(net>0&&num(d.mortarKgM2)>0)lines.push(line(`simple-wall-mortar-${d.method||'tradi'}`,d.method==='colle'?'Colle / mortier-colle':'Mortier traditionnel','Liants',net*num(d.mortarKgM2),'kg'));
-    if(num(d.wallHPerM2)>0)lab.push(labor('Maçonnerie murs',net*num(d.wallHPerM2)));
+    if(masonryRatio(d,'wallHPerM2')>0)lab.push(labor('Maçonnerie murs',net*masonryRatio(d,'wallHPerM2')));
   }
   for(let i=0;i<(d.openings||[]).length;i++) addOpeningAssociated(lines,lab,d.openings[i],`simple-open-${i}`,d,cc,alerts);
   if(d.chainH){
@@ -1100,9 +1112,9 @@ function calcElevationWall(state,e,lines,lab,alerts,reco){
       reco.push(`${e.name} : volume béton réel ${fmt(net*ep,3)} m³ ; classe ${cc} ; contrôle annexe ${fmt(net*ref.betonParUnite,3)} m³.`);
     }
   }else{
-    if(!(num(d.blocksPerM2)>0))alerts.push(`🚨 ${e.name} : consommation blocs/m² obligatoire dans les réglages métier avancés.`);else lines.push(line(`${p}-blocks-${d.material}-${d.thickness}`,`${d.material} ${d.thickness||20} cm`,'Maçonnerie',net*num(d.blocksPerM2),'unité'));
+    if(!(masonryRatio(d,'blocksPerM2')>0))alerts.push(`🚨 ${e.name} : consommation blocs/m² obligatoire dans les réglages métier avancés.`);else lines.push(line(`${p}-blocks-${d.material}-${d.thickness}`,`${d.material} ${d.thickness||20} cm`,'Maçonnerie',net*masonryRatio(d,'blocksPerM2'),'unité'));
     if(num(d.mortarKgM2)>0)lines.push(line(`${p}-mortar-${d.method}`,d.method==='colle'?'Colle / mortier-colle':'Mortier traditionnel','Liants',net*num(d.mortarKgM2),'kg'));
-    if(!(num(d.wallHPerM2)>0))alerts.push(`🚨 ${e.name} : temps de pose h/m² obligatoire dans les réglages métier avancés.`);else lab.push(labor(e.name,net*num(d.wallHPerM2)));
+    if(!(masonryRatio(d,'wallHPerM2')>0))alerts.push(`🚨 ${e.name} : temps de pose h/m² obligatoire dans les réglages métier avancés.`);else lab.push(labor(e.name,net*masonryRatio(d,'wallHPerM2')));
   }
   openings.forEach((o,i)=>addOpeningAssociated(lines,lab,o,`${p}-open-${i}`,d,cc,alerts));
   (d.beams||[]).forEach((b,i)=>{
@@ -1244,7 +1256,7 @@ export function calculate(state){
     alerts.push(`⚠️ PRIX À CONFIRMER — ${l.name}. Le résultat reste accessible et l'artisan peut modifier ce prix à la fin.`);
   });
 
-  const materials=pricedLines.reduce((s,l)=>s+l.qty*l.price,0);
+  const materials=roundMoney(pricedLines.reduce((s,l)=>s+l.qty*l.price,0));
   const hours=lab.reduce((s,x)=>s+x.hours,0);
   let laborCost=lab.reduce((s,x)=>{
     if(x.annexPrice!==undefined)return s+x.annexPrice;
@@ -1254,8 +1266,9 @@ export function calculate(state){
   if(laborPriceOverride>0){
     // Les lignes cheminée portent déjà annexPrice : pas de double ajout ici. Conservé pour traçabilité.
   }
+  laborCost=roundMoney(laborCost);
   if(manualTotalLaborIncluded) reco.push('Escalier : le prix manuel inclut la main-d’œuvre ; les heures restent au planning sans être refacturées une seconde fois.');
-  const totalHT=materials+laborCost,tax=totalHT*(vat/100),ttc=totalHT+tax;
+  const totalHT=roundMoney(materials+laborCost),tax=roundMoney(totalHT*(vat/100)),ttc=roundMoney(totalHT+tax);
   const blocking=alerts.filter(a=>a.startsWith('🚨'));
   return {lines:pricedLines,labor:lab,alerts:[...new Set(alerts)],reco:[...new Set(reco)],missingPrices,hours,duration:hours/workers,workers,hourly,vat,vatDecision,materials,laborCost,totalHT,tax,ttc,canFinalize:blocking.length===0};
 }
@@ -1320,7 +1333,8 @@ export function resultCostBreakdown(r){
     if(l.id==='truck'||l.id==='toupie'||l.id==='pump'||l.id==='global-pump'||String(l.category||'').toLowerCase().includes('transport'))transport+=amount;
     else if(optionIds.test(String(l.id||'')))options+=amount;
   }
-  return {materials:Math.max(0,r.materials-transport-options),transport,options};
+  transport=roundMoney(transport);options=roundMoney(options);
+  return {materials:roundMoney(Math.max(0,roundMoney(r.materials)-transport-options)),transport,options};
 }
 
 export function renderResult(state){
@@ -1399,4 +1413,4 @@ export function assertBalisage(html){
   return true;
 }
 
-export { WORKS, WORK_BY_ID, FIBRES, CHIMNEY_CONDUITS, CHIMNEY_STACKS, CHIMNEY_CAPS, PREFAB_H_PER_ML, TRUCK_8X4_DEFAULT, STRUCTURE_WARNING, FIBRE_WARNING, PREFAB_TEAM_ADVICE, TREILLIS_GUILLAUME, PUMP_DEFAULT_PRICE, TOUPIE_PRICE_M3, TOUPIE_MIN_BILLABLE_M3, TOUPIE_CAPACITY_M3, PREFAB_DEFAULT_PRICE_M2, LONGRINE_PRICE_ML };
+export { WORKS, WORK_BY_ID, FIBRES, CHIMNEY_CONDUITS, CHIMNEY_STACKS, CHIMNEY_CAPS, PREFAB_H_PER_ML, TRUCK_8X4_DEFAULT, STRUCTURE_WARNING, FIBRE_WARNING, PREFAB_TEAM_ADVICE, TREILLIS_GUILLAUME, PUMP_DEFAULT_PRICE, TOUPIE_PRICE_M3, TOUPIE_MIN_BILLABLE_M3, TOUPIE_CAPACITY_M3, PREFAB_DEFAULT_PRICE_M2, LONGRINE_PRICE_ML, MASONRY_DEFAULTS };
