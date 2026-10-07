@@ -528,7 +528,7 @@ test('v2.5: Murs / Cloisons qualifie mur ou cloison non porteuse',()=>{
 
 test('Angèle Maçon: base chargée et 40 ouvrages synchronisés',()=>{
   assert.equal(SpeedArtiAngelMaconKnowledge.metier,'macon');
-  assert.equal(SpeedArtiAngelMaconKnowledge.version,'MAC-ANGEL-KB-v1.1');
+  assert.equal(SpeedArtiAngelMaconKnowledge.version,'MAC-ANGEL-KB-v1.2');
   assert.equal(SpeedArtiAngelMaconKnowledge.entries.filter(e=>e.topic==='ouvrage').length,WORKS.length);
 });
 
