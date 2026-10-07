@@ -1,7 +1,7 @@
 import {
   STRUCTURE_WARNING, FIBRE_WARNING, PREFAB_TEAM_ADVICE, PREFAB_H_PER_ML,
   TRUCK_8X4_DEFAULT, FIBRES, CHIMNEY_CONDUITS, CHIMNEY_STACKS, CHIMNEY_CAPS,
-  CONCRETE_CLASSES, TREILLIS_GUILLAUME, MICROPILE_PRICE_BY_DEPTH, LONGRINE_PRICE_ML,
+  CONCRETE_CLASSES, MASONRY_DEFAULTS, TREILLIS_GUILLAUME, MICROPILE_PRICE_BY_DEPTH, LONGRINE_PRICE_ML,
   PREFAB_DEFAULT_PRICE_M2, PUMP_DEFAULT_PRICE, TOUPIE_PRICE_M3, TOUPIE_MIN_BILLABLE_M3,
   TOUPIE_CAPACITY_M3, WORKS
 } from './references.js';
@@ -28,6 +28,30 @@ const baseEntries=[
     tags:['ouvrier','ouvriers','heures homme','heures-homme','duree','planning','main oeuvre','cout'],
     title:'Heures-homme et nombre d’ouvriers',
     answer:'Le nombre d’ouvriers ne change pas les heures-homme nécessaires à l’ouvrage. Durée chantier = heures-homme totales ÷ nombre d’ouvriers. Coût de main-d’œuvre = heures-homme totales × taux horaire.'
+  },
+  {
+    id:'MAC-MURS-RATIOS-PARPAING',topic:'murs',
+    tags:['mur','parpaing','ratio','blocs','temps','heures homme','prerempli'],
+    title:'Ratios parpaing préremplis',
+    answer:'Pour le parpaing, la démo propose automatiquement '+MASONRY_DEFAULTS.parpaing.blocksPerM2+' blocs/m² et '+fmt(MASONRY_DEFAULTS.parpaing.wallHPerM2,2)+' h-homme/m². Ces valeurs restent modifiables. Aucun ratio n’est appliqué automatiquement aux autres matériaux sans référentiel validé.'
+  },
+  {
+    id:'MAC-MURS-CLASSE-BETON-BA',topic:'murs',
+    tags:['mur','classe beton','chainage','linteau','poutre','ba','bloquant'],
+    title:'Classe béton visible pour les ouvrages BA des murs',
+    answer:'Lorsqu’un mur utilise des chaînages, linteaux, poutres BA ou du béton banché, la classe béton doit être visible et renseignable dans le parcours. Le chiffrage ne doit jamais bloquer sur une classe béton sans afficher le champ correspondant.'
+  },
+  {
+    id:'MAC-CHEMINEE-QUANTITES',topic:'cheminee',
+    tags:['cheminee','souche','chapeau','quantite','defaut'],
+    title:'Quantité par défaut souche et chapeau',
+    answer:'Lorsqu’une souche ou un chapeau est sélectionné, la quantité proposée est 1. Elle reste modifiable. Une référence sélectionnée avec quantité nulle doit produire une alerte explicite et ne doit jamais disparaître silencieusement du prix.'
+  },
+  {
+    id:'MAC-ARRONDI-MONETAIRE',topic:'prix',
+    tags:['arrondi','centime','tva','ttc','ht','total'],
+    title:'Arrondis monétaires cohérents',
+    answer:'Les montants monétaires sont arrondis au centime. La TVA est arrondie au centime et le TTC est calculé comme HT arrondi + TVA arrondie, afin que les montants affichés s’additionnent exactement.'
   },
   {
     id:'MAC-MURS-OUVERTURES',topic:'murs',
@@ -307,7 +331,7 @@ export function getAngelMaconEntry(id){
 }
 
 export const SpeedArtiAngelMaconKnowledge=Object.freeze({
-  version:'MAC-ANGEL-KB-v1.1',
+  version:'MAC-ANGEL-KB-v1.2',
   metier:'macon',
   source:'macon/references.js + macon/core.js + macon/catalogue-macon.js + macon/speedarti-integration.js (main)',
   entries:ANGEL_MACON_ENTRIES,
