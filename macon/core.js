@@ -9,7 +9,7 @@ import {
   CATALOGUE_MACON, catalogueCandidatesForLine, resolveCatalogueProduct, catalogueLabel, genericRebarPricePerKg
 } from './catalogue-macon.js';
 
-export const STEPS = ['Mode', 'Ouvrage(s)', 'Configuration', 'Options', 'Prix / catalogue', 'Résultat'];
+export const STEPS = ['Mode', 'Ouvrage(s)', 'Configuration', 'Options', 'Prix / catalogue', 'Vérification', 'Résultat'];
 
 export const DEMO_SPEEDARTI_CONTEXT = Object.freeze({
   hourly: 50,
@@ -40,7 +40,7 @@ export const MULTI_CARDS = [
 // Chaque trace doit avoir une destination réelle. Les tests vérifient que tous les contrôles visibles sont balisés.
 export const TRACE_TARGETS = {
   mode:'state+route', simpleType:'state+route', wizardPrev:'route-step-back', wizardNext:'validation+route-step-forward', returnTrades:'route-metiers',
-  concreteClass:'material-variant', wallKind:'normative-context',
+  concreteClass:'material-variant', wallKind:'normative-context', taxWorkType:'tax-context', taxAge:'tax-context', taxEco:'tax-context', jumpStep:'route-step-direct',
   wallLength:'quantity', wallWidth:'quantity', wallHeight:'quantity', wallThickness:'material-variant', wallBlocksPerM2:'quantity', wallMortarKgM2:'quantity', wallHoursPerM2:'labor',
   wallOpening:'quantity+associated-work', wallMaterial:'material-variant+price-key', wallMethod:'material-label', wallChainH:'material+labor', wallChainV:'material+labor',
   slabSurface:'quantity', slabLength:'quantity', slabWidth:'quantity', slabThickness:'quantity', slabRef:'material+labor', slabTreillis:'material', treillisType:'material+price+labor', slabFibres:'material', fibreType:'material', fibreDose:'quantity+alert',
@@ -85,6 +85,7 @@ export function defaultState(){
       foundationOptions:{}
     },
     elements:[],
+    taxContext:{workType:'',housingOver2Years:'',ecoRenovation:'non'},
     manualPrices:{},
     catalogSelections:{},
     result:null
@@ -95,6 +96,43 @@ export const num = v => {
   const n = Number(String(v ?? '').replace(',','.'));
   return Number.isFinite(n) ? n : 0;
 };
+
+export function detectVatContext(context={}){
+  const type=context.workType||'';
+  if(!type)return {complete:false,rate:20,justification:'Choisir le type de travaux avant le résultat.',alert:'Type de travaux à préciser.'};
+  if(type==='neuf')return {complete:true,rate:20,justification:'Construction neuve : TVA à 20 %.',alert:''};
+  if(type==='renovation'||type==='entretien'){
+    const over2=context.housingOver2Years||'';
+    if(!over2)return {complete:false,rate:20,justification:'Préciser si le logement est achevé depuis plus de 2 ans.',alert:'Âge du logement à préciser.'};
+    if(over2==='non')return {complete:true,rate:20,justification:'Logement de moins de 2 ans : TVA à 20 %.',alert:''};
+    if(context.ecoRenovation==='oui')return {complete:true,rate:5.5,justification:'Rénovation énergétique sur logement de plus de 2 ans : TVA réduite 5,5 % à confirmer selon l’éligibilité réelle des travaux.',alert:'Vérifier l’éligibilité exacte au taux réduit de 5,5 %.'};
+    return {complete:true,rate:10,justification:'Rénovation / entretien d’un logement de plus de 2 ans : TVA intermédiaire 10 %.',alert:''};
+  }
+  return {complete:false,rate:20,justification:'Contexte TVA incomplet.',alert:'Contexte TVA incomplet.'};
+}
+
+export function effectiveVatRate(state){
+  const detected=detectVatContext(state?.taxContext||{});
+  if(detected.complete)return detected.rate;
+  const raw=state?.globals?.vat;
+  return (raw!==''&&raw!==null&&raw!==undefined&&Number.isFinite(Number(raw)))?num(raw):DEMO_SPEEDARTI_CONTEXT.vat;
+}
+
+export function projectSummary(state){
+  if(state.mode==='multiple'){
+    const names=(state.elements||[]).map(e=>e.name||e.type).filter(Boolean);
+    return names.length?`${names.length} élément${names.length>1?'s':''} · ${names.join(' · ')}`:'Chantier multi-éléments';
+  }
+  const label=SIMPLE_TYPES.find(x=>x.id===state.simpleType)?.label||'Ouvrage';
+  const d=state.simple||{};
+  if(state.simpleType==='dalle'||state.simpleType==='terrasse')return `${label} · ${fmt(num(d.surface),2)} m² · ép. ${fmt(num(d.thickness),0)} cm`;
+  if(state.simpleType==='murs')return `${label} · ${fmt(num(d.length),2)} m × ${fmt(num(d.height),2)} m`;
+  if(state.simpleType==='fondations')return `${label} · ${fmt(num(d.length),2)} ml`;
+  if(state.simpleType==='cheminee')return `${label} · ${fmt(num(d.height),2)} m · ${num(d.count)||1} conduit`;
+  if(state.simpleType==='escalier')return `${label} · ${fmt(num(d.surface),2)} m²`;
+  return label;
+}
+
 export function concreteClassFor(container,globals){
   return container?.concreteClass || globals?.concreteClass || '';
 }
@@ -1134,7 +1172,8 @@ export function calculate(state){
   const g=state.globals;
   const hourly=num(g.hourly)>0?num(g.hourly):DEMO_SPEEDARTI_CONTEXT.hourly;
   const workers=Math.max(1,num(g.workers)||DEMO_SPEEDARTI_CONTEXT.workers);
-  const vatRaw=(g.vat!==''&&g.vat!==null&&g.vat!==undefined&&Number.isFinite(Number(g.vat)))?g.vat:DEMO_SPEEDARTI_CONTEXT.vat;
+  const vat=effectiveVatRate(state);
+  const vatDecision=detectVatContext(state.taxContext||{});
 
   let laborPriceOverride=0;
   let manualTotalLaborIncluded=false;
@@ -1208,9 +1247,9 @@ export function calculate(state){
     // Les lignes cheminée portent déjà annexPrice : pas de double ajout ici. Conservé pour traçabilité.
   }
   if(manualTotalLaborIncluded) reco.push('Escalier : le prix manuel inclut la main-d’œuvre ; les heures restent au planning sans être refacturées une seconde fois.');
-  const vat=num(vatRaw),totalHT=materials+laborCost,tax=totalHT*(vat/100),ttc=totalHT+tax;
+  const totalHT=materials+laborCost,tax=totalHT*(vat/100),ttc=totalHT+tax;
   const blocking=alerts.filter(a=>a.startsWith('🚨'));
-  return {lines:pricedLines,labor:lab,alerts:[...new Set(alerts)],reco:[...new Set(reco)],missingPrices,hours,duration:hours/workers,workers,hourly,vat,materials,laborCost,totalHT,tax,ttc,canFinalize:blocking.length===0};
+  return {lines:pricedLines,labor:lab,alerts:[...new Set(alerts)],reco:[...new Set(reco)],missingPrices,hours,duration:hours/workers,workers,hourly,vat,vatDecision,materials,laborCost,totalHT,tax,ttc,canFinalize:blocking.length===0};
 }
 
 export function renderPrices(state){
@@ -1252,6 +1291,39 @@ export function renderPrices(state){
     <div class="table-wrap"><table><thead><tr><th>Poste</th><th>Besoin métier</th><th>Article catalogue / conditionnement</th><th>Prix facultatif</th></tr></thead><tbody>${rows||'<tr><td colspan="4">Aucune ligne calculée.</td></tr>'}</tbody></table></div>
     ${r.missingPrices.length?`<div class="alert warn">⚠️ ${r.missingPrices.length} poste${r.missingPrices.length>1?'s':''} sans prix automatique. Cela ne bloque plus le résultat ; ces lignes sont signalées « à confirmer » et restent modifiables à la fin.</div>`:'<div class="alert ok">✓ Tous les prix ont été préremplis automatiquement. Vous pouvez les modifier si nécessaire.</div>'}`;
 }
+export function renderVerification(state){
+  const r=calculate(state),ctx=state.taxContext||{},vat=detectVatContext(ctx);
+  const actualConcrete=r.lines.filter(l=>l.category==='Béton'&&l.unit==='m³').reduce((s,l)=>s+num(l.qty),0);
+  const toupie=r.lines.find(l=>l.id==='toupie');
+  const toupieNote=toupie
+    ? (num(toupie.qty)>actualConcrete+1e-9
+      ? `<div class="alert warn"><strong>Toupie :</strong> ${fmt(actualConcrete,2)} m³ nécessaires · minimum facturé ${fmt(toupie.qty,2)} m³. ${button('Modifier les options','class="btn ghost small" data-jump-step="3"','jumpStep')}</div>`
+      : `<div class="info-box"><strong>Toupie :</strong> ${fmt(actualConcrete,2)} m³ nécessaires et facturés. ${button('Modifier','class="btn ghost small" data-jump-step="3"','jumpStep')}</div>`)
+    :'';
+  const priceNote=r.missingPrices.length
+    ? `<div class="alert warn"><strong>${r.missingPrices.length} prix à confirmer.</strong> Le chiffrage reste accessible. ${button('Vérifier les prix','class="btn ghost small" data-jump-step="4"','jumpStep')}</div>`
+    :'<div class="alert ok"><strong>Prix :</strong> aucun poste bloquant à renseigner.</div>';
+  const ageField=(ctx.workType==='renovation'||ctx.workType==='entretien')
+    ? field('Logement achevé depuis plus de 2 ans ?','taxContext.housingOver2Years',ctx.housingOver2Years||'',{scope:'root',required:true,trace:'taxAge',options:[{value:'',label:'Choisir…'},{value:'oui',label:'Oui'},{value:'non',label:'Non'}]}).replace('data-field=', 'data-root-field=')
+    :'';
+  const ecoField=(ctx.workType==='renovation'||ctx.workType==='entretien')&&ctx.housingOver2Years==='oui'
+    ? field('Travaux de rénovation énergétique éligibles ?','taxContext.ecoRenovation',ctx.ecoRenovation||'non',{scope:'root',trace:'taxEco',options:[{value:'non',label:'Non / standard'},{value:'oui',label:'Oui — taux réduit à vérifier'}]}).replace('data-field=', 'data-root-field=')
+    :'';
+  return `<div class="section-title"><h2>Vérification du chiffrage</h2><p>Contrôlez les points importants avant d’afficher le résultat. Vous pouvez revenir corriger une étape sans perdre vos saisies.</p></div>
+    <div class="panel primary-soft"><div class="row spread"><div><span class="tiny muted">Résumé chantier</span><h3 style="margin:4px 0 0">${esc(projectSummary(state))}</h3></div>${button('Modifier l’ouvrage','class="btn ghost small" data-jump-step="2"','jumpStep')}</div></div>
+    ${priceNote}
+    ${toupieNote}
+    <div class="panel" style="margin-top:14px"><h3>TVA du chantier</h3>
+      <div class="grid cols-2">
+        ${field('Type de travaux','taxContext.workType',ctx.workType||'',{scope:'root',required:true,trace:'taxWorkType',options:[{value:'',label:'Choisir…'},{value:'neuf',label:'Construction neuve'},{value:'renovation',label:'Rénovation'},{value:'entretien',label:'Entretien / réparation'}]}).replace('data-field=', 'data-root-field=')}
+        ${ageField}
+        ${ecoField}
+      </div>
+      <div class="${vat.complete?'alert ok':'alert warn'}"><strong>${vat.complete?`TVA proposée : ${fmt(vat.rate,1)} %`:'TVA à qualifier'}</strong><br>${esc(vat.justification)}${vat.alert?`<br><span class="tiny">${esc(vat.alert)}</span>`:''}</div>
+      <div class="tiny muted" style="margin-top:8px">À l’intégration dans SpeedArti, cette qualification utilisera le service TVA existant et les paramètres réels de l’entreprise.</div>
+    </div>`;
+}
+
 export function renderResult(state){
   const r=calculate(state);
   if(!r.canFinalize){
@@ -1298,6 +1370,10 @@ export function validateStep(state,step=state.step){
     const blocking=r.alerts.find(a=>a.startsWith('🚨'));
     if(blocking)return blocking.replace(/^🚨\s*/,'');
   }
+  if(step===5){
+    const vat=detectVatContext(state.taxContext||{});
+    if(!vat.complete)return vat.alert||'Préciser la TVA du chantier.';
+  }
   return '';
 }
 
@@ -1307,6 +1383,7 @@ export function renderStep(state){
   if(state.step===2)return renderConfig(state);
   if(state.step===3)return renderOptions(state);
   if(state.step===4)return renderPrices(state);
+  if(state.step===5)return renderVerification(state);
   return renderResult(state);
 }
 

@@ -4,11 +4,11 @@ import {
   CATALOGUE_MACON, catalogueCandidatesForLine, resolveCatalogueProduct, genericRebarPricePerKg
 } from './catalogue-macon.js';
 import {
-  defaultState, newElement, renderMode, renderWorks, renderConfig, renderOptions, renderPrices, renderResult,
+  STEPS, defaultState, newElement, renderMode, renderWorks, renderConfig, renderOptions, renderPrices, renderVerification, renderResult, renderStep,
   calculate, validateStep, assertBalisage,
   WORKS, WORK_BY_ID, FIBRES, PREFAB_H_PER_ML, TRUCK_8X4_DEFAULT, TRACE_TARGETS,
   TREILLIS_GUILLAUME, PUMP_DEFAULT_PRICE, TOUPIE_PRICE_M3, TOUPIE_MIN_BILLABLE_M3, TOUPIE_CAPACITY_M3,
-  PREFAB_DEFAULT_PRICE_M2, LONGRINE_PRICE_ML, micropileSuggestedPrice, estimatedVerticalChainage, toupieEstimatedCount, DEMO_SPEEDARTI_CONTEXT
+  PREFAB_DEFAULT_PRICE_M2, LONGRINE_PRICE_ML, micropileSuggestedPrice, estimatedVerticalChainage, toupieEstimatedCount, DEMO_SPEEDARTI_CONTEXT, detectVatContext, effectiveVatRate, projectSummary
 } from './core.js';
 import { SpeedArtiAngelMaconKnowledge, searchAngelMacon, answerAngelMacon } from './angel-knowledge.js';
 
@@ -603,6 +603,44 @@ test('sprint UX: anciens états sans paramètres visibles utilisent les valeurs 
   const r=calculate(s);
   assert.equal(r.hourly,50);assert.equal(r.workers,1);assert.equal(r.vat,20);
   assert.ok(!r.alerts.some(x=>/taux horaire|taux de TVA|nombre d.ouvriers/i.test(x)));
+});
+
+
+test('sprint TVA: détection neuf / rénovation / énergétique',()=>{
+  assert.equal(detectVatContext({workType:'neuf'}).rate,20);
+  assert.equal(detectVatContext({workType:'renovation',housingOver2Years:'non'}).rate,20);
+  assert.equal(detectVatContext({workType:'renovation',housingOver2Years:'oui',ecoRenovation:'non'}).rate,10);
+  assert.equal(detectVatContext({workType:'renovation',housingOver2Years:'oui',ecoRenovation:'oui'}).rate,5.5);
+});
+
+test('sprint TVA: vérification bloque seulement tant que le contexte TVA manque',()=>{
+  const s=base();s.step=5;s.simpleType='dalle';Object.assign(s.simple,{surface:30,thickness:12,slabRef:'dallage_arme',concreteClass:'C25/30'});
+  assert.match(validateStep(s,5),/Type de travaux/i);
+  s.taxContext={workType:'renovation',housingOver2Years:'',ecoRenovation:'non'};assert.match(validateStep(s,5),/Âge du logement/i);
+  s.taxContext.housingOver2Years='oui';assert.equal(validateStep(s,5),'');
+  assert.equal(effectiveVatRate(s),10);
+});
+
+test('sprint TVA: écran vérification résume, permet retour et affiche la toupie minimum',()=>{
+  const s=base();s.step=5;s.simpleType='dalle';Object.assign(s.simple,{surface:30,thickness:12,slabRef:'dallage_arme',concreteClass:'C25/30'});s.globals.toupie=true;s.taxContext={workType:'neuf',housingOver2Years:'',ecoRenovation:'non'};
+  const html=renderVerification(s);
+  assert.match(html,/Vérification du chiffrage/);assert.match(html,/Dallage \/ Dalle/);
+  assert.match(html,/3,60 m³ nécessaires/);assert.match(html,/minimum facturé 6,00 m³/);
+  assert.match(html,/data-jump-step="3"/);assert.match(html,/TVA proposée : 20,0 %/);
+  assert.equal(assertBalisage(html),true);
+});
+
+test('sprint TVA: taux qualifié alimente réellement le résultat',()=>{
+  const s=base();s.simpleType='dalle';Object.assign(s.simple,{surface:10,thickness:10,slabRef:'dallage_non_arme',concreteClass:'C25/30'});
+  s.taxContext={workType:'renovation',housingOver2Years:'oui',ecoRenovation:'non'};
+  const r=calculate(s);assert.equal(r.vat,10);assert.ok(Math.abs(r.tax-r.totalHT*.10)<1e-9);
+  s.taxContext.ecoRenovation='oui';assert.equal(calculate(s).vat,5.5);
+});
+
+test('sprint TVA: le wizard contient Vérification avant Résultat',()=>{
+  assert.equal(STEPS?.[5]??'Vérification','Vérification');
+  const s=base();s.step=5;s.taxContext={workType:'neuf',housingOver2Years:'',ecoRenovation:'non'};
+  assert.match(renderStep(s),/Vérification du chiffrage/);
 });
 
 console.log(`OK — V2.6 Maçon: ${pass.length} contrôles fonctionnels passés`);

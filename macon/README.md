@@ -216,3 +216,12 @@ Priorité de connaissance : **moteur réel SpeedArti → référentiel validé �
 - le code réel SpeedArti reste la source prévue pour l’intégration : `parametres_utilisateur.taux_horaire`, `taux_par_metier` et `nb_ouvriers_defaut` ;
 - aucune modification n’a été faite dans le dépôt SpeedArti de production ;
 - la TVA chantier sera qualifiée dans l’étape de vérification dédiée avant le résultat.
+
+
+## Sprint UX — vérification et TVA
+
+- nouvelle étape **Vérification** entre Prix / catalogue et Résultat ;
+- résumé du chantier et raccourcis pour revenir corriger l’ouvrage, les options ou les prix sans perdre les saisies ;
+- qualification TVA au dernier moment : neuf 20 %, rénovation/entretien logement < 2 ans 20 %, logement > 2 ans 10 %, rénovation énergétique 5,5 % avec avertissement d’éligibilité ;
+- comportement aligné sur le service TVA déjà présent dans SpeedArti, sans connexion à la production depuis la démo ;
+- indication explicite du volume réel de béton et du minimum de facturation toupie lorsqu’il s’applique.

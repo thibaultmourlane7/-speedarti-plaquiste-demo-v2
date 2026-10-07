@@ -32,6 +32,7 @@ for(const t of SIMPLE_TYPES.map(x=>x.id)){
 
 // Price/catalogue fixture with real required lines.
 let ps=base(4,'simple');ps.simpleType='murs';Object.assign(ps.simple,{length:10,height:2.5,thickness:20,blocksPerM2:10,mortarKgM2:3,wallHPerM2:.5,material:'parpaing',method:'tradi',chainH:true,chainHml:12,chainV:true,chainVml:8});add('price-catalogue-wall',ps);
+let vs=base(5,'simple');vs.simpleType='dalle';Object.assign(vs.simple,{surface:30,thickness:12,slabRef:'dallage_arme',concreteClass:'C25/30'});vs.globals.toupie=true;vs.taxContext={workType:'renovation',housingOver2Years:'oui',ecoRenovation:'non'};add('verification-tva-renovation',vs);
 // Multi element branches
 function multiOne(type,data={}){let s=base(2,'multiple');let e=newElement(type);Object.assign(e.data,data);s.elements=[e];return s}
 for(const ft of ['micro_pieux','plot_isole','vide_sanitaire','terre_plein']){
@@ -59,7 +60,7 @@ for(const [name,state] of fixtures){
   const tags=[...html.matchAll(/<(input|select|button)\b[^>]*>/gi)].map(m=>m[0]);totalControls+=tags.length;
   for(const tag of tags){
     const tm=tag.match(/data-trace="([^"]+)"/); if(tm)traceCounts[tm[1]]=(traceCounts[tm[1]]||0)+1;
-    const bound=/data-(?:mode|simple-type|add-element|remove-element|simple|global|root-field|field|add-simple-opening|remove-simple-opening|add-opening|remove-opening|add-beam|remove-beam|add-pignon|remove-pignon)=/.test(tag);
+    const bound=/data-(?:mode|simple-type|add-element|remove-element|simple|global|root-field|field|add-simple-opening|remove-simple-opening|add-opening|remove-opening|add-beam|remove-beam|add-pignon|remove-pignon|jump-step)=/.test(tag);
     if(!bound)bindFailures.push([name,tag]);
   }
 }
