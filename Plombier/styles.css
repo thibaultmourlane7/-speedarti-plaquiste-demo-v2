@@ -64,3 +64,30 @@
 .cart-zone{display:block;margin-top:2px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:.02em}
 .sanitary-zone-section+.sanitary-zone-section{margin-top:18px;padding-top:16px;border-top:1px solid #e2e8f0}
 .sanitary-zone-section h3{margin:0 0 8px;font-size:14px;color:#334155}
+
+
+/* v0.6.5 — lisibilité configuration et composition multi-articles */
+.main-equipment-product{margin-top:4px;padding:14px;border:1px solid #dbeafe;border-radius:12px;background:#f8fbff}
+.main-equipment-product h4,.multi-product-panel h4{margin:0 0 8px;font-size:13px;color:#334155}
+.main-equipment-product .catalogue-picker{margin:0}
+.equipment-option-block{border:1px solid #e2e8f0;border-radius:12px;background:#fff;overflow:hidden;margin-top:4px}
+.equipment-option-block>.switch-row{padding:12px 14px}
+.equipment-option-values{padding:12px 14px;border-top:1px solid #e2e8f0;background:#f8fafc}
+.equipment-option-values .catalogue-picker{margin:0 0 10px}
+.multi-product-panel{padding:14px;border:1px solid #dbeafe;border-radius:12px;background:#fbfdff;margin-top:4px}
+.multi-product-item{padding:10px 0;border-top:1px solid #e2e8f0}
+.multi-product-item:first-of-type{border-top:0}
+.multi-product-controls{margin-top:8px}
+.multi-product-actions{margin-top:10px}
+.remove-item-field .btn{width:100%}
+.compact-empty{padding:12px}
+.network-source-notes{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px}
+.network-source-notes span{font-size:11px;padding:6px 9px;border-radius:999px;background:#eef6ff;color:#315b86;border:1px solid #dbeafe}
+.link-button{border:0;background:transparent;padding:0;color:#2563eb;text-decoration:underline;cursor:pointer;font:inherit}
+.surface-note{margin:10px 0 0;padding-top:8px;border-top:1px dashed #e2e8f0}
+@media(max-width:760px){
+  .network-source-notes{display:grid;grid-template-columns:1fr}
+  .network-source-notes span{border-radius:8px}
+  .multi-product-actions{align-items:stretch;flex-direction:column}
+  .multi-product-actions .btn{width:100%}
+}
