@@ -1,14 +1,15 @@
-# SpeedArti — Plombier v0.6.9 — Contrôle ciblé
+# SpeedArti — Plombier v0.7.0 — Contrôle ciblé Sprint C
 
 Date : 2026-10-07
 
-La suite logique complète passe à **580 / 580 assertions**.
+La suite logique complète passe à **590 / 590 assertions**.
 
-Points ciblés du sprint :
-- composition automatique étendue aux douches standard/extra-plates, baignoires, éviers et WC à poser ;
-- aucune automatisation silencieuse lorsque le choix dépend de la pose réelle ;
-- préférences entreprise disponibles pour toutes les nouvelles références automatiques ;
-- non-double-comptage lorsqu’un composant est compris dans le produit principal ;
-- réponses Ángel v1.4 cohérentes avec le moteur.
+Points ciblés :
+- Téréva est maintenant la source unique des prix/métadonnées des références réseau ;
+- le moteur garde seulement les codes métier nécessaires ;
+- les références absentes, incompatibles ou sans prix sont détectées et bloquantes ;
+- aucun fallback silencieux PER/multicouche ;
+- seul le fallback cuivre 8 €/ml validé est conservé ;
+- Ángel v1.5 répond conformément au moteur.
 
 Le contrôle navigateur complet « comme un humain » reste à effectuer séparément avant validation ergonomique finale.
