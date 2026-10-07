@@ -1,6 +1,28 @@
-# SpeedArti — Plombier v0.6.8 — Évacuations locales DN40 / DN100
+# SpeedArti — Plombier v0.6.9 — Composition automatique étendue
 
 Cette version continue le module Plombier existant.
+
+## Lot v0.6.9 — composition automatique WC / douche / baignoire / évier
+
+Le moteur continue d'utiliser l'Annexe 2 Guillaume comme nomenclature interne, sans l'afficher comme telle à l'artisan.
+
+Références automatiques ajoutées lorsque le choix est suffisamment générique et vérifié dans Téréva :
+- douche standard : bonde Ø90 `4273010` ;
+- douche extra-plate : bonde extra-plate `4281682` ;
+- baignoire : vidage avec trop-plein `767547L` + siphon `4273012` ;
+- évier 1 cuve : bonde `4272991` + siphon `1066748` ;
+- évier 2 cuves : bonde `4273023` + siphon `1066748` ;
+- WC à poser : fixation au sol `1085426`.
+
+Règles de prudence :
+- aucune bonde générique n'est imposée à une douche italienne ;
+- aucune pipe WC droite/coudée n'est choisie automatiquement ;
+- aucun composant générique n'est forcé sur un WC suspendu quand le choix dépend du bâti/pack ;
+- les flexibles et autres composants dépendants de la configuration restent visibles à vérifier ;
+- une sélection artisan ou une habitude entreprise remplace le défaut SpeedArti ;
+- « Compris dans le produit principal » supprime la ligne automatique correspondante.
+
+Ángel Plombier est mis à jour en **v1.4** et testé avec les mêmes règles.
 
 ## Lot v0.6.8 — évacuations locales et réseau général
 
