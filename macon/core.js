@@ -192,7 +192,7 @@ export function field(label,key,value='',opts={}){
   if(options){
     control=`<select ${attr}="${esc(key)}" ${traceAttr(trace)}>${optionHtml(options,value)}</select>`;
   } else {
-    control=`<input ${attr}="${esc(key)}" ${traceAttr(trace)} type="${type}" step="${step}" min="${min}" placeholder="${esc(placeholder)}" value="${esc(value)}">`;
+    control=`<input ${attr}="${esc(key)}" ${traceAttr(trace)} type="${type}" step="${step}" min="${min}" inputmode="${type==='number'?'decimal':'text'}" autocomplete="off" placeholder="${esc(placeholder)}" value="${esc(value)}">`;
   }
   return `<div class="field"><label class="${required?'required':''}">${label}</label>${control}${help?`<small>${help}</small>`:''}</div>`;
 }
@@ -795,14 +795,19 @@ function addDirectPricedLine(lines,id,name,category,qty,unit,price){
   if(num(qty)>0) lines.push(line(id,name,category,qty,unit,price,'explicit'));
 }
 
+function isFibrePriceLine(line){
+  return /\bfibres?\b/i.test(String(line?.name||''))&&line?.unit==='kg';
+}
+
 // Le catalogue est une source de prix automatique : l'artisan n'a pas à sélectionner
-// un article pour obtenir un chiffrage. Une sélection utilisateur compatible reste prioritaire,
-// puis SpeedArti prend le meilleur article compatible et tarifé proposé par le moteur catalogue.
+// un article pour obtenir un chiffrage. Une sélection utilisateur compatible reste prioritaire.
+// Les fibres génériques restent à confirmer tant que la référence produit/dosage n'est pas validée.
 function resolveAutomaticCataloguePrice(line,preferredRef=''){
   if(preferredRef){
     const preferred=resolveCatalogueProduct(line,preferredRef);
     if(preferred?.compatible)return {referenceCatalogue:preferredRef,resolved:preferred,automatic:false};
   }
+  if(isFibrePriceLine(line))return {referenceCatalogue:'',resolved:null,automatic:false};
   const candidates=catalogueCandidatesForLine(line,20);
   for(const product of candidates){
     const resolved=resolveCatalogueProduct(line,product.referenceCatalogue);
@@ -812,7 +817,7 @@ function resolveAutomaticCataloguePrice(line,preferredRef=''){
 }
 function referenceFallbackPrice(line){
   if(line?.category==='Béton'&&line?.unit==='m³')return {price:TOUPIE_PRICE_M3,source:`Référence SpeedArti béton prêt à l’emploi — ${money(TOUPIE_PRICE_M3)}/m³`,kind:'beton_reference'};
-  if(line?.category==='Ferraillage'&&line?.unit==='kg'){const price=genericRebarPricePerKg();if(price>0)return {price,source:'Catalogue Maçon SpeedArti — fer à béton converti au kg depuis dimensions catalogue',kind:'acier_reference'};}
+  if(line?.category==='Ferraillage'&&line?.unit==='kg'&&!isFibrePriceLine(line)){const price=genericRebarPricePerKg();if(price>0)return {price,source:'Catalogue Maçon SpeedArti — fer à béton converti au kg depuis dimensions catalogue',kind:'acier_reference'};}
   return null;
 }
 
@@ -1159,7 +1164,10 @@ function addCommonOptions(state,lines,lab,alerts,reco){
     if(totalConcrete>0){
       const billed=Math.max(totalConcrete,TOUPIE_MIN_BILLABLE_M3);
       for(const concreteLine of lines)if(concreteLine.category==='Béton'&&concreteLine.unit==='m³'&&concreteLine.priceMode!=='included'){concreteLine.price=0;concreteLine.priceMode='included';concreteLine.includedByToupie=true;}
-      addDirectPricedLine(lines,'toupie','Béton livré par toupie — facturation volume','Transport béton',billed,'m³',priceM3);
+      const toupieLabel=billed>totalConcrete
+        ? `Béton livré par toupie — ${fmt(totalConcrete,2)} m³ nécessaires, minimum facturé ${fmt(billed,2)} m³`
+        : 'Béton livré par toupie — volume facturé';
+      addDirectPricedLine(lines,'toupie',toupieLabel,'Transport béton',billed,'m³',priceM3);
       reco.push(`Facturation toupie Guillaume : ${money(priceM3)}/m³, minimum ${TOUPIE_MIN_BILLABLE_M3} m³ (${money(priceM3*TOUPIE_MIN_BILLABLE_M3)}). Les lignes béton physiques restent visibles mais sont incluses afin d’éviter toute double facturation.`);
     }else alerts.push('🚨 Toupie : aucun volume béton calculé à facturer.');
   }
@@ -1256,41 +1264,21 @@ export function renderPrices(state){
   const r=calculate(state);
   const rows=r.lines.filter(l=>l.qty>0).map(l=>{
     if(l.priceMode==='required'){
-      const candidates=catalogueCandidatesForLine(l,8);
-      const storedRef=state.catalogSelections?.[l.id]||'';
-      const auto=resolveAutomaticCataloguePrice(l,storedRef);
-      const selectedRef=auto.referenceCatalogue||'';
-      const resolved=auto.resolved;
-      const options=[
-        {value:'',label:candidates.length?'Sélection automatique SpeedArti…':'Aucun article catalogue compatible'},
-        ...candidates.map(product=>({value:product.referenceCatalogue,label:catalogueLabel(product)}))
-      ];
-      let detail='<span class="tiny muted">Aucun prix catalogue exploitable pour ce poste. Le résultat reste accessible et ce prix pourra être modifié à la fin.</span>';
-      if(resolved?.compatible){
-        detail=`<div class="catalog-ok"><strong>${esc(resolved.product.marque)} — ${esc(resolved.product.produit)}</strong><br>
-          <span>${auto.automatic?'Sélection automatique SpeedArti · ':''}Réf. catalogue ${esc(resolved.product.referenceCatalogue)} · ${esc(resolved.orderLabel)} · total fournitures ${money(resolved.total)}</span></div>`;
-      }
+      const candidates=catalogueCandidatesForLine(l,8),storedRef=state.catalogSelections?.[l.id]||'',auto=resolveAutomaticCataloguePrice(l,storedRef),selectedRef=auto.referenceCatalogue||'',resolved=auto.resolved,fibre=isFibrePriceLine(l);
+      const options=[{value:'',label:fibre?'Choisir une référence fibre…':candidates.length?'Sélection automatique SpeedArti…':'Aucun article catalogue compatible'},...candidates.map(product=>({value:product.referenceCatalogue,label:catalogueLabel(product)}))];
       const currentManual=state.manualPrices?.[l.id]??'';
-      return `<tr class="${l.price>0?'':'missing-price'}">
-        <td><strong>${esc(l.name)}</strong><br><span class="muted">${esc(l.category)}</span></td>
-        <td>${fmt(l.qty,2)} ${esc(l.unit)}</td>
-        <td>
-          ${field('Article catalogue',`catalogSelections.${l.id}`,selectedRef,{scope:'root',trace:'catalogSelection',options}).replace('data-field=',`data-root-field=`)}
-          ${detail}
-        </td>
-        <td>
-          ${field('Prix U. HT personnel / unité métier',`manualPrices.${l.id}`,currentManual,{scope:'root',step:'0.01',trace:'priceInput',help:'Facultatif : s’il est renseigné, il remplace le prix automatique.'}).replace('data-field=',`data-root-field=`)}
-          ${l.price>0?`<div class="tiny muted">Prix retenu automatiquement : ${money(l.price)} · ${esc(l.source)}</div>`:'<div class="tiny muted">Prix non valorisé automatiquement — modification facultative à la fin.</div>'}
-        </td>
-      </tr>`;
+      const productTitle=resolved?.compatible?`${esc(resolved.product.marque)} — ${esc(resolved.product.produit)}`:(l.price>0?esc(l.source||'Prix de référence SpeedArti'):'Prix à confirmer');
+      const productMeta=resolved?.compatible?`Réf. ${esc(resolved.product.referenceCatalogue)} · ${esc(resolved.orderLabel)}`:(fibre?'Référence fibre non choisie automatiquement : le dosage produit doit correspondre au dosage métier.':'Aucune référence catalogue fiable retenue automatiquement.');
+      const selector=`<details class="catalog-details"><summary>Voir / modifier le produit</summary><div class="catalog-detail-body">${field('Article catalogue',`catalogSelections.${l.id}`,selectedRef,{scope:'root',trace:'catalogSelection',options}).replace('data-field=',`data-root-field=`)}<div class="tiny muted" style="margin-top:7px">${productMeta}</div></div></details>`;
+      const retained=l.price>0?money(l.price):'À confirmer';
+      const priceEditor=`<details class="catalog-details"><summary>Modifier le prix</summary><div class="catalog-detail-body">${field('Prix U. HT personnel / unité métier',`manualPrices.${l.id}`,currentManual,{scope:'root',step:'0.01',trace:'priceInput',help:'Facultatif : remplace le prix automatique ou permet de valoriser un poste à confirmer.'}).replace('data-field=',`data-root-field=`)}</div></details>`;
+      return `<tr class="${l.price>0?'':'missing-price'}"><td><strong>${esc(l.name)}</strong><br><span class="muted">${esc(l.category)}</span></td><td>${fmt(l.qty,2)} ${esc(l.unit)}</td><td><strong>${productTitle}</strong><div class="tiny muted">${productMeta}</div>${selector}</td><td><strong>${retained}</strong><div class="tiny muted">${l.price>0?esc(l.source||''):'Le chiffrage continue sans bloquer.'}</div>${priceEditor}</td></tr>`;
     }
-    return `<tr><td><strong>${esc(l.name)}</strong><br><span class="muted">${esc(l.category)}</span></td><td>${fmt(l.qty,2)} ${esc(l.unit)}</td><td>${esc(l.source||'')}</td><td><strong>${money(l.price)}</strong></td></tr>`;
+    return `<tr><td><strong>${esc(l.name)}</strong><br><span class="muted">${esc(l.category)}</span></td><td>${fmt(l.qty,2)} ${esc(l.unit)}</td><td><strong>${esc(l.source||'Prix défini')}</strong></td><td><strong>${money(l.price)}</strong></td></tr>`;
   }).join('');
-  return `<div class="section-title"><h2>Prix / catalogue</h2><p>SpeedArti retient automatiquement le meilleur article compatible et son prix artisan moyen HT. L’artisan peut changer l’article ou remplacer le prix, mais aucune saisie de prix personnel n’est nécessaire pour continuer.</p></div>
-    <div class="info-box"><strong>${CATALOGUE_MACON.length} articles métier intégrés.</strong> Le catalogue sert de préremplissage automatique. Le prix personnel reste prioritaire uniquement si l’artisan souhaite le modifier.</div>
-    <div class="table-wrap"><table><thead><tr><th>Poste</th><th>Besoin métier</th><th>Article catalogue / conditionnement</th><th>Prix facultatif</th></tr></thead><tbody>${rows||'<tr><td colspan="4">Aucune ligne calculée.</td></tr>'}</tbody></table></div>
-    ${r.missingPrices.length?`<div class="alert warn">⚠️ ${r.missingPrices.length} poste${r.missingPrices.length>1?'s':''} sans prix automatique. Cela ne bloque plus le résultat ; ces lignes sont signalées « à confirmer » et restent modifiables à la fin.</div>`:'<div class="alert ok">✓ Tous les prix ont été préremplis automatiquement. Vous pouvez les modifier si nécessaire.</div>'}`;
+  return `<div class="section-title"><h2>Prix / catalogue</h2><p>SpeedArti préremplit les prix fiables. Les détails techniques restent disponibles seulement si vous souhaitez les vérifier ou les modifier.</p></div><div class="info-box"><strong>${CATALOGUE_MACON.length} articles métier intégrés.</strong> Un prix personnel reste toujours prioritaire. Un poste non fiable reste « à confirmer » sans bloquer le chiffrage.</div><div class="table-wrap"><table><thead><tr><th>Poste</th><th>Besoin</th><th>Produit retenu</th><th>Prix U. HT</th></tr></thead><tbody>${rows||'<tr><td colspan="4">Aucune ligne calculée.</td></tr>'}</tbody></table></div>${r.missingPrices.length?`<div class="alert warn">⚠️ ${r.missingPrices.length} poste${r.missingPrices.length>1?'s':''} à confirmer. Vous pouvez poursuivre et revenir modifier ces prix avant le devis.</div>`:'<div class="alert ok">✓ Tous les prix fiables ont été préremplis automatiquement.</div>'}`;
 }
+
 export function renderVerification(state){
   const r=calculate(state),ctx=state.taxContext||{},vat=detectVatContext(ctx);
   const actualConcrete=r.lines.filter(l=>l.category==='Béton'&&l.unit==='m³').reduce((s,l)=>s+num(l.qty),0);
@@ -1324,8 +1312,19 @@ export function renderVerification(state){
     </div>`;
 }
 
+export function resultCostBreakdown(r){
+  const optionIds=/^(global-(earthworks|backfill|scaffold|finish-coat|waterproof-coat)|terrace-waterproof|terrace-insulation|foundation-option-)/;
+  let transport=0,options=0;
+  for(const l of r.lines||[]){
+    const amount=num(l.qty)*num(l.price);
+    if(l.id==='truck'||l.id==='toupie'||l.id==='pump'||l.id==='global-pump'||String(l.category||'').toLowerCase().includes('transport'))transport+=amount;
+    else if(optionIds.test(String(l.id||'')))options+=amount;
+  }
+  return {materials:Math.max(0,r.materials-transport-options),transport,options};
+}
+
 export function renderResult(state){
-  const r=calculate(state);
+  const r=calculate(state),breakdown=resultCostBreakdown(r);
   if(!r.canFinalize){
     return `<div class="section-title"><h2>Résultat bloqué</h2><p>Le résultat final n’est bloqué que par une donnée métier réellement obligatoire, jamais par l’absence d’un article catalogue ou d’un prix personnel.</p></div>
       ${r.alerts.filter(a=>a.startsWith('🚨')).map(a=>`<div class="alert danger">${esc(a)}</div>`).join('')}`;
@@ -1347,7 +1346,7 @@ export function renderResult(state){
     ${provisional?`<div class="alert warn">⚠️ Le total ci-dessous est provisoire : les postes « à confirmer » ne sont pas valorisés tant qu’aucun prix fiable n’est disponible. Ils ne bloquent toutefois plus le chiffrage.</div>`:''}
     <div class="result-grid"><div><div class="table-wrap"><table><thead><tr><th>Poste</th><th>Qté</th><th>Unité</th><th>Prix U. HT / modifier</th><th>Total HT</th></tr></thead><tbody>${rows}</tbody></table></div>
       ${r.labor.length?`<div class="panel soft" style="margin-top:14px"><h3>Décomposition main-d’œuvre / planning</h3>${r.labor.map(p=>`<div class="total-line"><span>${esc(p.name)}</span><strong>${fmt(p.hours,2)} h-homme${p.includedInManual?' · incluse dans prix manuel':''}${p.annexPrice!==undefined?' · prix annexe':''}</strong></div>`).join('')}</div>`:''}
-    </div><div><div class="panel"><h3>Totaux${provisional?' provisoires':''}</h3><div class="totals"><div class="total-line"><span>Matériaux / fournitures HT${provisional?' valorisés':''}</span><strong>${money(r.materials)}</strong></div><div class="total-line"><span>Main-d’œuvre HT</span><strong>${money(r.laborCost)}</strong></div><div class="total-line"><span>Total HT${provisional?' provisoire':''}</span><strong>${money(r.totalHT)}</strong></div><div class="total-line"><span>TVA ${fmt(r.vat,1)} %</span><strong>${money(r.tax)}</strong></div><div class="total-line grand"><span>Total TTC${provisional?' provisoire':''}</span><strong>${money(r.ttc)}</strong></div></div></div></div></div>
+    </div><div><div class="panel"><h3>Totaux${provisional?' provisoires':''}</h3><div class="totals"><div class="total-line"><span>Matériaux / fournitures HT</span><strong>${money(breakdown.materials)}</strong></div>${breakdown.transport>0?`<div class="total-line"><span>Transport / livraison HT</span><strong>${money(breakdown.transport)}</strong></div>`:''}${breakdown.options>0?`<div class="total-line"><span>Options / prestations HT</span><strong>${money(breakdown.options)}</strong></div>`:''}<div class="total-line"><span>Main-d’œuvre HT</span><strong>${money(r.laborCost)}</strong></div><div class="total-line"><span>Total HT${provisional?' provisoire':''}</span><strong>${money(r.totalHT)}</strong></div><div class="total-line"><span>TVA ${fmt(r.vat,1)} %</span><strong>${money(r.tax)}</strong></div><div class="total-line grand"><span>Total TTC${provisional?' provisoire':''}</span><strong>${money(r.ttc)}</strong></div></div></div></div></div>
     ${r.alerts.filter(a=>!a.startsWith('🚨')).length?`<div style="margin-top:16px"><h3>Alertes / avertissements</h3>${r.alerts.filter(a=>!a.startsWith('🚨')).map(a=>`<div class="alert warn">${esc(a)}</div>`).join('')}</div>`:''}
     ${r.reco.length?`<div style="margin-top:16px"><h3>Recommandations / traçabilité</h3>${r.reco.map(a=>`<div class="info-box">${esc(a)}</div>`).join('')}</div>`:''}`;
 }

@@ -225,3 +225,13 @@ Priorité de connaissance : **moteur réel SpeedArti → référentiel validé �
 - qualification TVA au dernier moment : neuf 20 %, rénovation/entretien logement < 2 ans 20 %, logement > 2 ans 10 %, rénovation énergétique 5,5 % avec avertissement d’éligibilité ;
 - comportement aligné sur le service TVA déjà présent dans SpeedArti, sans connexion à la production depuis la démo ;
 - indication explicite du volume réel de béton et du minimum de facturation toupie lorsqu’il s’applique.
+
+
+## Sprint UX — prix et parcours humain
+
+- les fibres génériques ne récupèrent plus automatiquement un prix de produit dont le dosage fabricant n’est pas validé avec le dosage métier ; elles restent « à confirmer » sans blocage ;
+- une référence fibre peut toujours être choisie explicitement par l’artisan ;
+- la toupie affiche maintenant le volume réellement nécessaire et le minimum fournisseur lorsqu’il s’applique ;
+- l’étape Prix / catalogue montre d’abord le produit retenu et le prix ; références et conditionnements sont repliés dans « Voir / modifier le produit » ;
+- le résultat sépare matériaux, transport/livraison, options/prestations, main-d’œuvre et TVA ;
+- saisie numérique améliorée sur mobile et retour d’étape renforcé avec défilement vers le haut du wizard.

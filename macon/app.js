@@ -58,7 +58,8 @@ function findElement(id){return state.elements.find(e=>e.id===id);}
 function splitPair(v){const [id,idx]=String(v).split(':');return [id,Number(idx)];}
 
 function bindEvents(){
-  $$('[data-mode]').forEach(b=>b.onclick=()=>{
+  $('input[type="number"]').forEach(el=>el.addEventListener('focus',()=>{try{el.select()}catch{}}));
+  $('[data-mode]').forEach(b=>b.onclick=()=>{
     state.mode=b.dataset.mode;
     if(state.mode==='simple')state.elements=[]; else resetSimple();
     saveState();render();
@@ -117,7 +118,7 @@ function bindEvents(){
   });
 }
 
-function scrollWizardTop(){globalThis.scrollTo?.({top:0,behavior:'smooth'});}
+function scrollWizardTop(){const run=()=>{const target=$('#stepsNav')||$('#stepHost');if(target?.scrollIntoView)target.scrollIntoView({behavior:'smooth',block:'start'});else globalThis.scrollTo?.({top:0,behavior:'smooth'});};if(globalThis.requestAnimationFrame)globalThis.requestAnimationFrame(run);else run();}
 $('#prevBtn').onclick=()=>{if(state.step>0){state.step--;saveState();render();scrollWizardTop();}};
 $('#nextBtn').onclick=()=>{if(state.step===STEPS.length-1){render();scrollWizardTop();return;}const err=validateStep(state,state.step);if(err){alert(err);return;}state.step++;saveState();render();scrollWizardTop();};
 

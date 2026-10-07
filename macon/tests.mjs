@@ -8,7 +8,7 @@ import {
   calculate, validateStep, assertBalisage,
   WORKS, WORK_BY_ID, FIBRES, PREFAB_H_PER_ML, TRUCK_8X4_DEFAULT, TRACE_TARGETS,
   TREILLIS_GUILLAUME, PUMP_DEFAULT_PRICE, TOUPIE_PRICE_M3, TOUPIE_MIN_BILLABLE_M3, TOUPIE_CAPACITY_M3,
-  PREFAB_DEFAULT_PRICE_M2, LONGRINE_PRICE_ML, micropileSuggestedPrice, estimatedVerticalChainage, toupieEstimatedCount, DEMO_SPEEDARTI_CONTEXT, detectVatContext, effectiveVatRate, projectSummary
+  PREFAB_DEFAULT_PRICE_M2, LONGRINE_PRICE_ML, micropileSuggestedPrice, estimatedVerticalChainage, toupieEstimatedCount, DEMO_SPEEDARTI_CONTEXT, detectVatContext, effectiveVatRate, projectSummary, resultCostBreakdown
 } from './core.js';
 import { SpeedArtiAngelMaconKnowledge, searchAngelMacon, answerAngelMacon } from './angel-knowledge.js';
 
@@ -641,6 +641,34 @@ test('sprint TVA: le wizard contient Vérification avant Résultat',()=>{
   assert.equal(STEPS?.[5]??'Vérification','Vérification');
   const s=base();s.step=5;s.taxContext={workType:'neuf',housingOver2Years:'',ecoRenovation:'non'};
   assert.match(renderStep(s),/Vérification du chiffrage/);
+});
+
+
+test('sprint UX prix: fibres génériques ne prennent plus un prix catalogue non validé automatiquement',()=>{
+  const s=base();s.simpleType='dalle';Object.assign(s.simple,{surface:30,thickness:12,slabRef:'dallage_arme',concreteClass:'C25/30',fibres:true,fibreType:'courante',fibreDose:3});
+  const r=calculate(s),f=r.lines.find(x=>x.id==='Dalle-fibres');
+  assert.ok(Math.abs(f.qty-10.8)<1e-9);assert.equal(f.price,0);assert.equal(f.source,'prix à confirmer');assert.ok(r.missingPrices.some(x=>x.id==='Dalle-fibres'));assert.equal(r.canFinalize,true);
+});
+test('sprint UX prix: une référence fibre choisie manuellement peut encore valoriser le poste',()=>{
+  const s=base();s.simpleType='dalle';Object.assign(s.simple,{surface:30,thickness:12,slabRef:'dallage_arme',concreteClass:'C25/30',fibres:true,fibreType:'courante',fibreDose:3});s.catalogSelections['Dalle-fibres']='4482123';
+  const f=calculate(s).lines.find(x=>x.id==='Dalle-fibres');assert.ok(f.price>0);assert.equal(f.catalogueSelection,'4482123');assert.equal(f.automaticCatalogue,false);
+});
+test('sprint UX prix: écran catalogue masque les détails techniques par défaut',()=>{
+  const s=base();s.simpleType='murs';Object.assign(s.simple,{length:10,height:2.5,thickness:20,blocksPerM2:10,wallHPerM2:.8,material:'parpaing'});
+  const html=renderPrices(s);assert.match(html,/Voir \/ modifier le produit/);assert.match(html,/Modifier le prix/);assert.match(html,/<details class="catalog-details">/);
+});
+test('sprint UX toupie: résultat explique besoin réel et minimum fournisseur',()=>{
+  const s=base();s.simpleType='dalle';Object.assign(s.simple,{surface:30,thickness:12,slabRef:'dallage_arme',concreteClass:'C25/30'});s.globals.toupie=true;
+  assert.match(calculate(s).lines.find(x=>x.id==='toupie').name,/3,60 m³ nécessaires, minimum facturé 6,00 m³/);
+});
+test('sprint UX résultat: ventilation matériaux transport options reste égale au total fournitures',()=>{
+  const s=base();s.simpleType='dalle';Object.assign(s.simple,{surface:30,thickness:12,slabRef:'dallage_arme',concreteClass:'C25/30'});s.globals.toupie=true;s.globals.scaffold=true;s.globals.scaffoldQty=1;s.globals.scaffoldPrice=100;
+  const r=calculate(s),b=resultCostBreakdown(r);assert.ok(Math.abs((b.materials+b.transport+b.options)-r.materials)<1e-9);assert.ok(b.transport>0);assert.ok(b.options>0);
+  const html=renderResult(s);assert.match(html,/Transport \/ livraison HT/);assert.match(html,/Options \/ prestations HT/);
+});
+test('sprint UX saisie: champs numériques sont optimisés mobile et scroll cible le wizard',()=>{
+  const s=base();s.simpleType='dalle';const html=renderConfig(s),app=fs.readFileSync(new URL('./app.js',import.meta.url),'utf8');
+  assert.match(html,/inputmode="decimal"/);assert.match(app,/\.select\(\)/);assert.match(app,/scrollIntoView/);assert.match(app,/requestAnimationFrame/);
 });
 
 console.log(`OK — V2.6 Maçon: ${pass.length} contrôles fonctionnels passés`);
