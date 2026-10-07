@@ -5,7 +5,7 @@ for(const f of ['catalogue-data.js','catalogue-service.js','engine-current.js','
 const CAT=global.SpeedArtiCatalogueService,API=global.SpeedArtiPlombierCurrent,ANGEL=global.SpeedArtiAngelPlombierKnowledge,DB=global.SpeedArtiCataloguePlombier;
 let ok=0;function assert(cond,msg){if(!cond)throw new Error(`ASSERT ${ok+1}: ${msg}`);ok++}
 function approx(a,b,t=.011){return Math.abs(Number(a)-Number(b))<=t}
-function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.6.5',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{},services:{}}}}
+function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.6.6',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{},services:{},component_preferences:{}}}}
 function selectFirst(ctx,pred=()=>true){const a=CAT.search({context:ctx,limit:100}).find(x=>x.prix>0&&x.code&&pred(x));assert(!!a,`Référence exploitable contexte ${ctx}`);return CAT.selection(a)}
 function netRefs(d){const ctx=d.options.type_tuyau==='cuivre'?'raccord_cuivre':d.options.type_tuyau==='multicouche'?'raccord_multicouche':'raccord_per';d.installation.network.fitting_catalogue=selectFirst(ctx);d.installation.network.stop_valve_catalogue=selectFirst('robinet_arret');}
 
@@ -189,7 +189,7 @@ assert(approx(r1.controle_balises.tva_controlee,r1.totaux.tva),'Contrôle TVA = 
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const posData=html.indexOf('catalogue-data.js'),posService=html.indexOf('catalogue-service.js'),posEngine=html.indexOf('engine-current.js'),posAngel=html.indexOf('angel-knowledge.js'),posApp=html.indexOf('app.js');
 assert(posData>0&&posData<posService&&posService<posEngine&&posEngine<posAngel&&posAngel<posApp,'Ordre de chargement catalogue -> service -> moteur -> Angel -> app');
-assert(/v0\.6\.4/.test(html),'HTML annonce v0.6.5');
+assert(/v0\.6\.6/.test(html),'HTML annonce v0.6.6');
 
 // 22. Contrôles statiques UI / absence de règles cachées
 const appSrc=fs.readFileSync(path.join(root,'app.js'),'utf8'),engSrc=fs.readFileSync(path.join(root,'engine-current.js'),'utf8'),catSrc=fs.readFileSync(path.join(root,'catalogue-service.js'),'utf8');
@@ -219,7 +219,8 @@ assert(API.annexe2For('lave_vaisselle').some(x=>x.label.includes('siphon')),'Ann
 
 const dA2Base=base();netRefs(dA2Base);dA2Base.installation.equipments.push({id:'lava2base',kind:'lavabo',catalogue:lavSel,price_ht:lavSel.prix,time_h:2});
 const rA2Base=API.calculate(dA2Base);
-assert(!rA2Base.materiaux.some(x=>x.annexe2_slot),'Aucun composant Annexe 2 n’est facturé sans sélection explicite');
+assert(rA2Base.materiaux.some(x=>x.auto_component&&x.annexe2_slot==='siphon'&&x.catalogue_code==='1054371'),'Siphon lavabo prérempli automatiquement avec référence SpeedArti');
+assert(rA2Base.materiaux.some(x=>x.auto_component&&x.annexe2_slot==='bonde'&&x.catalogue_code==='2864095'),'Bonde lavabo préremplie automatiquement avec référence SpeedArti');
 assert(rA2Base.nomenclature_annexe2.length===1,'Nomenclature Annexe 2 produite par appareil');
 assert(rA2Base.nomenclature_annexe2[0].components.find(x=>x.key==='ef').status==='géré par réseau','Alimentation EF balisée réseau sans doublon');
 assert(rA2Base.nomenclature_annexe2[0].components.find(x=>x.key==='appareil').status==='article principal sélectionné','Article principal balisé dans nomenclature');
@@ -228,22 +229,22 @@ const bondeRaw=CAT.search({context:'evacuation',q:'bonde',limit:100}).find(a=>a.
 const dA2=base();netRefs(dA2);dA2.installation.equipments.push({id:'lava2',kind:'lavabo',catalogue:lavSel,price_ht:lavSel.prix,time_h:2,annexe2_items:{bonde:{catalogue:bondeSel,price_ht:bondeSel.prix,quantite:2,note:'Non comprise dans le lavabo'}}});
 const rA2=API.calculate(dA2),a2Line=rA2.materiaux.find(x=>x.annexe2_slot==='bonde');
 assert(!!a2Line,'Composant Annexe 2 sélectionné devient une ligne réelle');
-assert(a2Line.categorie==='Fourniture Annexe 2','Catégorie dédiée Annexe 2');
+assert(a2Line.categorie==='Fourniture automatique','Composant automatique conserve une catégorie dédiée');
 assert(a2Line.parent_equipment_id==='lava2','Balise parent équipement conservée');
 assert(a2Line.annexe2_source==='Annexe 2 Guillaume','Source Annexe 2 balisée');
 assert(a2Line.catalogue_code===bondeSel.code,'Code Téréva composant conservé');
 assert(a2Line.quantite_finale===2,'Quantité composant visible appliquée');
 assert(approx(a2Line.total_ht,bondeSel.prix*2),'Quantité × prix exact composant cohérent');
-assert(rA2.nomenclature_annexe2[0].components.find(x=>x.key==='bonde').status==='référence associée','Nomenclature reflète la référence associée');
+assert(rA2.nomenclature_annexe2[0].components.find(x=>x.key==='bonde').status==='référence personnalisée','Nomenclature reflète la référence personnalisée');
 assert(rA2.controle_balises.ok===true,'Balises v1.2 valides avec composant Annexe 2');
 assert(rA2.finalisation_bloquee===false,'Scénario Annexe 2 complet finalisable');
 
 const dA2Qty=base();netRefs(dA2Qty);dA2Qty.installation.equipments.push({id:'a2q',kind:'lavabo',catalogue:lavSel,price_ht:lavSel.prix,time_h:2,annexe2_items:{bonde:{catalogue:bondeSel,price_ht:bondeSel.prix,quantite:0}}});
-const rA2Qty=API.calculate(dA2Qty);assert(rA2Qty.finalisation_bloquee===true,'Composant Annexe 2 sélectionné avec quantité nulle bloque');assert(rA2Qty.blocages.some(x=>/QUANTITÉ ANNEXE 2/.test(x)),'Blocage quantité Annexe 2 explicite');
+const rA2Qty=API.calculate(dA2Qty);assert(rA2Qty.finalisation_bloquee===true,'Composant automatique sélectionné avec quantité nulle bloque');assert(rA2Qty.blocages.some(x=>/QUANTITÉ AUTO/.test(x)),'Blocage quantité automatique explicite');
 
 const noPriceRaw=DB.articles.find(a=>a.prix==null&&a.code);assert(!!noPriceRaw,'Référence Téréva sans prix disponible pour test');const noPriceSel=CAT.selection({...noPriceRaw,__index:DB.articles.indexOf(noPriceRaw)});
 const dA2NoPrice=base();netRefs(dA2NoPrice);dA2NoPrice.installation.equipments.push({id:'a2np',kind:'lavabo',catalogue:lavSel,price_ht:lavSel.prix,time_h:2,annexe2_items:{bonde:{catalogue:noPriceSel,quantite:1}}});
-const rA2NoPrice=API.calculate(dA2NoPrice);assert(rA2NoPrice.finalisation_bloquee===true,'Composant Annexe 2 Téréva sans prix bloque');assert(rA2NoPrice.blocages.some(x=>/PRIX ANNEXE 2|référence catalogue/.test(x)),'Blocage prix composant Annexe 2 explicite');
+const rA2NoPrice=API.calculate(dA2NoPrice);assert(rA2NoPrice.finalisation_bloquee===true,'Composant automatique Téréva sans prix bloque');assert(rA2NoPrice.blocages.some(x=>/AUTO.*prix|prix Téréva manquant/i.test(x)),'Blocage prix composant automatique explicite');
 
 const manualA2={...bondeSel,price_overridden:true,manual_price_ht:bondeSel.prix+12};const dA2Man=base();netRefs(dA2Man);dA2Man.installation.equipments.push({id:'a2m',kind:'lavabo',catalogue:lavSel,price_ht:lavSel.prix,time_h:2,annexe2_items:{bonde:{catalogue:manualA2,price_ht:manualA2.manual_price_ht,quantite:1}}});const rA2Man=API.calculate(dA2Man),a2m=rA2Man.materiaux.find(x=>x.annexe2_slot==='bonde');
 assert(approx(a2m.prix_unitaire_ht,bondeSel.prix+12),'Override manuel composant Annexe 2 utilisé');assert(String(a2m.source).includes('Prix manuel sur référence Téréva'),'Override composant Annexe 2 tracé');
@@ -306,8 +307,8 @@ assert(engSrc.includes("version:'BALISES-ABSOLUES-v1.8'"),'Moteur balises v1.8')
 
 
 // 29. Correctifs v0.5.2 issus du contrôle humain
-assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v065'"),'Clé de sauvegarde propre v0.6.5');
-assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v064','speedarti-plombier-demo-v063'"),'Migration des anciens brouillons prévue');
+assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v066'"),'Clé de sauvegarde propre v0.6.6');
+assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v065','speedarti-plombier-demo-v064'"),'Migration des anciens brouillons prévue');
 assert(appSrc.includes('function migrateLegacyDraft'),'Fonction de migration brouillon présente');
 assert(appSrc.includes("delete p.duration_h"),'Migration supprime les anciennes durées CE non validées');
 assert(appSrc.includes("catalogueRenderTimer=setTimeout"),'Recherche catalogue saisie rapide temporisée');
@@ -452,5 +453,37 @@ assert(appSrc.includes('additionalCatalogueItemsPanel'),'Meuble vasque accepte u
 assert(engSrc.includes('addAdditionalCatalogueItems'),'Moteur chiffre les articles complémentaires du meuble vasque');
 assert(appSrc.includes('Reprendre le calcul automatique'),'Override réseau peut revenir au calcul automatique');
 assert(appSrc.includes('aucune platine n’est calculée'),'Élément spécifique avertit quand aucun raccordement n’est défini');
+
+// 33. v0.6.6 — composants automatiques et habitudes entreprise
+const prefSiphon=API.companyComponentPreference(base(),'lavabo_siphon');
+const prefBonde=API.companyComponentPreference(base(),'lavabo_bonde');
+const prefLaveMainBonde=API.companyComponentPreference(base(),'lave_main_bonde');
+assert(prefSiphon.selection?.code==='1054371','Défaut SpeedArti siphon lavabo = Nicoll EASYPHON 1054371');
+assert(prefBonde.selection?.code==='2864095','Défaut SpeedArti bonde lavabo/vasque = 2864095');
+assert(prefLaveMainBonde.selection?.code==='997361L','Défaut SpeedArti bonde lave-mains = Nicoll 997361L');
+
+const autoLav=base();netRefs(autoLav);autoLav.installation.equipments.push({id:'autolav',kind:'lavabo',catalogue:lavSel,price_ht:lavSel.prix,time_h:2});
+const rAutoLav=API.calculate(autoLav);
+assert(rAutoLav.materiaux.some(x=>x.article_id==='auto_autolav_siphon'&&x.catalogue_code==='1054371'&&x.auto_component),'Lavabo chiffre automatiquement son siphon');
+assert(rAutoLav.materiaux.some(x=>x.article_id==='auto_autolav_bonde'&&x.catalogue_code==='2864095'&&x.auto_component),'Lavabo chiffre automatiquement sa bonde');
+
+const mvAuto=base();netRefs(mvAuto);mvAuto.installation.equipments.push({id:'mvauto',kind:'meuble_vasque',subtype:'double',time_h:2,additional_catalogue_items:[{catalogue:CAT.selection(CAT.search({context:'meuble_vasque',q:'meuble',limit:100}).find(a=>a.prix>0&&a.code)),quantite:1},{catalogue:CAT.selection(CAT.search({context:'lavabo',q:'vasque',limit:100}).find(a=>a.prix>0&&a.code)),quantite:2}]});
+const rMvAuto=API.calculate(mvAuto);
+assert(rMvAuto.materiaux.find(x=>x.article_id==='auto_mvauto_siphon')?.quantite_finale===2,'Deux vasques séparées préremplissent deux siphons');
+assert(rMvAuto.materiaux.find(x=>x.article_id==='auto_mvauto_bonde')?.quantite_finale===2,'Deux vasques séparées préremplissent deux bondes');
+
+const incl=base();netRefs(incl);incl.installation.equipments.push({id:'incl',kind:'lavabo',catalogue:lavSel,price_ht:lavSel.prix,time_h:2,annexe2_items:{siphon:{included_in_main:true}}});
+const rIncl=API.calculate(incl);
+assert(!rIncl.materiaux.some(x=>x.article_id==='auto_incl_siphon'),'Composant déclaré compris dans le produit principal non doublé');
+assert(rIncl.nomenclature_annexe2[0].components.find(x=>x.key==='siphon').status.includes('compris'),'Nomenclature trace le composant compris');
+
+const wirquinRaw=CAT.search({context:'evacuation',q:'2804624',limit:10}).find(a=>a.code==='2804624');assert(!!wirquinRaw,'Siphon Wirquin 2804624 disponible dans Téréva');
+const prefCustom=base();prefCustom.settings.component_preferences.lavabo_siphon=CAT.selection(wirquinRaw);netRefs(prefCustom);prefCustom.installation.equipments.push({id:'prefcustom',kind:'lavabo',catalogue:lavSel,price_ht:lavSel.prix,time_h:2});
+const rPrefCustom=API.calculate(prefCustom);
+assert(rPrefCustom.materiaux.find(x=>x.article_id==='auto_prefcustom_siphon')?.catalogue_code==='2804624','Habitude entreprise remplace le défaut SpeedArti');
+assert(rPrefCustom.materiaux.find(x=>x.article_id==='auto_prefcustom_siphon')?.auto_component_source==='preference_entreprise','Source habitude entreprise tracée');
+assert(appSrc.includes('Habitudes de l’entreprise')&&appSrc.includes('componentPreferencesCard'),'UI expose les références habituelles entreprise');
+assert(appSrc.includes('Compris dans le produit principal'),'UI permet d’éviter le double comptage d’un composant inclus');
+assert(appSrc.includes('data-catalogue-auto-qty'),'Changement de référence conserve la quantité automatique proposée');
 
 console.log(JSON.stringify({status:'OK',assertions:ok,catalogueCount:CAT.count,priceCount:CAT.priceCount,knownPrice117_19:known[0].prix,balisesVersion:r1.controle_balises.version,networkOnly:{ef:r2.surfaces.detail_par_face.EF_ml,ec:r2.surfaces.detail_par_face.EC_ml},fittingsOneFixture:fittingsWC.quantite_finale},null,2));
