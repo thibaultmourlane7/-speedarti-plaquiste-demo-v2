@@ -91,3 +91,25 @@
   .multi-product-actions{align-items:stretch;flex-direction:column}
   .multi-product-actions .btn{width:100%}
 }
+
+
+/* v0.6.6 — composants automatiques et habitudes entreprise */
+.auto-component-row{border-color:#bfdbfe;background:#fbfdff}
+.auto-component-product{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:12px;border:1px solid #bfdbfe;border-radius:10px;background:#eff6ff}
+.auto-component-product strong,.auto-component-product small{display:block}
+.auto-component-product strong{margin:5px 0 3px;color:#172554}
+.auto-component-product small{color:#475569}
+.auto-inclusion-toggle{display:flex;align-items:end}
+.auto-inclusion-toggle .switch-row{min-height:40px;padding:8px 10px;border:1px dashed #cbd5e1;border-radius:9px;background:#fff}
+.preference-card{border-color:#bfdbfe;background:linear-gradient(180deg,#fff,#fbfdff)}
+.preference-list{display:grid;gap:10px}
+.preference-row{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 14px;border:1px solid #e2e8f0;border-radius:11px;background:#fff}
+.preference-row strong,.preference-row small,.preference-row span{display:block}
+.preference-row small{font-size:11px;color:#64748b;margin-top:3px}
+.preference-row span{font-size:12px;color:#334155;margin-top:6px}
+@media(max-width:760px){
+  .auto-component-product,.preference-row{align-items:flex-start;flex-direction:column}
+  .auto-component-product>.row,.preference-row>.row{width:100%}
+  .auto-component-product>.row .btn,.preference-row>.row .btn{flex:1}
+  .auto-inclusion-toggle{display:block}
+}
