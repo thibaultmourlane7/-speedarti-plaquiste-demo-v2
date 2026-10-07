@@ -240,9 +240,11 @@
     const item=eq?.annexe2_items?.[key]||{};
     const autoQty=autoComponentQuantity(eq,key);
     if(item.included_in_main||componentIncludedByProduct(eq,key))return {key,prefKey,included:true,selection:null,qty:0,source:item.included_in_main?'inclus_artisan':'inclus_catalogue'};
-    if(hasCatalogue(item.catalogue))return {key,prefKey,included:false,selection:item.catalogue,qty:n(item.quantite,autoQty)>0?n(item.quantite,autoQty):autoQty,source:'selection_artisan'};
+    const qtyEntered=item.quantite!==undefined&&item.quantite!==null&&item.quantite!=='';
+    const qty=qtyEntered?n(item.quantite,0):autoQty;
+    if(hasCatalogue(item.catalogue))return {key,prefKey,included:false,selection:item.catalogue,qty,source:'selection_artisan'};
     const r=preferenceSelection(d,prefKey);
-    return {key,prefKey,included:false,selection:r.selection,qty:n(item.quantite,autoQty)>0?n(item.quantite,autoQty):autoQty,source:r.source};
+    return {key,prefKey,included:false,selection:r.selection,qty,source:r.source};
   }
   function companyComponentPreference(d,prefKey){
     const cfg=AUTO_COMPONENT_PREFERENCES[prefKey];if(!cfg)return null;
@@ -368,11 +370,13 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
       const p=autoComponentProposal(d,eq,key);if(!p||p.included)return;
       const sel=p.selection;
       if(!hasCatalogue(sel)){alerts.push(`BALISE AUTO : référence Téréva automatique introuvable pour « ${def.label} » (${p.prefKey}).`);return}
+      if(!(p.qty>0)){alerts.push(`BALISE QUANTITÉ AUTO : quantité manquante pour « ${def.label} ».`);return}
       const item=eq.annexe2_items?.[key]||{};const manual=n(item.price_ht,0);const pr=pricedSelection(sel,manual);
       if(pr.price<=0){alerts.push(`BALISE AUTO : prix Téréva manquant pour « ${def.label} » (${sel.code}).`);return}
       const source=p.source==='preference_entreprise'?'Habitude entreprise':p.source==='selection_artisan'?'Sélection artisan':'Référence SpeedArti par défaut';
       const extra=catalogueExtra(sel,`${uiPath}.annexe2_items.${key}.catalogue`,pr.manual);
-      out.push(line(`auto_${eq.id}_${key}`,sel.produit||def.label,pr.price,p.qty,'unité','Fourniture automatique',{...extra,source:`${source} — Téréva ${sel.code}`,balise_prix:pr.manual?'manuel_sur_reference':p.source,stockable:true,parent_equipment_id:eq.id,annexe2_slot:key,annexe2_label:def.label,annexe2_source:'Annexe 2 Guillaume',auto_component:true,auto_component_source:p.source,auto_preference_key:p.prefKey}));
+      const tracedSource=pr.manual?`Prix manuel sur référence Téréva ${sel.code} — ${source}`:`${source} — Téréva ${sel.code}`;
+      out.push(line(`auto_${eq.id}_${key}`,sel.produit||def.label,pr.price,p.qty,'unité','Fourniture automatique',{...extra,source:tracedSource,balise_prix:pr.manual?'manuel_sur_reference':p.source,stockable:true,parent_equipment_id:eq.id,annexe2_slot:key,annexe2_label:def.label,annexe2_source:'Annexe 2 Guillaume',auto_component:true,auto_component_source:p.source,auto_preference_key:p.prefKey}));
     });
     return out;
   }
