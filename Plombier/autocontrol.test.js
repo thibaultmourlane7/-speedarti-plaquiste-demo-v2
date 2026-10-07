@@ -443,9 +443,6 @@ assert(ANGEL.search('prix lavabo sans catalogue',3).some(x=>x.id==='PLB-PRIX-LAV
 assert(/165,11/.test(ANGEL.answer('prix lavabo sans catalogue')),'Angel répond avec le prix moyen standard lavabo');
 assert(appSrc.includes('Prix moyen SpeedArti'),'UI affiche explicitement le prix moyen quand le catalogue n’est pas sélectionné');
 
-console.log(JSON.stringify({status:'OK',assertions:ok,catalogueCount:CAT.count,priceCount:CAT.priceCount,knownPrice117_19:known[0].prix,balisesVersion:r1.controle_balises.version,networkOnly:{ef:r2.surfaces.detail_par_face.EF_ml,ec:r2.surfaces.detail_par_face.EC_ml},fittingsOneFixture:fittingsWC.quantite_finale},null,2));
-
-
 // 30. Correctifs v0.6.5 Guillaume
 const dist=base();dist.installation.equipments=[{id:'shdist',kind:'douche',subtype:'bac'},{id:'evdist',kind:'evier',subtype:'inox'}];
 const pDist1=API.previewNetwork(dist);assert(pDist1.autoEC===29,'Distances chauffe-eau 5 m SDB + 8 m cuisine intégrées à EC');
@@ -455,3 +452,5 @@ assert(appSrc.includes('additionalCatalogueItemsPanel'),'Meuble vasque accepte u
 assert(engSrc.includes('addAdditionalCatalogueItems'),'Moteur chiffre les articles complémentaires du meuble vasque');
 assert(appSrc.includes('Reprendre le calcul automatique'),'Override réseau peut revenir au calcul automatique');
 assert(appSrc.includes('aucune platine n’est calculée'),'Élément spécifique avertit quand aucun raccordement n’est défini');
+
+console.log(JSON.stringify({status:'OK',assertions:ok,catalogueCount:CAT.count,priceCount:CAT.priceCount,knownPrice117_19:known[0].prix,balisesVersion:r1.controle_balises.version,networkOnly:{ef:r2.surfaces.detail_par_face.EF_ml,ec:r2.surfaces.detail_par_face.EC_ml},fittingsOneFixture:fittingsWC.quantite_finale},null,2));
