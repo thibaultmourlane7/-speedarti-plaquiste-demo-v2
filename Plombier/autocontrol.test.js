@@ -439,7 +439,7 @@ for(const [kind,price] of Object.entries(avgExpected)){
 }
 const avgLavEco=API.equipmentAveragePrice({kind:'lavabo'},'eco'),avgLavPremium=API.equipmentAveragePrice({kind:'lavabo'},'premium');
 assert(approx(avgLavEco.price,82.66)&&approx(avgLavPremium.price,231.37),'Gammes Éco/Premium lavabo exposées');
-assert(ANGEL&&ANGEL.version==='PLB-ANGEL-KB-v1.0','Base de connaissances Angel Plombier chargée');
+assert(ANGEL&&ANGEL.version==='PLB-ANGEL-KB-v1.1','Base de connaissances Angel Plombier chargée');
 assert(ANGEL.search('prix lavabo sans catalogue',3).some(x=>x.id==='PLB-PRIX-LAVABO'),'Angel retrouve la règle de prix lavabo sans catalogue');
 assert(/165,11/.test(ANGEL.answer('prix lavabo sans catalogue')),'Angel répond avec le prix moyen standard lavabo');
 assert(appSrc.includes('Prix moyen SpeedArti'),'UI affiche explicitement le prix moyen quand le catalogue n’est pas sélectionné');
@@ -485,5 +485,7 @@ assert(rPrefCustom.materiaux.find(x=>x.article_id==='auto_prefcustom_siphon')?.a
 assert(appSrc.includes('Habitudes de l’entreprise')&&appSrc.includes('componentPreferencesCard'),'UI expose les références habituelles entreprise');
 assert(appSrc.includes('Compris dans le produit principal'),'UI permet d’éviter le double comptage d’un composant inclus');
 assert(appSrc.includes('data-catalogue-auto-qty'),'Changement de référence conserve la quantité automatique proposée');
+assert(/1054371/.test(ANGEL.answer('siphon lavabo automatique')),'Angel connaît la référence automatique du siphon lavabo');
+assert(/habitude entreprise/i.test(ANGEL.answer('habitude entreprise siphon')),'Angel connaît la priorité des habitudes entreprise');
 
 console.log(JSON.stringify({status:'OK',assertions:ok,catalogueCount:CAT.count,priceCount:CAT.priceCount,knownPrice117_19:known[0].prix,balisesVersion:r1.controle_balises.version,networkOnly:{ef:r2.surfaces.detail_par_face.EF_ml,ec:r2.surfaces.detail_par_face.EC_ml},fittingsOneFixture:fittingsWC.quantite_finale},null,2));
