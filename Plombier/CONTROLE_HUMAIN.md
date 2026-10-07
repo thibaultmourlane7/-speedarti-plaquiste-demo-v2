@@ -1,15 +1,15 @@
-# SpeedArti — Plombier v0.6.7 — Contrôle ciblé
+# SpeedArti — Plombier v0.6.8 — Contrôle ciblé
 
 Date : 2026-10-07
 
-La suite logique complète a été rejouée avec le catalogue Téréva embarqué : **533 assertions réussies sur 533**.
+La suite logique complète passe à **553 / 553 assertions**.
 
-Le contrôle v0.6.7 vérifie particulièrement le cumul de main-d’œuvre :
-- pose sanitaire + raccordements locaux ;
-- réseau général EF/EC/évacuation ;
-- absence de double comptage du mètre d'évacuation locale ;
-- affichage séparé des deux postes avant cumul.
+Points ciblés du sprint :
+- WC + douche : séparation effective DN100 / DN40 ;
+- raccordements locaux classés côté sanitaire ;
+- aucune référence DN40 silencieuse sur un WC ;
+- aucun diamètre inventé pour un réseau général/spécifique ;
+- longueur locale modifiée conservée comme locale ;
+- réponses Ángel cohérentes avec le moteur v0.6.8.
 
-Aucun temps forfaitaire de platine n'a été inventé : la règle retenue suit le cahier métier Guillaume, où le raccordement local appartient au sanitaire et le réseau général est distinct.
-
-Le contrôle navigateur complet « comme un humain » n'est pas revendiqué ici : les détails purement visuels doivent encore être vérifiés directement sur la démo.
+Le parcours visuel complet dans un navigateur réel reste à faire séparément avant validation ergonomique finale.
