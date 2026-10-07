@@ -477,7 +477,7 @@ const rIncl=API.calculate(incl);
 assert(!rIncl.materiaux.some(x=>x.article_id==='auto_incl_siphon'),'Composant déclaré compris dans le produit principal non doublé');
 assert(rIncl.nomenclature_annexe2[0].components.find(x=>x.key==='siphon').status.includes('compris'),'Nomenclature trace le composant compris');
 
-const wirquinRaw=CAT.search({context:'evacuation',q:'2804624',limit:10}).find(a=>a.code==='2804624');assert(!!wirquinRaw,'Siphon Wirquin 2804624 disponible dans Téréva');
+const wirquinRaw=CAT.search({context:'all',q:'2804624',limit:10}).find(a=>a.code==='2804624');assert(!!wirquinRaw,'Siphon Wirquin 2804624 disponible dans Téréva');
 const prefCustom=base();prefCustom.settings.component_preferences.lavabo_siphon=CAT.selection(wirquinRaw);netRefs(prefCustom);prefCustom.installation.equipments.push({id:'prefcustom',kind:'lavabo',catalogue:lavSel,price_ht:lavSel.prix,time_h:2});
 const rPrefCustom=API.calculate(prefCustom);
 assert(rPrefCustom.materiaux.find(x=>x.article_id==='auto_prefcustom_siphon')?.catalogue_code==='2804624','Habitude entreprise remplace le défaut SpeedArti');
