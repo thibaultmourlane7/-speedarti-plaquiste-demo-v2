@@ -113,3 +113,20 @@
   .auto-component-product>.row .btn,.preference-row>.row .btn{flex:1}
   .auto-inclusion-toggle{display:block}
 }
+
+
+/* v0.6.7 — cumul main-d'œuvre lisible */
+.sanitary-time-block{margin-top:4px;padding:12px 14px;border:1px solid #dbeafe;border-radius:11px;background:#f8fbff}
+.sanitary-time-block .subtle{margin:7px 0 0}
+.labor-breakdown{margin:10px 0 16px;padding:14px;border:1px solid #dbeafe;border-radius:12px;background:#f8fbff}
+.labor-breakdown h3{margin:0 0 9px;font-size:13px;color:#1e3a8a}
+.labor-breakdown-row{display:flex;justify-content:space-between;gap:18px;align-items:center;padding:9px 0;border-top:1px solid #e2e8f0}
+.labor-breakdown-row:first-of-type{border-top:0}
+.labor-breakdown-row strong,.labor-breakdown-row small{display:block}
+.labor-breakdown-row small{margin-top:3px;color:#64748b}
+.labor-breakdown-row>div:last-child{text-align:right}
+.labor-breakdown-row>div:last-child b,.labor-breakdown-row>div:last-child span{display:block}
+@media(max-width:760px){
+  .labor-breakdown-row{align-items:flex-start;flex-direction:column}
+  .labor-breakdown-row>div:last-child{text-align:left}
+}
