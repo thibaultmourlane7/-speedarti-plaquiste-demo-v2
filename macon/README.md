@@ -257,3 +257,27 @@ Angèle Maçon passe en base **MAC-ANGEL-KB-v1.1**.
 - les nouvelles règles UX (paramètres artisan automatiques, TVA en vérification, fibres à confirmer, minimum toupie, raccordements SpeedArti) sont ajoutées à la base ;
 - les protections structurelles restent prioritaires sur toute réponse contextuelle ;
 - futur raccordement prévu avec l’Angèle réelle de SpeedArti via le contrat d’intégration, sans seconde IA indépendante.
+
+
+## S6.1 — correctifs du test humain Work
+
+Correctifs appliqués exclusivement à la démo Maçon :
+
+- **Murs d’élévation** : la classe béton est maintenant visible pour les chaînages et les ouvrages BA, y compris avec un mur en parpaing ;
+- **Ratios parpaing** : proposition préremplie à **10 blocs/m²** et **0,80 h-homme/m²**, toujours modifiable ; aucun ratio automatique n’est appliqué aux autres matériaux sans référentiel validé ;
+- **Réglages métier** : la section maçonnerie reste ouverte pendant la saisie pour éviter sa fermeture après chaque modification ;
+- **Cheminée** : sélectionner une souche ou un chapeau propose automatiquement une quantité de **1** ; une référence sélectionnée avec quantité nulle produit une alerte explicite ;
+- **Arrondis** : HT, TVA et TTC sont arrondis au centime, avec **TTC = HT arrondi + TVA arrondie** ;
+- **Angèle Maçon** : base mise à jour en **MAC-ANGEL-KB-v1.2** avec ces nouvelles règles.
+
+Contrôles après correction :
+
+- **117/117 tests fonctionnels** ;
+- audit de **209 états d’interface** ;
+- **3 452 contrôles interactifs** analysés ;
+- 0 contrôle sans balise ;
+- 0 balise inconnue ;
+- 0 balise morte ;
+- 0 contrôle sans liaison.
+
+Le dépôt réel SpeedArti n’a pas été modifié.
