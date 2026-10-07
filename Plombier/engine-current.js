@@ -197,9 +197,9 @@
     ]
   };
     const AUTO_COMPONENT_PREFERENCES={
-    lavabo_siphon:{label:'Siphon lavabo / vasque',code:'1054371',context:'evacuation',q:'siphon lavabo'},
-    lavabo_bonde:{label:'Bonde lavabo / vasque',code:'2864095',context:'evacuation',q:'bonde lavabo'},
-    lave_main_bonde:{label:'Bonde lave-mains',code:'997361L',context:'evacuation',q:'bonde lave mains'}
+    lavabo_siphon:{label:'Siphon lavabo / vasque',code:'1054371',context:'all',q:'siphon lavabo'},
+    lavabo_bonde:{label:'Bonde lavabo / vasque',code:'2864095',context:'all',q:'bonde lavabo'},
+    lave_main_bonde:{label:'Bonde lave-mains',code:'997361L',context:'all',q:'bonde lave mains'}
   };
   const AUTO_COMPONENT_DEFAULTS={
     lavabo:{siphon:'lavabo_siphon',bonde:'lavabo_bonde'},
