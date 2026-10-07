@@ -734,5 +734,13 @@ test('sprint S6: bindEvents utilise la collection pour les champs numériques',(
   assert.ok(!/\$\('input\[type="number"\]'\)\.forEach/.test(app));
 });
 
+
+test('sprint S6: toutes les collections utilisent $',()=>{
+  const app=fs.readFileSync(new URL('./app.js',import.meta.url),'utf8');
+  const bad=app.split('\n').filter(l=>/^\s*\$\([^)]*\)\.forEach/.test(l));
+  assert.deepEqual(bad,[]);
+  assert.match(app,/\$\$\('\[data-mode\]'\)\.forEach/);
+});
+
 console.log(`OK — V2.6 Maçon: ${pass.length} contrôles fonctionnels passés`);
 for(const x of pass)console.log(`✓ ${x}`);

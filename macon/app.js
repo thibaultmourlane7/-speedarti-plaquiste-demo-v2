@@ -61,7 +61,7 @@ function splitPair(v){const [id,idx]=String(v).split(':');return [id,Number(idx)
 
 function bindEvents(){
   $$('input[type="number"]').forEach(el=>el.addEventListener('focus',()=>{try{el.select()}catch{}}));
-  $('[data-mode]').forEach(b=>b.onclick=()=>{
+  $$('[data-mode]').forEach(b=>b.onclick=()=>{
     state.mode=b.dataset.mode;
     if(state.mode==='simple')state.elements=[]; else resetSimple();
     saveState();render();
