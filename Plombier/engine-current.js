@@ -285,8 +285,12 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
     const sel=techSelection(ref);return {...catalogueExtra(sel,uiPath,false),balise_prix:'reference_technique_tereva',reference_technique:true};
   }
   function networkTimeProposal(network,pipe){
-    const water=r2(network.ef+network.ec);const evac=r2(network.evac);
-    return r2(water*n(NETWORK_TIME_H_PER_M[pipe],NETWORK_TIME_H_PER_M.per)+evac*NETWORK_TIME_H_PER_M.pvc);
+    // Guillaume : le raccordement local du sanitaire (platine/bonde/siphon/petite évacuation)
+    // fait partie du temps de pose du sanitaire. Le temps réseau ne doit donc couvrir que
+    // la distribution générale EF/EC et l'évacuation générale éventuelle.
+    const water=r2(network.ef+network.ec);
+    const generalEvac=r2(network.generalEvacForLabor??network.evac);
+    return r2(water*n(NETWORK_TIME_H_PER_M[pipe],NETWORK_TIME_H_PER_M.per)+generalEvac*NETWORK_TIME_H_PER_M.pvc);
   }
   function checkCatalogueSelection(sel,currentPrice,label,alerts){
     if(!hasCatalogue(sel))return;
@@ -533,6 +537,11 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
     const ef=net.manual_ef_ml!==undefined&&net.manual_ef_ml!==null&&net.manual_ef_ml!==''?n(net.manual_ef_ml):autoEF;
     const ec=net.manual_ec_ml!==undefined&&net.manual_ec_ml!==null&&net.manual_ec_ml!==''?n(net.manual_ec_ml):autoEC;
     const evac=net.manual_evac_ml!==undefined&&net.manual_evac_ml!==null&&net.manual_evac_ml!==''?n(net.manual_evac_ml):autoEvac;
+    // 1 ml d'évacuation par sanitaire = raccordement local compris dans le temps sanitaire.
+    // Toute longueur au-delà, ainsi que les éléments spécifiques / zones réseau seul, relève du réseau général.
+    const sanitaryLocalEvacPoints=equipments.filter(eq=>eq.kind!=='element_specifique'&&connectionProfile(eq).evac).length;
+    const localEvacForLabor=Math.min(Math.max(0,evac),sanitaryLocalEvacPoints*1);
+    const generalEvacForLabor=Math.max(0,r2(evac-localEvacForLabor));
 
     // Accessoires proposés automatiquement à partir des appareils et des zones réseau seul.
     let autoPlatineEf=0,autoPlatineEc=0,autoPlatineEfEc=0,autoPlatineEvac=0;
@@ -553,6 +562,7 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
     const stopValves=useOverride('manual_stop_valve_qty',autoStopValves);
 
     return {efPoints,ecPoints,evacPoints,fittingUnits,autoEF,autoEC,autoEvac,ef,ec,evac,hasHotBathroom,hasHotKitchen,
+      sanitaryLocalEvacPoints,localEvacForLabor,generalEvacForLabor,
       noSanitaryZones,wcEvacPoints,otherEvacPoints:Math.max(0,evacPoints-wcEvacPoints),autoPlatineEf,autoPlatineEc,autoPlatineEfEc,autoPlatineEvac,platineEf,platineEc,platineEfEc,platineEvac,
       autoFittings,fittings,autoStopValves,stopValves};
   }
@@ -588,8 +598,8 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
 
   function complete(d){
     const lines=[],alerts=[],reco=[]; const equipments=d.installation?.equipments||[];
-    let laborHours=0;const nomenclature=[];
-    equipments.forEach((eq,i)=>{const b=buildEquipment(eq,d,alerts,reco,`installation.equipments.${i}`);lines.push(...b.lines);laborHours+=b.time;nomenclature.push({equipment_id:eq.id,equipment:labelFor(eq),components:b.nomenclature||[]})});
+    let laborHours=0,equipmentLaborHours=0,networkLaborHours=0,complementaryLaborHours=0;const nomenclature=[];
+    equipments.forEach((eq,i)=>{const b=buildEquipment(eq,d,alerts,reco,`installation.equipments.${i}`);lines.push(...b.lines);laborHours+=b.time;equipmentLaborHours+=b.time;nomenclature.push({equipment_id:eq.id,equipment:labelFor(eq),components:b.nomenclature||[]})});
 
     const network=computeNetwork(d,equipments);
     const net=d.installation?.network||{};
@@ -643,9 +653,9 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
       else lines.push(line('robinets_arret',TECH_REF.stop.produit,TECH_REF.stop.prix,stopValves,'unité','Réseau',{stockable:true,...technicalCatalogueExtra(TECH_REF.stop,'installation.network.stop_valve_catalogue')}));
     }
 
-    const networkLength=network.ef+network.ec+network.evac;
+    const networkLengthForLabor=network.ef+network.ec+network.generalEvacForLabor;
     const autoNetworkTime=networkTimeProposal(network,pipe);
-    if(networkLength>0){const manualTime=net.time_h!==undefined&&net.time_h!==null&&net.time_h!=='';const nt=manualTime?n(net.time_h,0):autoNetworkTime;laborHours+=nt;if(nt<=0)alerts.push(`Temps de pose réseau nul pour ${r2(networkLength)} ml.`);}
+    if(networkLengthForLabor>0){const manualTime=net.time_h!==undefined&&net.time_h!==null&&net.time_h!=='';const nt=manualTime?n(net.time_h,0):autoNetworkTime;networkLaborHours=nt;laborHours+=nt;if(nt<=0)alerts.push(`Temps de pose réseau général nul pour ${r2(networkLengthForLabor)} ml.`);}
 
     // ECS equipment and recommendation
     const hotCount=equipments.filter(eq=>eq.kind==='douche'||eq.kind==='baignoire').length;
@@ -658,7 +668,7 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
       const base=selected&&!overridden?cataloguePrice(ce.catalogue,0):n(ce.price_ht,0); const c=gammeCoef(d);const price=selected?base:base*c;
       if(price>0)lines.push(line('chauffe_eau',selected?(ce.catalogue.produit||`Chauffe-eau ${ce.type||''} ${ce.capacity||''} L`):`Chauffe-eau ${ce.type||''} ${ce.capacity||''} L`,price,1,'unité','Équipement',{...(selected?catalogueExtra(ce.catalogue,'options.chauffe_eau.catalogue',overridden):{source:'catalogue / saisie',balise_ui:'options.chauffe_eau.price_ht',balise_prix:'manuel'}),stockable:true}));
       else alerts.push('Prix catalogue du chauffe-eau manquant.');
-      const t=n(ce.time_h,0); laborHours+=t;if(t<=0)alerts.push('Temps de pose du chauffe-eau manquant.');
+      const t=n(ce.time_h,0); laborHours+=t;complementaryLaborHours+=t;if(t<=0)alerts.push('Temps de pose du chauffe-eau manquant.');
     }
     if(d.options?.adoucisseur?.enabled){
       const ad=d.options.adoucisseur;checkCatalogueSelection(ad.catalogue,ad.price_ht,"Adoucisseur d'eau",alerts);
@@ -666,7 +676,7 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
       let base=selected&&!overridden?cataloguePrice(ad.catalogue,0):n(ad.price_ht,1000);if(!selected)base=Math.max(base,1000);
       const price=selected?base:base*gammeCoef(d);
       if(price>0)lines.push(line('adoucisseur',selected?(ad.catalogue.produit||"Adoucisseur d'eau"):"Adoucisseur d'eau",price,1,'unité','Équipement',{...(selected?catalogueExtra(ad.catalogue,'options.adoucisseur.catalogue',overridden):{source:'base Guillaume / catalogue',balise_ui:'options.adoucisseur.price_ht',balise_prix:'defaut_ou_manuel'}),stockable:true})); else alerts.push("Prix catalogue de l'adoucisseur manquant.");
-      const t=n(ad.time_h,0);laborHours+=t;if(t<=0)alerts.push("Temps de pose de l'adoucisseur manquant.");
+      const t=n(ad.time_h,0);laborHours+=t;complementaryLaborHours+=t;if(t<=0)alerts.push("Temps de pose de l'adoucisseur manquant.");
     }
 
     const aleas=applyAnnexe1(d,lines,alerts);
@@ -685,7 +695,12 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
     const surface=n(d.installation?.surface_maison_m2,0);
     if(!equipments.length&&(network.efPoints+network.ecPoints+network.evacPoints)===0)alerts.push('Installation complète sans sanitaire autorisée, mais aucun point réseau n’est encore renseigné.');
 
-    return finish({d,lines,alerts,reco,laborHours,laborTotal,aleasHt,ht,tva,tvaRate,workers,network,nomenclature,mode:'Installation complète'});
+    const laborBreakdown=[
+      equipmentLaborHours>0?{poste:'Pose sanitaires + raccordements locaux',temps_heures:r2(equipmentLaborHours),source:'Temps des équipements — inclut platines/raccordements locaux du sanitaire'}:null,
+      networkLaborHours>0?{poste:'Réseau général EF/EC/évacuation',temps_heures:r2(networkLaborHours),source:'Réseau général — hors raccordements locaux sanitaires'}:null,
+      complementaryLaborHours>0?{poste:'Équipements complémentaires',temps_heures:r2(complementaryLaborHours),source:'Chauffe-eau / adoucisseur selon configuration'}:null
+    ].filter(Boolean);
+    return finish({d,lines,alerts,reco,laborHours,laborTotal,aleasHt,ht,tva,tvaRate,workers,network,nomenclature,laborBreakdown,mode:'Installation complète'});
   }
 
   function smallWorkLine(p,d,alerts,reco){
@@ -790,16 +805,19 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
     };
   }
 
-  function finish({d,lines,alerts,reco,laborHours,laborTotal,aleasHt=0,ht,tva,tvaRate,workers,network,nomenclature=[],mode}){
+  function finish({d,lines,alerts,reco,laborHours,laborTotal,aleasHt=0,ht,tva,tvaRate,workers,network,nomenclature=[],laborBreakdown=[],mode}){
     const controle=autoControlBalises(d,lines,laborHours,laborTotal,aleasHt,ht,tva,tvaRate);
     if(!controle.ok)alerts.push(...controle.issues);
     const blocking=alerts.filter(a=>/Prix catalogue manquant|Temps de pose.*manquant|Choisir|Sélectionner|aucun point réseau|BALISE/i.test(a));
     const approvisionnement=buildApprovisionnement(lines);
+    const decompositionBase=laborBreakdown.length
+      ? laborBreakdown.map(x=>({...x,temps_heures:r2(x.temps_heures),montant_ht:r2(n(x.temps_heures)*n(d.options?.taux_horaire,52)*complexiteCoef(d))}))
+      : [{poste:'Main-d’œuvre calculée',temps_heures:r2(laborHours),montant_ht:r2(laborTotal)}];
     return {
       mode,
       surfaces:{totale:n(d.installation?.surface_maison_m2,0),nette:0,avec_pertes:0,detail_par_face:network?{EF_ml:r2(network.ef),EC_ml:r2(network.ec),evac_ml:r2(network.evac),points_EF:network.efPoints,points_EC:network.ecPoints,points_evac:network.evacPoints,platines_EF:network.platineEf,platines_EC:network.platineEc,platines_EF_EC:network.platineEfEc,platines_evac:network.platineEvac,raccords:network.fittings,robinets_arret:network.stopValves}:{}},
       materiaux:lines,
-      main_oeuvre:{temps_estime_heures:r2(laborHours/workers),heures_homme:r2(laborHours),decomposition:[{poste:'Main-d’œuvre calculée',temps_heures:r2(laborHours),montant_ht:r2(laborTotal)},...(aleasHt>0?[{poste:'Aléas — 4 % de la main-d’œuvre HT',taux:4,montant_ht:r2(aleasHt)}]:[])],taux_horaire:n(d.options?.taux_horaire,52),nombre_ouvriers:workers,coefficient_complexite:complexiteCoef(d),cout_avant_aleas:r2(laborTotal),aleas_taux:aleasHt>0?4:0,aleas_ht:r2(aleasHt),cout_total:r2(laborTotal+aleasHt),balises:{heures_homme:r2(laborHours),taux_horaire:n(d.options?.taux_horaire,52),complexite:complexiteCoef(d),aleas_taux:aleasHt>0?4:0,aleas_ht:r2(aleasHt),formule:`${r2(laborHours)} × ${n(d.options?.taux_horaire,52)} × ${complexiteCoef(d)}${aleasHt>0?' + 4 % aléas MO':''}`}},
+      main_oeuvre:{temps_estime_heures:r2(laborHours/workers),heures_homme:r2(laborHours),decomposition:[...decompositionBase,...(aleasHt>0?[{poste:'Aléas — 4 % de la main-d’œuvre HT',taux:4,montant_ht:r2(aleasHt)}]:[])],taux_horaire:n(d.options?.taux_horaire,52),nombre_ouvriers:workers,coefficient_complexite:complexiteCoef(d),cout_avant_aleas:r2(laborTotal),aleas_taux:aleasHt>0?4:0,aleas_ht:r2(aleasHt),cout_total:r2(laborTotal+aleasHt),balises:{heures_homme:r2(laborHours),taux_horaire:n(d.options?.taux_horaire,52),complexite:complexiteCoef(d),aleas_taux:aleasHt>0?4:0,aleas_ht:r2(aleasHt),formule:`${r2(laborHours)} × ${n(d.options?.taux_horaire,52)} × ${complexiteCoef(d)}${aleasHt>0?' + 4 % aléas MO':''}`}},
       totaux:{materiaux_ht:r2(lines.reduce((s,l)=>s+l.total_ht,0)),main_oeuvre_ht_avant_aleas:r2(laborTotal),aleas_ht:r2(aleasHt),main_oeuvre_ht:r2(laborTotal+aleasHt),total_ht:r2(ht),taux_tva:tvaRate,tva:r2(tva),total_ttc:r2(ht+tva)},
       stock_status:{connecte:false,disponible:null,statut:'non_connecte',message:approvisionnement.message_stock},
       approvisionnement,
