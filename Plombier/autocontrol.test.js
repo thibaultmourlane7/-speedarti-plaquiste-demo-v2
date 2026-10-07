@@ -5,7 +5,7 @@ for(const f of ['catalogue-data.js','catalogue-service.js','engine-current.js','
 const CAT=global.SpeedArtiCatalogueService,API=global.SpeedArtiPlombierCurrent,ANGEL=global.SpeedArtiAngelPlombierKnowledge,DB=global.SpeedArtiCataloguePlombier;
 let ok=0;function assert(cond,msg){if(!cond)throw new Error(`ASSERT ${ok+1}: ${msg}`);ok++}
 function approx(a,b,t=.011){return Math.abs(Number(a)-Number(b))<=t}
-function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.6.6',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{},services:{},component_preferences:{}}}}
+function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.6.7',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{},services:{},component_preferences:{}}}}
 function selectFirst(ctx,pred=()=>true){const a=CAT.search({context:ctx,limit:100}).find(x=>x.prix>0&&x.code&&pred(x));assert(!!a,`Référence exploitable contexte ${ctx}`);return CAT.selection(a)}
 function netRefs(d){const ctx=d.options.type_tuyau==='cuivre'?'raccord_cuivre':d.options.type_tuyau==='multicouche'?'raccord_multicouche':'raccord_per';d.installation.network.fitting_catalogue=selectFirst(ctx);d.installation.network.stop_valve_catalogue=selectFirst('robinet_arret');}
 
@@ -189,7 +189,7 @@ assert(approx(r1.controle_balises.tva_controlee,r1.totaux.tva),'Contrôle TVA = 
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const posData=html.indexOf('catalogue-data.js'),posService=html.indexOf('catalogue-service.js'),posEngine=html.indexOf('engine-current.js'),posAngel=html.indexOf('angel-knowledge.js'),posApp=html.indexOf('app.js');
 assert(posData>0&&posData<posService&&posService<posEngine&&posEngine<posAngel&&posAngel<posApp,'Ordre de chargement catalogue -> service -> moteur -> Angel -> app');
-assert(/v0\.6\.6/.test(html),'HTML annonce v0.6.6');
+assert(/v0\.6\.7/.test(html),'HTML annonce v0.6.7');
 
 // 22. Contrôles statiques UI / absence de règles cachées
 const appSrc=fs.readFileSync(path.join(root,'app.js'),'utf8'),engSrc=fs.readFileSync(path.join(root,'engine-current.js'),'utf8'),catSrc=fs.readFileSync(path.join(root,'catalogue-service.js'),'utf8');
@@ -307,8 +307,8 @@ assert(engSrc.includes("version:'BALISES-ABSOLUES-v1.8'"),'Moteur balises v1.8')
 
 
 // 29. Correctifs v0.5.2 issus du contrôle humain
-assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v066'"),'Clé de sauvegarde propre v0.6.6');
-assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v065','speedarti-plombier-demo-v064'"),'Migration des anciens brouillons prévue');
+assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v067'"),'Clé de sauvegarde propre v0.6.7');
+assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v066','speedarti-plombier-demo-v065'"),'Migration des anciens brouillons prévue');
 assert(appSrc.includes('function migrateLegacyDraft'),'Fonction de migration brouillon présente');
 assert(appSrc.includes("delete p.duration_h"),'Migration supprime les anciennes durées CE non validées');
 assert(appSrc.includes("catalogueRenderTimer=setTimeout"),'Recherche catalogue saisie rapide temporisée');
@@ -487,5 +487,27 @@ assert(appSrc.includes('Compris dans le produit principal'),'UI permet d’évit
 assert(appSrc.includes('data-catalogue-auto-qty'),'Changement de référence conserve la quantité automatique proposée');
 assert(/1054371/.test(ANGEL.answer('siphon lavabo automatique')),'Angel connaît la référence automatique du siphon lavabo');
 assert(/habitude entreprise/i.test(ANGEL.answer('habitude entreprise siphon')),'Angel connaît la priorité des habitudes entreprise');
+
+// 34. v0.6.7 — cumul MO sanitaire / raccordement local / réseau général
+const moSplit=base();delete moSplit.installation.network.time_h;moSplit.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:true,r1_avec:false};
+moSplit.installation.equipments=[{id:'mo-lav',kind:'lavabo',zone:'rdc',time_h:2}];
+const pMo=API.previewNetwork(moSplit);
+assert(pMo.localEvacForLabor===1&&pMo.generalEvacForLabor===0,'1 m évacuation lavabo classé raccordement local');
+assert(approx(pMo.autoTimeH,1.34),'Temps réseau lavabo exclut l’évacuation locale déjà comprise dans le sanitaire');
+const rMo=API.calculate(moSplit);
+assert(approx(rMo.main_oeuvre.heures_homme,3.34),'MO totale = 2 h sanitaire/raccordement local + 1,34 h réseau général');
+const moSan=rMo.main_oeuvre.decomposition.find(x=>x.poste==='Pose sanitaires + raccordements locaux');
+const moNet=rMo.main_oeuvre.decomposition.find(x=>x.poste==='Réseau général EF/EC/évacuation');
+assert(approx(moSan?.temps_heures,2),'Décomposition MO sanitaire/raccordement local = 2 h');
+assert(approx(moNet?.temps_heures,1.34),'Décomposition MO réseau général = 1,34 h');
+
+const moExtraEvac=base();delete moExtraEvac.installation.network.time_h;moExtraEvac.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:true,r1_avec:false};
+moExtraEvac.installation.equipments=[{id:'mo-lav2',kind:'lavabo',zone:'rdc',time_h:2}];moExtraEvac.installation.network.manual_evac_ml=3;
+const pMoExtra=API.previewNetwork(moExtraEvac);
+assert(pMoExtra.localEvacForLabor===1&&pMoExtra.generalEvacForLabor===2,'Évacuation au-delà du mètre local bascule en réseau général');
+assert(approx(pMoExtra.autoTimeH,1.58),'2 m évacuation générale ajoutent leur temps réseau sans redoubler le mètre local');
+assert(appSrc.includes('Temps pose sanitaire + raccordements locaux (h)'),'UI distingue le temps sanitaire + raccordements locaux');
+assert(appSrc.includes('Temps de pose réseau général (h)'),'UI distingue le temps du réseau général');
+assert(appSrc.includes('Détail du cumul main-d’œuvre'),'Résultat affiche le cumul MO détaillé');
 
 console.log(JSON.stringify({status:'OK',assertions:ok,catalogueCount:CAT.count,priceCount:CAT.priceCount,knownPrice117_19:known[0].prix,balisesVersion:r1.controle_balises.version,networkOnly:{ef:r2.surfaces.detail_par_face.EF_ml,ec:r2.surfaces.detail_par_face.EC_ml},fittingsOneFixture:fittingsWC.quantite_finale},null,2));
