@@ -5,7 +5,7 @@ for(const f of ['catalogue-data.js','catalogue-service.js','engine-current.js','
 const CAT=global.SpeedArtiCatalogueService,API=global.SpeedArtiPlombierCurrent,ANGEL=global.SpeedArtiAngelPlombierKnowledge,DB=global.SpeedArtiCataloguePlombier;
 let ok=0;function assert(cond,msg){if(!cond)throw new Error(`ASSERT ${ok+1}: ${msg}`);ok++}
 function approx(a,b,t=.011){return Math.abs(Number(a)-Number(b))<=t}
-function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.6.4',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{},services:{}}}}
+function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.6.5',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{},services:{}}}}
 function selectFirst(ctx,pred=()=>true){const a=CAT.search({context:ctx,limit:100}).find(x=>x.prix>0&&x.code&&pred(x));assert(!!a,`Référence exploitable contexte ${ctx}`);return CAT.selection(a)}
 function netRefs(d){const ctx=d.options.type_tuyau==='cuivre'?'raccord_cuivre':d.options.type_tuyau==='multicouche'?'raccord_multicouche':'raccord_per';d.installation.network.fitting_catalogue=selectFirst(ctx);d.installation.network.stop_valve_catalogue=selectFirst('robinet_arret');}
 
@@ -189,7 +189,7 @@ assert(approx(r1.controle_balises.tva_controlee,r1.totaux.tva),'Contrôle TVA = 
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const posData=html.indexOf('catalogue-data.js'),posService=html.indexOf('catalogue-service.js'),posEngine=html.indexOf('engine-current.js'),posAngel=html.indexOf('angel-knowledge.js'),posApp=html.indexOf('app.js');
 assert(posData>0&&posData<posService&&posService<posEngine&&posEngine<posAngel&&posAngel<posApp,'Ordre de chargement catalogue -> service -> moteur -> Angel -> app');
-assert(/v0\.6\.4/.test(html),'HTML annonce v0.6.4');
+assert(/v0\.6\.4/.test(html),'HTML annonce v0.6.5');
 
 // 22. Contrôles statiques UI / absence de règles cachées
 const appSrc=fs.readFileSync(path.join(root,'app.js'),'utf8'),engSrc=fs.readFileSync(path.join(root,'engine-current.js'),'utf8'),catSrc=fs.readFileSync(path.join(root,'catalogue-service.js'),'utf8');
@@ -306,8 +306,8 @@ assert(engSrc.includes("version:'BALISES-ABSOLUES-v1.8'"),'Moteur balises v1.8')
 
 
 // 29. Correctifs v0.5.2 issus du contrôle humain
-assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v064'"),'Clé de sauvegarde propre v0.6.4');
-assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v063','speedarti-plombier-demo-v061'"),'Migration des anciens brouillons prévue');
+assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v065'"),'Clé de sauvegarde propre v0.6.5');
+assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v064','speedarti-plombier-demo-v063'"),'Migration des anciens brouillons prévue');
 assert(appSrc.includes('function migrateLegacyDraft'),'Fonction de migration brouillon présente');
 assert(appSrc.includes("delete p.duration_h"),'Migration supprime les anciennes durées CE non validées');
 assert(appSrc.includes("catalogueRenderTimer=setTimeout"),'Recherche catalogue saisie rapide temporisée');
@@ -426,7 +426,7 @@ const chosen=selectFirst('raccord_per');const tChosen=base();tChosen.installatio
 assert(rPer.controle_balises.version==='BALISES-ABSOLUES-v1.8','Balises v1.8 actives sur référentiel réseau');
 assert(appSrc.includes('Proposition technique automatique'),'UI affiche le temps réseau proposé et modifiable');
 
-// v0.6.4 — prix moyens appareillage sans sélection catalogue + base Angel
+// v0.6.5 — prix moyens appareillage sans sélection catalogue + base Angel
 const avgExpected={lavabo:165.11,meuble_vasque:204.19,douche:428.06,baignoire:307.93,evier:194.69,lave_main:83.59};
 for(const [kind,price] of Object.entries(avgExpected)){
   const t=base();t.options.gamme='standard';t.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:true,r1_avec:false};t.installation.equipments=[{id:'avg-'+kind,kind,zone:'rdc',time_h:1}];
@@ -444,3 +444,14 @@ assert(/165,11/.test(ANGEL.answer('prix lavabo sans catalogue')),'Angel répond 
 assert(appSrc.includes('Prix moyen SpeedArti'),'UI affiche explicitement le prix moyen quand le catalogue n’est pas sélectionné');
 
 console.log(JSON.stringify({status:'OK',assertions:ok,catalogueCount:CAT.count,priceCount:CAT.priceCount,knownPrice117_19:known[0].prix,balisesVersion:r1.controle_balises.version,networkOnly:{ef:r2.surfaces.detail_par_face.EF_ml,ec:r2.surfaces.detail_par_face.EC_ml},fittingsOneFixture:fittingsWC.quantite_finale},null,2));
+
+
+// 30. Correctifs v0.6.5 Guillaume
+const dist=base();dist.installation.equipments=[{id:'shdist',kind:'douche',subtype:'bac'},{id:'evdist',kind:'evier',subtype:'inox'}];
+const pDist1=API.previewNetwork(dist);assert(pDist1.autoEC===29,'Distances chauffe-eau 5 m SDB + 8 m cuisine intégrées à EC');
+dist.installation.network.distance_ce_sdb=10;dist.installation.network.distance_ce_cuisine=10;
+const pDist2=API.previewNetwork(dist);assert(pDist2.autoEC===36,'Modification distances chauffe-eau modifie réellement EC');
+assert(appSrc.includes('additionalCatalogueItemsPanel'),'Meuble vasque accepte une composition multi-articles');
+assert(engSrc.includes('addAdditionalCatalogueItems'),'Moteur chiffre les articles complémentaires du meuble vasque');
+assert(appSrc.includes('Reprendre le calcul automatique'),'Override réseau peut revenir au calcul automatique');
+assert(appSrc.includes('aucune platine n’est calculée'),'Élément spécifique avertit quand aucun raccordement n’est défini');
