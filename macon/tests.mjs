@@ -731,7 +731,7 @@ test('sprint Angèle: la démo publie le contexte courant à chaque rendu',()=>{
 test('sprint S6: bindEvents utilise la collection pour les champs numériques',()=>{
   const app=fs.readFileSync(new URL('./app.js',import.meta.url),'utf8');
   assert.match(app,/\$\$\('input\[type="number"\]'\)\.forEach/);
-  assert.ok(!/\$\('input\[type="number"\]'\)\.forEach/.test(app));
+  assert.ok(!app.split('\n').some(l=>/^\s*\$\('input\[type="number"\]'\)\.forEach/.test(l)));
 });
 
 
