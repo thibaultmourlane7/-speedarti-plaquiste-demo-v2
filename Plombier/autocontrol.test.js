@@ -356,7 +356,7 @@ const rz0=API.calculate(z0);assert(rz0.surfaces.detail_par_face.EF_ml===8&&rz0.s
 
 const z1=base();z1.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:true,r1_avec:false};netRefs(z1);z1.installation.equipments.push({id:'wca',kind:'wc',subtype:'poser',catalogue:wcSel,price_ht:wcSel.prix,time_h:2},{id:'wcb',kind:'wc',subtype:'poser',catalogue:wcSel,price_ht:wcSel.prix,time_h:2},{id:'sha',kind:'douche',subtype:'bac',catalogue:selectFirst('douche'),price_ht:selectFirst('douche').prix,time_h:2});
 const pz1=API.previewNetwork(z1);
-assert(pz1.autoEF===24,'Deux WC + une douche = 24 ml EF');
+assert(pz1.autoEF===29,'Deux WC + une douche = 24 ml EF + distance nourrice SDB 5 m');
 assert(pz1.autoEC===13,'Une douche SDB = 8 ml EC + distance SDB 5 m');
 assert(pz1.autoEvac===3,'Trois sanitaires = 3 ml évacuation locale');
 assert(pz1.autoPlatineEf===2&&pz1.autoPlatineEfEc===1&&pz1.autoPlatineEvac===3,'Platines automatiques suivent les trois sanitaires indépendants');
