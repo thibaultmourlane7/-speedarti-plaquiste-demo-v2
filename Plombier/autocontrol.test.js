@@ -493,19 +493,19 @@ const moSplit=base();delete moSplit.installation.network.time_h;moSplit.installa
 moSplit.installation.equipments=[{id:'mo-lav',kind:'lavabo',zone:'rdc',time_h:2}];
 const pMo=API.previewNetwork(moSplit);
 assert(pMo.localEvacForLabor===1&&pMo.generalEvacForLabor===0,'1 m évacuation lavabo classé raccordement local');
-assert(approx(pMo.autoTimeH,1.34),'Temps réseau lavabo exclut l’évacuation locale déjà comprise dans le sanitaire');
+assert(approx(pMo.autoTimeH,1.66),'Temps réseau lavabo suit EF+EC avec distance nourrice, hors évacuation locale');
 const rMo=API.calculate(moSplit);
-assert(approx(rMo.main_oeuvre.heures_homme,3.34),'MO totale = 2 h sanitaire/raccordement local + 1,34 h réseau général');
+assert(approx(rMo.main_oeuvre.heures_homme,3.66),'MO totale = 2 h sanitaire/raccordement local + 1,66 h réseau général');
 const moSan=rMo.main_oeuvre.decomposition.find(x=>x.poste==='Pose sanitaires + raccordements locaux');
 const moNet=rMo.main_oeuvre.decomposition.find(x=>x.poste==='Réseau général EF/EC/évacuation');
 assert(approx(moSan?.temps_heures,2),'Décomposition MO sanitaire/raccordement local = 2 h');
-assert(approx(moNet?.temps_heures,1.34),'Décomposition MO réseau général = 1,34 h');
+assert(approx(moNet?.temps_heures,1.66),'Décomposition MO réseau général = 1,66 h');
 
 const moExtraEvac=base();delete moExtraEvac.installation.network.time_h;moExtraEvac.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:true,r1_avec:false};
 moExtraEvac.installation.equipments=[{id:'mo-lav2',kind:'lavabo',zone:'rdc',time_h:2}];moExtraEvac.installation.network.manual_evac_local_ml=3;
 const pMoExtra=API.previewNetwork(moExtraEvac);
 assert(pMoExtra.localEvacForLabor===3&&pMoExtra.generalEvacForLabor===0,'Évacuation locale modifiée reste un raccordement local sanitaire');
-assert(approx(pMoExtra.autoTimeH,1.34),'Allonger le raccordement local ne crée pas artificiellement du temps de réseau général');
+assert(approx(pMoExtra.autoTimeH,1.66),'Allonger le raccordement local ne crée pas artificiellement du temps de réseau général');
 assert(appSrc.includes('Temps pose sanitaire + raccordements locaux (h)'),'UI distingue le temps sanitaire + raccordements locaux');
 assert(appSrc.includes('Temps de pose réseau général (h)'),'UI distingue le temps du réseau général');
 assert(appSrc.includes('Détail du cumul main-d’œuvre'),'Résultat affiche le cumul MO détaillé');
@@ -611,7 +611,7 @@ assert(rSinkDefault.materiaux.find(x=>x.article_id==='auto_sink-default_bonde')?
 
 const learnedTime=base();learnedTime.settings.sanitary_time_preferences.lavabo=2;delete learnedTime.installation.network.time_h;learnedTime.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:true,r1_avec:false};learnedTime.installation.equipments=[{id:'learned-lav',kind:'lavabo',zone:'rdc'}];
 const rLearnedTime=API.calculate(learnedTime);
-assert(approx(rLearnedTime.main_oeuvre.heures_homme,3.34),'Habitude temps lavabo 2 h + réseau 1,34 h automatisée');
+assert(approx(rLearnedTime.main_oeuvre.heures_homme,3.66),'Habitude temps lavabo 2 h + réseau 1,66 h automatisée');
 assert(!rLearnedTime.blocages.some(x=>/Temps de pose manquant pour « Lavabo/.test(x)),'Habitude temps supprime le manque de temps lavabo');
 
 const noLearnedTime=base();delete noLearnedTime.installation.network.time_h;noLearnedTime.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:true,r1_avec:false};noLearnedTime.installation.equipments=[{id:'no-time-lav',kind:'lavabo',zone:'rdc'}];
@@ -633,7 +633,7 @@ const robSel=CAT.selection(robRaw);
 const autoRob=base();delete autoRob.installation.network.time_h;autoRob.settings.component_preferences.meuble_vasque_robinet=robSel;autoRob.settings.sanitary_time_preferences.option_meuble_vasque_robinet=1;autoRob.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:true,r1_avec:false};autoRob.installation.equipments=[{id:'mvrob',kind:'meuble_vasque',subtype:'double',time_h:2,robinet:true}];
 const rAutoRob=API.calculate(autoRob),robLine=rAutoRob.materiaux.find(x=>x.article_id==='robinet_mvrob');
 assert(robLine?.catalogue_code===robSel.code&&robLine.quantite_finale===2,'Double vasque utilise automatiquement 2 robinets de l’habitude entreprise');
-assert(approx(rAutoRob.main_oeuvre.heures_homme,4.34),'Temps robinetterie habituel 1 h ajouté automatiquement au sanitaire + réseau');
+assert(approx(rAutoRob.main_oeuvre.heures_homme,4.66),'Temps robinetterie habituel 1 h ajouté automatiquement au sanitaire + réseau');
 assert(!rAutoRob.blocages.some(x=>/ROBINETTERIE|Robinetterie meuble vasque/.test(x)),'Habitude robinetterie complète évite le blocage');
 
 const noRobHabit=base();noRobHabit.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:true,r1_avec:false};noRobHabit.installation.equipments=[{id:'mvno',kind:'meuble_vasque',subtype:'double',time_h:2,robinet:true}];
