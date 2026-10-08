@@ -1,9 +1,9 @@
 (function(global){
 "use strict";
-/* SpeedArti Plaquiste — rules-only demo bundle v1.3.0.
+/* SpeedArti Plaquiste — rules-only demo bundle v1.6.0.
    No legacy calculator, no hidden catalogue price, no silent fallback. */
 const rules = Object.freeze({
-  version: 'plaquiste-business-2026-08-19-v1.3.0',
+  version: 'plaquiste-business-2026-10-08-v1.6.0',
   plaques: { largeurCommercialeM:1.20, perteMurPct:7, pertePlafondPct:10, perteRampantPct:12,
     surchargeAchatHtM2:Object.freeze({BA13:0,hydro:0.85,phonique:1.35,feu:2.00,habito:3.20}) },
   ossature: { pertePct:5, ouvertureMontantsTouteHauteur:4, ouvertureProfilsHorizontauxParLargeur:2,
@@ -16,7 +16,7 @@ const rules = Object.freeze({
     semiRigideCoefMainOeuvre:1.20, secondeCouchePoseHtM2:3, poseCroiseeCoefMainOeuvre:1.15,
     pareVapeurPrixVenteHtM2:3.50, freinVapeurPrixVenteHtM2:5.00 },
   optima: { espacementVerticalRangeeM:1.35, fourrureF530MlM2:1.8, lisseClipMlM2:0.9,
-    appuiUniteM2:0.75, cleUniteM2:0.75, fixationsUniteM2ParRangee:2 },
+    appuiUniteM2:1.00 },
   plafondDroit: { fourrureMlM2:1.67, suspenteUniteM2:1.45, corniereMlM2:0.42,
     eclisseUniteM2:0.20, cavalierConnecteurUniteM2:0.35 },
   mainOeuvre: { cloisonHParM2:0.35, doublageOptimaHParM2:0.40, doublageClassiqueSansIsolantHParM2:0.26,
