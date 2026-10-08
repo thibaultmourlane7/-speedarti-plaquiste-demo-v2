@@ -1,8 +1,8 @@
 (function(){
   const E=window.ElectricienEngine;
   const CS=window.ElectricienCatalogueSelector;
-  const STORAGE="speedarti-electricien-demo-v5";
-  const LEGACY_STORAGE="speedarti-electricien-demo-v2";
+  const STORAGE="speedarti-electricien-demo-v61";
+  const LEGACY_STORAGE="speedarti-electricien-demo-v5";
   const steps=[
     {id:"installation",title:"Installation",sub:"Neuf / rénovation • mono / tri"},
     {id:"logement",title:"Logement",sub:"Pièces & surfaces"},
@@ -36,25 +36,26 @@
         vmc:{brand:"moyen",gamme:"",choiceId:""},
         priseExtSimple:{brand:"moyen",gamme:"",choiceId:""},
         priseExtDouble:{brand:"moyen",gamme:"",choiceId:""},
-        priseExtTriple:{brand:"moyen",gamme:"",choiceId:""}
+        priseExtTriple:{brand:"moyen",gamme:"",choiceId:""},
+        interExt:{brand:"moyen",gamme:"",choiceId:""}
       }
     },
     circuits:{
       socketMode:"2.5_20",
       four:true,laveLinge:true,laveVaisselle:true,secheLinge:false,chauffeEau:true,congelateur:false,priseGTL:true,
       volets:0,heatingPower:0,
-      pac:false,pacManual:{section:"",breaker:"",diff:"F selon configuration",supply:"mono"},
-      clim:false,climManual:{section:"",breaker:"",diff:"F selon configuration",supply:"mono"},
-      gainable:false,gainableManual:{section:"",breaker:"",diff:"Selon fabricant",supply:"mono"},
-      tone:false,toneManual:{section:"",breaker:"",diff:"Selon fabricant",supply:"mono"},
-      irve:false,irveManual:{section:"",breaker:"",diff:"Selon borne",supply:"mono"},
-      pv:false,pvManual:{section:"",breaker:"",diff:"Selon étude",supply:"mono"},
-      exteriorLights:0,exteriorSockets:0,
+      pac:false,pacManual:{section:"",breaker:"",diff:"F selon configuration",supply:"mono",materialLabel:"",materialPrice:""},
+      clim:false,climManual:{section:"",breaker:"",diff:"F selon configuration",supply:"mono",materialLabel:"",materialPrice:""},
+      gainable:false,gainableManual:{section:"",breaker:"",diff:"Selon fabricant",supply:"mono",materialLabel:"",materialPrice:""},
+      tone:false,toneManual:{section:"",breaker:"",diff:"Selon fabricant",supply:"mono",materialLabel:"",materialPrice:""},
+      irve:false,irveManual:{section:"",breaker:"",diff:"Selon borne",supply:"mono",materialLabel:"",materialPrice:""},
+      pv:false,pvManual:{section:"",breaker:"",diff:"Selon étude",supply:"mono",materialLabel:"",materialPrice:""},
+      exteriorLights:0,exteriorSockets:0,exteriorLightType:"applique",exteriorCommand:"simple_voyant",exteriorDetectors:0,exteriorLightMaterialLabel:"",exteriorLightMaterialPrice:"",
       bellType:"none",
       vmcType:"none",vmcExtraMouths:0,vmcRoof:false
     },
     tableau:{
-      rows:"",brand:"indifferent",replaceExisting:false,partialExisting:false,newMaterialPartial:false,
+      rows:"",brand:"indifferent",replaceExisting:false,partialExisting:false,newMaterialPartial:false,partialHours:"",partialMaterialPrice:"",partialMaterialNote:"",
       ground:false,parafoudre:false,differentielTete:false,consuel:false,diagnostic:false
     },
     renovation:{
@@ -307,6 +308,8 @@
       ${input(`${dataPath}.breaker`,"Disjoncteur (A)",{cls:"c3",min:0,step:1})}
       ${select(`${dataPath}.supply`,"Alimentation",[["mono","Mono"],["3P","Triphasé 3P"]],{cls:"c3"})}
       ${input(`${dataPath}.diff`,"Différentiel / remarque",{cls:"c3",type:"text"})}
+      ${input(`${dataPath}.materialLabel`,"Référence / modèle fabricant",{cls:"c6",type:"text",placeholder:"Ex. référence fabricant"})}
+      ${input(`${dataPath}.materialPrice`,"Prix matériel HT (€)",{cls:"c3",min:0,step:.01})}
     </div></div>`;
   }
 
@@ -351,6 +354,11 @@
       ${select("circuits.bellType","Sonnette / visiophone",[["none","Aucun"],["carillon","Carillon simple — 170 € HT"],["visio","Visiophone sans ouverture — 500 € HT"],["visioGate","Visiophone avec ouverture — 750 € HT"]],{cls:"c4"})}
       ${input("circuits.exteriorLights","Points d'éclairage extérieur",{cls:"c4",min:0})}
       ${input("circuits.exteriorSockets","Prises extérieures",{cls:"c4",min:0})}
+      ${select("circuits.exteriorLightType","Type éclairage extérieur",[["applique","Applique"],["spot","Spot"]],{cls:"c4"})}
+      ${select("circuits.exteriorCommand","Commande extérieur",[["simple_voyant","Simple allumage avec voyant"],["va_et_vient","Va-et-vient"],["aucune","Aucune commande"]],{cls:"c4"})}
+      ${input("circuits.exteriorDetectors","Détecteurs de mouvement",{cls:"c4",min:0})}
+      ${input("circuits.exteriorLightMaterialLabel","Référence luminaire extérieur",{cls:"c4",type:"text",placeholder:"Optionnel"})}
+      ${input("circuits.exteriorLightMaterialPrice","Prix luminaire unitaire HT (€)",{cls:"c4",min:0,step:.01})}
     </div></div>
     <div class="card"><h2>Domotique Somfy / TaHoma</h2><p class="muted">Annexe 5 — matériel indicatif + temps de pose, recalculé avec le taux horaire de l'entreprise.</p>
       <div class="grid">${Object.entries(E.SOMFY).map(([k,v])=>input(`domotique.${k}`,v.label,{cls:"c4",min:0})).join("")}</div>
@@ -367,6 +375,9 @@
       ${check("tableau.replaceExisting","Remplacement complet du tableau")}
       ${check("tableau.partialExisting","Modification partielle du tableau")}
       ${state.tableau.partialExisting?check("tableau.newMaterialPartial","Commander du matériel neuf pour la modification partielle"):""}
+      ${state.tableau.partialExisting?input("tableau.partialHours","Temps de modification partielle (h)",{cls:"c4",min:0,step:.25}):""}
+      ${state.tableau.partialExisting&&state.tableau.newMaterialPartial?input("tableau.partialMaterialPrice","Matériel neuf tableau — prix HT (€)",{cls:"c4",min:0,step:.01}):""}
+      ${state.tableau.partialExisting&&state.tableau.newMaterialPartial?input("tableau.partialMaterialNote","Matériel neuf tableau — référence / note",{cls:"c8",type:"text"}):""}
       ${check("tableau.parafoudre","Parafoudre Type 2")}
       ${check("tableau.differentielTete","Différentiel de tête")}
     </div>
@@ -386,15 +397,15 @@
   function renderResult(){
     lastResult=E.calculate(state);
     const r=lastResult;
-    return head("Étape 6","Résultat du chiffrage","Résultat de validation : règles Guillaume + base prix SpeedArti Drive + compléments de prix moyens Internet 2026. Toute référence encore absente reste signalée au lieu d'être inventée.")+
+    return head("Étape 6","Résultat du chiffrage","Récapitulatif des quantités, fournitures, temps de main-d’œuvre et prix calculés à partir des choix du chantier.")+
     `<div class="metrics">
       <div class="metric"><span>Circuits</span><strong>${r.tableau.circuits}</strong></div>
       <div class="metric"><span>Rangées tableau</span><strong>${r.tableau.rows}</strong></div>
       <div class="metric"><span>Main-d'œuvre</span><strong>${r.labor.hours.toFixed(1)} h</strong><small>coef. ${r.labor.coefficient.toFixed(2)}</small></div>
       <div class="metric"><span>Matériaux chiffrés</span><strong>${euro(r.materialTotal)}</strong></div>
-      <div class="metric"><span>Total connu*</span><strong>${euro(r.knownTotal)}</strong></div>
+      <div class="metric"><span>Total calculé*</span><strong>${euro(r.knownTotal)}</strong></div>
     </div>
-    <p class="note">* Matériaux dont le prix existe dans la base Drive + main-d'œuvre + forfaits validés. Toute référence absente reste explicitement non chiffrée.</p>
+    <p class="note">* Total calculé à partir des données et tarifs actuellement renseignés. Les éventuels éléments fabricant sans prix restent à compléter avant devis définitif.</p>
     ${r.blockers.length?`<div class="card"><h2>⛔ Points bloqués / non chiffrés</h2>${r.blockers.map(x=>`<div class="alert err">${esc(x)}</div>`).join("")}</div>`:""}
     ${r.alerts.length?`<div class="card"><h2>⚠️ Alertes & contrôles</h2>${r.alerts.map(x=>`<div class="alert warn">${esc(x)}</div>`).join("")}</div>`:""}
     <div class="card"><h2>Points retenus</h2><div class="metrics">
