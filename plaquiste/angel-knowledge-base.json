@@ -4,16 +4,17 @@
     "title": "Base de connaissances Ángel — Plaquiste",
     "trade": "plaquiste",
     "status": "VALIDÉ",
-    "version": "1.0.0",
-    "module_schema_version": "1.3.4",
-    "business_rules_version": "plaquiste-business-2026-08-19-v1.3.0",
+    "version": "1.1.0",
+    "module_schema_version": "1.6.0",
+    "business_rules_version": "plaquiste-business-2026-10-08-v1.6.0",
     "language": "fr-FR",
     "purpose": "Fournir à Ángel une base métier structurée pour répondre aux questions sur le chiffrage plaquiste sans inventer de règles, de prix ni d'unités.",
     "source_of_truth": [
       "plaquiste/engine-real.js — règles métier et abaque isolation",
       "plaquiste/app.js — validations, catalogue démo, calculs et flux UI",
       "Les données réelles SpeedArti (catalogue utilisateur/fournisseur, stock, Supabase) priment dès qu'elles sont raccordées."
-    ]
+    ],
+    "updated_at": "2026-10-08"
   },
   "speedarti_guardrails": {
     "never_invent": true,
@@ -33,7 +34,12 @@
       "L'artisan choisit son produit d'isolation.",
       "Ne pas demander une validation artisan supplémentaire après son choix explicite.",
       "Respecter référence, épaisseur, prix HT/m², simple/double couche et pose croisée."
-    ]
+    ],
+    "keyboard_navigation": {
+      "scope": "Règle commune à tous les corps de métier",
+      "rule": "Tab passe au champ saisissable suivant ; Shift+Tab revient au champ précédent. Un rafraîchissement de l'interface ne doit jamais renvoyer le focus au premier champ.",
+      "implementation": "shared/field-navigation.js"
+    }
   },
   "domain_model": {
     "project": [
@@ -56,7 +62,14 @@
         "plafond droit",
         "rampant",
         "rampant complexe"
-      ]
+      ],
+      "room_shapes": {
+        "rectangle": "4 murs",
+        "L": "6 murs ; surface = emprise totale moins décroché",
+        "T": "8 murs ; barre haute + pied centré",
+        "U": "8 murs ; emprise totale moins ouverture centrale",
+        "rule": "Chaque segment généré devient un mur indépendant et la surface du plafond droit utilise la surface réelle de la forme."
+      }
     },
     "wall_configuration": [
       "activation",
@@ -85,7 +98,25 @@
       "longueur suspente",
       "isolation indépendante",
       "découpes/spots"
-    ]
+    ],
+    "wall_defaults": {
+      "active": true,
+      "face1": {
+        "plate": "BA13 standard",
+        "skin": "simple"
+      },
+      "face2": {
+        "plate": "BA13 standard",
+        "skin": "simple"
+      },
+      "type": "obligatoire, jamais deviné",
+      "when_cloison_selected": {
+        "profile": "M48 / R48",
+        "spacing_cm": 60,
+        "studs": "simples",
+        "editable": true
+      }
+    }
   },
   "rules": {
     "plaques": {
@@ -155,9 +186,12 @@
       "espacement_vertical_rangee_m": 1.35,
       "fourrure_f530_ml_m2": 1.8,
       "lisse_clip_ml_m2": 0.9,
-      "appui_unite_m2": 0.75,
-      "cle_unite_m2": 0.75,
-      "fixations_unite_m2_par_rangee": 2
+      "appui_optima2_unite_m2": 1,
+      "appui_includes": [
+        "tige",
+        "clé"
+      ],
+      "rule": "Ne jamais demander les prix Optima à l'artisan quand le catalogue SpeedArti les fournit ; ne pas créer de ligne 'clé' séparée pour l'Appui Optima2."
     },
     "plafond_droit": {
       "fourrure_ml_m2": 1.67,
@@ -190,6 +224,63 @@
       "rampant_complexe_ht_m2": 11,
       "angle_sortant_ht_ml": 7,
       "renfort_osb_ht_unite": 75
+    },
+    "tva": {
+      "logement_moins_2_ans_ou_neuf_pct": 20,
+      "logement_plus_2_ans_non_coche_pct": 20,
+      "renovation_eligible_pct": 10,
+      "isolation_energetique_eligible_pct": 5.5,
+      "ui": "Une seule case : Travaux de rénovation éligibles aux taux réduits.",
+      "behavior": "Case non cochée = aucun blocage, TVA 20 %."
+    },
+    "ceiling_supports": {
+      "bois": {
+        "selection": "automatique selon plénum",
+        "up_to_150_mm": "Suspente longue Stil F530",
+        "up_to_280_mm": "Suspente Maxi Stil F530",
+        "up_to_580_mm": "Suspente sécable Stil F530",
+        "above_580_mm": "étude spécifique"
+      },
+      "beton": {
+        "system": [
+          "cheville M6",
+          "tige filetée M6",
+          "cavalier F530"
+        ],
+        "min_drop_mm": 20
+      },
+      "hourdis": {
+        "system": [
+          "suspente H F530",
+          "tige filetée M6 si plénum > 40 mm"
+        ],
+        "min_drop_mm": 40,
+        "above_1000_mm": "étude spécifique"
+      },
+      "autoportant": {
+        "system": [
+          "rails périphériques",
+          "montants adaptés à la portée"
+        ],
+        "behavior": "Visible comme cas spécifique, mais chiffrage bloqué tant que le dimensionnement de portée/profil n'est pas validé."
+      }
+    },
+    "dtu_wall_height_alerts": {
+      "reference": "Placo / DTU 25.41 — limites du système M48",
+      "severity": "informative_non_blocking",
+      "simple_parement": {
+        "M48_simple_60_cm_m": 2.5,
+        "M48_simple_40_cm_m": 2.8,
+        "M48_double_60_cm_m": 3.05,
+        "M48_double_40_cm_m": 3.45
+      },
+      "double_parement": {
+        "M48_simple_60_cm_m": 3,
+        "M48_simple_40_cm_m": 3.45,
+        "M48_double_60_cm_m": 3.75,
+        "M48_double_40_cm_m": 4.15
+      },
+      "rule": "Ne pas afficher une alerte simplement parce qu'un choix diffère d'une suggestion. Alerter uniquement lorsqu'une limite documentée est dépassée."
     }
   },
   "catalogue_demo": {
@@ -204,6 +295,21 @@
       "enduit_joint_5kg_ht": 8.33,
       "enduit_joint_15kg_ht": 14.08,
       "enduit_joint_25kg_ht": 17.42
+    },
+    "optima": {
+      "lisse_clip_ht_ml": 1.53,
+      "appui_optima2_avec_cle_ht_unite": 1.7,
+      "source_status": "PRIX_PUBLICS_SPEEDARTI_FALLBACK"
+    },
+    "ceiling_fixings": {
+      "suspente_longue_bois_ht_unite": 0.65,
+      "suspente_maxi_bois_ht_unite": 0.88,
+      "suspente_secable_bois_ht_unite": 1.85,
+      "suspente_H_hourdis_ht_unite": 1.77,
+      "cheville_M6_beton_ht_unite": 0.23,
+      "tige_filetee_M6_ht_ml": 0.93,
+      "cavalier_F530_ht_unite": 0.44,
+      "source_status": "PRIX_PUBLICS_SPEEDARTI_FALLBACK"
     }
   },
   "isolation_abaque": [
@@ -616,10 +722,16 @@
     "Le type de plaque et simple/double peau doivent être choisis explicitement.",
     "Au-delà du format automatique disponible, le nombre réel de plaques doit être saisi explicitement.",
     "Les ouvertures sont déduites des surfaces et génèrent l'ossature périphérique prévue.",
-    "Un plafond actif doit avoir un type, une surface valide, un parement, un format de plaque, une longueur de suspente et simple/double peau.",
     "La complexité générale, le taux horaire, la marge matériaux, l'âge du logement et le niveau de finition sont des paramètres explicites.",
     "Les prix catalogue intégrés ne doivent pas être redemandés à l'artisan.",
-    "Les coûts internes de finition ne doivent pas être refacturés une deuxième fois."
+    "Les coûts internes de finition ne doivent pas être refacturés une deuxième fois.",
+    "Une pièce non rectangulaire L/T/U exige des dimensions A et B positives, inférieures aux dimensions totales.",
+    "Les murs générés par une forme L/T/U sont de vrais murs indépendants.",
+    "Un plafond suspendu exige un support parmi bois, béton ou hourdis et un plénum positif.",
+    "Un plafond autoportant exige un dimensionnement spécifique de portée avant chiffrage final.",
+    "Une configuration M48 dépassant sa hauteur limite documentée génère une alerte informative, jamais un blocage DTU automatique.",
+    "La case TVA rénovation non cochée ne bloque jamais : la TVA 20 % est utilisée.",
+    "Les prix Optima intégrés au catalogue SpeedArti ne sont jamais demandés à l'artisan."
   ],
   "output_expectations": [
     "Surfaces par ouvrage, y compris plafonds.",
@@ -628,7 +740,10 @@
     "Coûts internes de finition séparés du total facturé.",
     "Main-d'œuvre en heures et coût.",
     "Vente/forfaits, TVA et total TTC.",
-    "Alertes et blocages traçables avec code explicite."
+    "Alertes et blocages traçables avec code explicite.",
+    "Pour les pièces L/T/U, afficher et calculer les surfaces sur la géométrie réelle.",
+    "Pour les plafonds, expliquer le système de fixation choisi d'après le support et le plénum.",
+    "Les alertes DTU/système doivent indiquer la limite documentée dépassée et rester informatives."
   ],
   "angel_query_contract": {
     "supported_intents": [
@@ -637,7 +752,12 @@
       "expliquer une quantité ou une unité",
       "identifier les données manquantes",
       "expliquer le choix d'un conditionnement",
-      "expliquer une règle d'isolation, de plafond, de cloison ou de doublage"
+      "expliquer une règle d'isolation, de plafond, de cloison ou de doublage",
+      "expliquer une forme de pièce L, T ou U",
+      "expliquer pourquoi une configuration M48 déclenche une alerte de hauteur",
+      "expliquer le système de fixation plafond selon bois, béton ou hourdis",
+      "expliquer le comportement TVA rénovation",
+      "expliquer les valeurs par défaut d'un nouveau mur"
     ],
     "answer_requirements": [
       "Répondre à partir de cette base et du contexte du chiffrage.",
@@ -650,6 +770,6 @@
     "knowledge_base_created": true,
     "angel_runtime_connected_in_this_static_demo": false,
     "supabase_connected": false,
-    "note": "La base est prête à être consommée par Ángel. Le dépôt de démonstration ne contient actuellement aucun runtime Ángel ni connecteur Supabase."
+    "note": "Base Plaquiste mise à jour pour la version 1.6.0. La démo statique expose les règles à Ángel mais ne contient pas encore le runtime conversationnel de production."
   }
 }
