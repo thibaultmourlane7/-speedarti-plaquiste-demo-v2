@@ -1,37 +1,90 @@
-# SpeedArti — Plombier v0.7.1 — Sprint D automatisations audit humain
+# SpeedArti — Plombier v0.8.0 — Sprint E retour Guillaume complet
 
-Cette version continue le module Plombier existant.
+Cette version reprend l’intégralité du retour Guillaume après la v0.7.1.
 
-## Sprint D v0.7.1 — corrections issues de l’audit humain
+## Sprint E v0.8.0
 
-Objectif : automatiser les actions sûres et ne demander une intervention artisan que lorsqu’aucune règle fiable n’existe.
+### Réseau EF + EC selon les distances chauffe-eau
 
-- **Temps sanitaire** : aucun barème arbitraire n’est inventé. Une durée saisie par l’artisan devient une habitude entreprise et est réutilisée automatiquement pour les prochains équipements comparables. Priorité : saisie équipement > habitude entreprise > base explicitement validée.
-- **Évier neuf** : la configuration initiale est désormais `simple`; même sur un ancien brouillon sans `config`, le moteur considère l’évier comme simple bac pour l’automatisation sûre. La bonde `4272991` apparaît donc immédiatement.
-- **Élément spécifique + évacuation** : le champ diamètre propose DN40 / DN100 / autre. DN40 et DN100 déclenchent automatiquement les références Téréva déjà validées (tube + raccord). Sans diamètre exploitable, aucune référence n’est inventée et la fourniture non chiffrée est signalée.
-- **Robinetterie meuble vasque / lave-mains** : possibilité d’enregistrer une référence habituelle entreprise. Lorsqu’elle existe, elle est reprise automatiquement, avec quantité 2 pour un meuble double vasque. Le temps de robinetterie peut lui aussi être mémorisé comme habitude.
-- Les messages réellement actionnables (temps manquant, robinetterie non paramétrée, évacuation spécifique sans diamètre) ne sont plus masqués par l’interface.
-- Ángel Plombier passe en **v1.6**.
+Règle Guillaume : les nourrices étant généralement proches du chauffe-eau, les distances chauffe-eau → salle de bains et chauffe-eau → cuisine alimentent désormais **EF et EC**, lorsque les équipements correspondants existent.
 
-## Sprint C v0.7.0 — Téréva source unique pour le réseau
+Exemple avec douche + évier :
+- SDB 5 m + cuisine 8 m → EF 29 ml et EC 29 ml ;
+- SDB 10 m + cuisine 10 m → EF 36 ml et EC 36 ml.
 
-- `engine-current.js` ne recopie plus les prix ni les métadonnées des références techniques réseau Téréva ;
-- le moteur conserve uniquement les codes métier nécessaires et les conditionnements utiles au calcul au ml ;
-- `catalogue-service.js` expose une résolution exacte `byCode()` depuis `catalogue-data.js` ;
-- tubes PER/multicouche, raccords, platines, PVC DN40/DN100 et robinets d’arrêt utilisent le prix réel du catalogue embarqué au moment du calcul ;
-- une référence technique absente, incompatible ou sans prix exploitable génère un blocage explicite ;
-- les fallbacks PER/multicouche ont été supprimés ;
-- seul le fallback cuivre validé à **8 €/ml** est conservé.
+Les overrides artisan restent prioritaires.
 
-## Règles métier conservées
+### Lave-main
 
-- la main-d’œuvre sanitaire comprend pose appareil + raccordements locaux + platines + bonde/siphon + petite évacuation locale ;
-- le réseau général EF/EC/évacuation reste séparé ;
-- aucun temps forfaitaire arbitraire de platine n’est ajouté ;
-- WC local = DN100, autres sanitaires locaux = DN40 ;
-- un réseau général/spécifique ne reçoit jamais un diamètre inventé ;
-- ordre de priorité des références : **sélection sanitaire > habitude entreprise > défaut SpeedArti** ;
-- une référence Téréva exacte conserve son prix exact ;
-- complexité uniquement sur la main-d’œuvre ;
-- aléas uniquement sur la main-d’œuvre HT ;
-- aucun composant déjà compris dans un produit principal n’est doublé.
+Le lave-main passe en **EF + EC par défaut**.
+- 1 point EF ;
+- 1 point EC ;
+- 1 platine EF+EC ;
+- évacuation locale DN40 inchangée.
+
+L’ancien choix « EF seul / eau chaude prévue » est supprimé.
+
+### Robinetterie rapide
+
+Choix rapide **Oui / Non** ajouté ou harmonisé sur :
+- lavabo / vasque ;
+- meuble vasque ;
+- lave-main.
+
+Priorité :
+1. choix chantier ;
+2. habitude entreprise ;
+3. aucun défaut arbitraire si aucune référence fiable n’existe.
+
+Pour un meuble double vasque, la quantité automatique reste 2 robinets.
+
+### Composants automatiques visibles
+
+Les composants automatiques déjà calculés (siphons, bondes, vidages, fixations validées) sont maintenant affichés dans un résumé visible immédiatement dans la configuration : l’artisan voit ce qui est déjà inclus au chiffrage sans devoir ouvrir la composition détaillée.
+
+Exemples conservés :
+- lavabo / meuble vasque : siphon `1054371`, bonde `2864095` ;
+- lave-main : siphon logique lavabo + bonde `997361L` ;
+- évier simple : bonde `4272991`, siphon `1066748` ;
+- évier double : bonde `4273023`, siphon `1066748`.
+
+### Habitudes artisan étendues
+
+Les habitudes entreprise ne sont plus limitées aux composants automatiques principaux.
+Après sélection réelle dans Téréva, un accessoire configurable peut être mémorisé comme habitude :
+- flexible ;
+- fixation ;
+- collier ;
+- joint ;
+- autre composant configurable présent dans la nomenclature.
+
+Aucune référence n’est inventée : l’habitude provient toujours d’une sélection catalogue réelle.
+
+### Catalogue visuel
+
+L’étape 3 affiche maintenant un accès catalogue par familles avec pictogrammes :
+WC, douche, baignoire, lavabo/vasque, meuble vasque, lave-main, évier, robinetterie, siphons, bondes/vidages, platines et raccords.
+
+### Préparation multi-fournisseurs
+
+- Téréva reste le seul catalogue actif et chiffrable.
+- CCL et un fournisseur générique sont présents uniquement comme connecteurs **inactifs**, sans prix ni références inventés.
+- chaque sélection catalogue transporte désormais son identifiant fournisseur ;
+- le payload approvisionnement passe en `PLB-APPRO-V2` avec le fournisseur par ligne.
+
+### Correctifs UI étape 3
+
+Renforcement responsive :
+- protection anti-débordement des grilles ;
+- cartes et champs avec largeur bornée ;
+- passage du layout configuration + panier en empilé sous 1180 px ;
+- composants automatiques et catalogue adaptés tablette/mobile ;
+- réduction des risques de chevauchement signalés par Guillaume.
+
+## Validation logique
+
+**634 / 634 assertions réussies** sur le code réellement poussé sur `main`.
+
+Ángel Plombier : **v1.7**.
+
+Un nouveau contrôle navigateur humain reste requis pour valider visuellement la disparition des chevauchements et la fluidité du nouveau catalogue.
