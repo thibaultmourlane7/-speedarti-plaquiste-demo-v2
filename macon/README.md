@@ -295,3 +295,14 @@ Le dépôt réel SpeedArti n’a pas été modifié.
 - interface estampillée **v2.6.3**.
 
 Cette correction ne remplace pas l’audit complet du catalogue Maçon, prévu séparément après S6.3.
+
+
+## S6.4 — navigation et référentiels internes
+
+- la démo démarre toujours à **l’étape 1** : l’étape courante n’est plus sauvegardée dans le navigateur ;
+- les étapes déjà parcourues sont directement accessibles pour revenir en arrière ;
+- les consommations par m², temps unitaires et dosages internes sont des **données SpeedArti** et ne sont plus affichés comme réglages artisan ;
+- murs parpaing : les référentiels internes continuent d’alimenter automatiquement blocs, main-d’œuvre, ciment et sable ;
+- soubassements et refends : les valeurs internes SpeedArti sont appliquées automatiquement lorsque aucun ancien override n’est présent ;
+- Angèle Maçon : **MAC-ANGEL-KB-v1.4** ;
+- interface : **v2.6.4**.
