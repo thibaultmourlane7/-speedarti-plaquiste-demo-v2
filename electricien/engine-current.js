@@ -2,7 +2,7 @@
  * SpeedArti — Démo Électricien
  * Base: module Electricien existant SpeedArti.
  * Corrections: réponses Guillaume + annexes du questionnaire.
- * Mise à jour V5 : ajout du catalogue appareillage multi-gammes 2026 avec sélection indépendante par famille.
+ * Mise à jour V6.1 : fiabilisation globale des prix, protections, rénovation et équipements fabricant. Contrôles d’audit internes non affichés.
  * Les quantités métier Guillaume restent inchangées ; seule la référence/prix d'appareillage sélectionnée pilote le matériel.
  */
 (function(){
@@ -108,9 +108,13 @@
     coffret_communication_g2: {price:79.17, unit:"u", source:"Prix moyen Internet 2026 — même référence Schneider chez 3 fournisseurs"},
     prise_electrique:         {price:8.50, unit:"u"},
     disjoncteur:              {price:12.00, unit:"u"},
-    disjoncteur_10a:          {price:10.00, unit:"u"},
-    disjoncteur_20a:          {price:14.00, unit:"u"},
-    disjoncteur_32a:          {price:18.00, unit:"u"},
+    disjoncteur_2a:           {price:14.52, unit:"u", source:"Prix moyen Schneider/Hager/Legrand 2026"},
+    disjoncteur_10a:          {price:7.60, unit:"u", source:"Prix moyen Schneider/Hager/Legrand 2026"},
+    disjoncteur_16a:          {price:7.45, unit:"u", source:"Prix moyen Schneider/Hager/Legrand 2026"},
+    disjoncteur_20a:          {price:8.15, unit:"u", source:"Prix moyen Schneider/Hager/Legrand 2026"},
+    disjoncteur_25a:          {price:14.80, unit:"u", source:"Prix moyen Schneider/Hager/Legrand 2026"},
+    disjoncteur_32a:          {price:10.50, unit:"u", source:"Prix moyen Schneider/Hager/Legrand 2026"},
+    contacteur_jn:            {price:54.39, unit:"u", source:"Prix moyen Schneider/Hager/Legrand 2026"},
     tableau_electrique:       {price:120.00, unit:"u"},
     interrupteur:             {price:7.00, unit:"u"},
     spot_led:                 {price:15.00, unit:"u"},
@@ -233,15 +237,9 @@
   function effectivePoints(state){
     const a=computeAutoPoints(state), o=state.pointOverrides||{};
     const val=(key,auto)=> o[key]===null || o[key]===undefined || o[key]==="" ? auto : n(o[key]);
-    return {
-      ...a,
-      generalSockets:val("generalSockets",a.generalSockets),
-      kitchenSockets:val("kitchenSockets",a.kitchenSockets),
-      lightPoints:val("lightPoints",a.lightPoints),
-      switches:val("switches",a.switches),
-      rj45:val("rj45",a.rj45),
-      tv:val("tv",a.tv)
-    };
+    const out={...a,generalSockets:val("generalSockets",a.generalSockets),kitchenSockets:val("kitchenSockets",a.kitchenSockets),lightPoints:val("lightPoints",a.lightPoints),switches:val("switches",a.switches),rj45:val("rj45",a.rj45),tv:val("tv",a.tv)};
+    out.communicationCabinet=(out.rj45+out.tv)>0 ? 1 : 0;
+    return out;
   }
 
   function buildCircuits(state, points, alerts, blockers){
@@ -315,7 +313,8 @@
       }
       circuits.push({
         name:label,type:"manual",section:n(m.section),breaker:n(m.breaker),
-        diff:m.diff||diffDefault||"Selon fabricant", supply:m.supply||"mono", points:1, manual:true
+        diff:m.diff||diffDefault||"Selon fabricant", supply:m.supply||"mono", points:1, manual:true,
+        equipmentPrice:n(m.materialPrice), equipmentLabel:m.materialLabel||label
       });
     }
     manualCircuit(c.pac,"pacManual","PAC","F selon configuration");
@@ -387,10 +386,16 @@
     const specialized=circuits.filter(ci=>!["prises","cuisine","eclairage","vmc"].includes(ci.type) && ci.name!=="Volets roulants");
     specialized.forEach(ci=>{
       const route=profile.special;
-      if(ci.section===1.5 || ci.section===2.5){
+      if(ci.supply==="3P"){
+        materials.push(catalogueMaterial(null,"Câblage",`Câble triphasé circuit ${ci.name} — ${ci.section} mm²`,Math.ceil(route),"ml","Nombre de conducteurs et référence à confirmer selon appareil / fabricant."));
+        blockers.push(`${ci.name} triphasé : câble exact à confirmer selon fabricant.`);
+      }else if(ci.section===1.5 || ci.section===2.5){
         addH07(ci.section, route, ci.name, "gaine_icta_32");
       }else{
-        addCable(`Câble circuit ${ci.name} — ${ci.section} mm²`, route, ci.section, ci.supply==="3P" ? "Nombre de conducteurs selon appareil / fabricant" : `Ratio circuit spécialisé ${profile.label}`);
+        addCable(`Câble circuit ${ci.name} — ${ci.section} mm²`, route, ci.section, `Ratio circuit spécialisé ${profile.label}`);
+      }
+      if(ci.manual && ci.equipmentPrice>0){
+        materials.push({articleId:`manual-equipment:${ci.name}`,category:"Équipement fabricant",name:ci.equipmentLabel||ci.name,qty:1,unit:"u",price:ci.equipmentPrice,total:ci.equipmentPrice,source:"Prix saisi par l'artisan",note:"Équipement fabricant / modèle à conserver dans le devis."});
       }
     });
 
@@ -428,13 +433,20 @@
     if(n(c.volets)>0){ const m=configuredMaterial(state,"volet","Appareillage","Commandes volets roulants",n(c.volets),"interrupteur",alerts); if(m) materials.push(m); }
     if(c.vmcType && c.vmcType!=="none"){ const m=configuredMaterial(state,"vmc","Appareillage","Commande VMC",1,"interrupteur",alerts); if(m) materials.push(m); }
     if(n(c.exteriorSockets)>0){ const m=configuredMaterial(state,"priseExtSimple","Appareillage extérieur","Prises extérieures IP55",n(c.exteriorSockets),"prise_electrique",alerts); if(m) materials.push(m); }
+    if(n(c.exteriorLights)>0 && c.exteriorCommand!=="aucune"){ const m=configuredMaterial(state,"interExt","Appareillage extérieur","Commande éclairage extérieur IP55",1,"interrupteur",alerts,c.exteriorCommand==="va_et_vient"?"Va-et-vient":"Simple allumage avec voyant"); if(m) materials.push(m); }
+    if(n(c.exteriorLights)>0 && n(c.exteriorLightMaterialPrice)>0){ materials.push({articleId:"manual:luminaire-exterieur",category:"Éclairage extérieur",name:c.exteriorLightMaterialLabel||(c.exteriorLightType==="spot"?"Spot extérieur":"Applique extérieure"),qty:n(c.exteriorLights),unit:"u",price:n(c.exteriorLightMaterialPrice),total:Math.round(n(c.exteriorLights)*n(c.exteriorLightMaterialPrice)*100)/100,source:"Prix saisi par l'artisan",note:"Luminaire extérieur"}); }
 
-    // Protections divisionnaires : prix par calibre repris de PRIX_MARCHE_DEFAUT ;
-    // pour les calibres sans clé dédiée (2A, 16A, 25A...), la clé générique disjoncteur à 12 € est celle de la base SpeedArti.
+    // Protections divisionnaires : prix par calibre lorsqu'une référence moyenne 2026 existe.
     circuits.forEach(ci=>{
-      const articleId=ci.breaker===10?"disjoncteur_10a":ci.breaker===20?"disjoncteur_20a":ci.breaker===32?"disjoncteur_32a":"disjoncteur";
-      materials.push(catalogueMaterial(articleId,"Protection",`Disjoncteur ${ci.breaker}A — ${ci.name}`,1,"u",`Différentiel ${ci.diff}`));
+      if(ci.supply==="3P"){
+        materials.push(catalogueMaterial(null,"Protection",`Disjoncteur tétrapolaire ${ci.breaker}A — ${ci.name}`,1,"u",`Différentiel ${ci.diff} — référence exacte selon marque`));
+        blockers.push(`${ci.name} triphasé : disjoncteur tétrapolaire exact à sélectionner.`);
+        return;
+      }
+      const map={2:"disjoncteur_2a",10:"disjoncteur_10a",16:"disjoncteur_16a",20:"disjoncteur_20a",25:"disjoncteur_25a",32:"disjoncteur_32a"};
+      materials.push(catalogueMaterial(map[ci.breaker]||"disjoncteur","Protection",`Disjoncteur ${ci.breaker}A — ${ci.name}`,1,"u",`Différentiel ${ci.diff}`));
     });
+    if(c.chauffeEau) materials.push(catalogueMaterial("contacteur_jn","Protection","Contacteur jour/nuit chauffe-eau",1,"u"));
 
     // Tableau complet : en neuf, ou en rénovation si remplacement complet demandé.
     const fullTable = (state.installation.type||"neuf")==="neuf" || state.tableau.replaceExisting;
@@ -442,8 +454,10 @@
       materials.push(catalogueMaterial("tableau_electrique","Tableau électrique",`Tableau ${tableau.rows} rangée(s)`,1,"u",`Marque : ${tableau.brand}`));
       if(tableau.diffA>0) materials.push(catalogueMaterial("differentiel_30ma_type_a","Protection","Interrupteur différentiel 30mA Type A",tableau.diffA,"u"));
       if(tableau.diffAC>0) materials.push(catalogueMaterial("differentiel_30ma_type_ac","Protection","Interrupteur différentiel 30mA Type AC",tableau.diffAC,"u"));
+      if(tableau.diffF>0){ materials.push(catalogueMaterial(null,"Protection","Interrupteur différentiel 30mA Type F",tableau.diffF,"u","Référence/calibre à sélectionner selon marque et équipement.")); blockers.push("Différentiel Type F requis : sélectionner la référence et le calibre selon l’équipement."); }
     }else if(state.installation.type==="renovation" && state.tableau.partialExisting){
-      alerts.push("Modification partielle du tableau : seuls les matériels réellement générés sont chiffrés ; aucun tableau complet n'est ajouté.");
+      alerts.push("Modification partielle du tableau : aucun tableau complet n'est ajouté.");
+      if(state.tableau.newMaterialPartial && n(state.tableau.partialMaterialPrice)>0){ materials.push({articleId:"manual:tableau-partiel",category:"Tableau électrique",name:state.tableau.partialMaterialNote||"Matériel neuf pour modification partielle du tableau",qty:1,unit:"forfait",price:n(state.tableau.partialMaterialPrice),total:n(state.tableau.partialMaterialPrice),source:"Prix saisi par l'artisan",note:"Modification partielle"}); }
     }
 
     if(state.tableau.ground){
@@ -455,14 +469,16 @@
   }
 
   function computeTableau(state,circuits){
-    const aCount=circuits.filter(c=>String(c.diff).startsWith("A") || c.diff==="A").length;
-    const others=Math.max(0,circuits.length-aCount);
-    // Conservé de la logique actuelle : groupes de 8 circuits.
-    const diffA=aCount ? Math.max(1,ceilDiv(aCount,8)) : 0;
-    const diffAC=others ? Math.max(1,ceilDiv(others,8)) : 0;
-    const autoRows=Math.max(1,ceilDiv(circuits.length,13)); // continuité de la logique actuelle 13 modules/rangée
+    const isF=c=>/\bF\b|type\s*f|fsi/i.test(String(c.diff||""));
+    const isA=c=>!isF(c) && (/type\s*a/i.test(String(c.diff||"")) || String(c.diff||"").trim()==="A");
+    const fCount=circuits.filter(isF).length, aCount=circuits.filter(isA).length;
+    const acCount=Math.max(0,circuits.length-aCount-fCount);
+    const diffA=aCount?Math.max(1,ceilDiv(aCount,8)):0;
+    const diffF=fCount?Math.max(1,ceilDiv(fCount,8)):0;
+    const diffAC=acCount?Math.max(1,ceilDiv(acCount,8)):0;
+    const autoRows=Math.max(1,ceilDiv(circuits.length,13));
     const rows=n(state.tableau.rows)||autoRows;
-    return {circuits:circuits.length,diffA,diffAC,rows,brand:state.tableau.brand||"indifferent"};
+    return {circuits:circuits.length,diffA,diffAC,diffF,rows,autoRows,brand:state.tableau.brand||"indifferent"};
   }
 
   function computeLabor(state,points,circuits,alerts,blockers){
@@ -496,10 +512,9 @@
     const specialized=circuits.filter(c=>!["prises","cuisine","eclairage","vmc"].includes(c.type)).length;
     add("Raccordement circuits spécialisés",specialized*1);
 
-    const tableTime=tableauHoursFor(circuits.length,state.installation.phase,blockers);
-    if(tableTime){
-      add(`Pose / raccordement tableau — palier ${tableTime.bracket} circuits`,tableTime.hours);
-    }
+    const fullTableLabor=installType==="neuf" || state.tableau.replaceExisting;
+    if(fullTableLabor){ const tableTime=tableauHoursFor(circuits.length,state.installation.phase,blockers); if(tableTime) add(`Pose / raccordement tableau — palier ${tableTime.bracket} circuits`,tableTime.hours); }
+    else if(installType==="renovation" && state.tableau.partialExisting) add("Modification partielle du tableau — temps artisan",n(state.tableau.partialHours));
     if(state.tableau.ground) add("Mise à la terre",2);
     add("Tests / mise en service",1.5);
 
@@ -567,6 +582,38 @@
     if(currentTv && currentTv<points.tv) alerts.push(`Rénovation : prises TV finales (${currentTv}) sous le besoin AUTO (${points.tv}).`);
   }
 
+
+  // Contrôles internes de test V6.1. Ces codes ne sont jamais rendus dans l'interface artisan.
+  function audit(state){
+    const markers=[]; const add=(level,code,message)=>markers.push({level,code,message});
+    const points=effectivePoints(state), c=state.circuits||{}, t=state.tableau||{}, r=state.renovation||{};
+    if(n(state.installation?.surface)<=0) add("block","ELEC_SURFACE","Surface habitable invalide.");
+    if(n(state.installation?.levels)<1) add("block","ELEC_LEVELS","Nombre de niveaux invalide.");
+    const roomCount=Object.entries(state.rooms||{}).filter(([k])=>!["sejourSurface","cuisineSurface"].includes(k)).reduce((s,[,v])=>s+n(v),0);
+    if(roomCount===0) add("block","ELEC_ROOMS","Aucune pièce renseignée.");
+    if(n(state.rooms?.sejour)>0 && n(state.rooms?.sejourSurface)<=0) add("block","ELEC_SEJOUR_SURFACE","Surface séjour manquante.");
+    if(n(state.rooms?.cuisine)>0 && n(state.rooms?.cuisineSurface)<=0) add("block","ELEC_CUISINE_SURFACE","Surface cuisine manquante.");
+    const sd=CS&&CS.socketDistribution?CS.socketDistribution(state,points.generalSockets+points.kitchenSockets):{valid:true};
+    if(!sd.valid) add("block","ELEC_SOCKET_DIST","Répartition prises invalide.");
+    if(state.installation?.type==="renovation"){
+      if(t.replaceExisting&&t.partialExisting) add("block","ELEC_PANEL_CONFLICT","Deux actions tableau incompatibles.");
+      if(r.tableauAncien&&!t.replaceExisting&&!t.partialExisting) add("warn","ELEC_OLD_PANEL","Tableau ancien sans action.");
+      if(r.pasDeTerre&&!t.ground) add("warn","ELEC_GROUND","Absence de terre sans création.");
+      if(r.cablesAlu) add("warn","ELEC_ALU","Conducteurs aluminium à contrôler.");
+      if(t.partialExisting&&n(t.partialHours)<=0) add("block","ELEC_PARTIAL_HOURS","Temps tableau partiel manquant.");
+      if(t.partialExisting&&t.newMaterialPartial&&n(t.partialMaterialPrice)<=0) add("block","ELEC_PARTIAL_PRICE","Prix matériel tableau partiel manquant.");
+    }
+    if(t.differentielTete) add("warn","ELEC_HEAD_DIFF","Différentiel de tête à préciser.");
+    if(n(t.rows)>0){ const autoRows=Math.max(1,ceilDiv(buildCircuits(state,points,[],[]).length,13)); if(n(t.rows)<autoRows)add("block","ELEC_ROWS","Rangées insuffisantes."); }
+    if(n(state.pricing?.hourlyRate)<=0) add("block","ELEC_RATE","Taux horaire invalide.");
+    const wet=n(state.rooms?.cuisine)+n(state.rooms?.wc)+n(state.rooms?.wcHand)+n(state.rooms?.sdb)+n(state.rooms?.sde)+n(state.rooms?.cellier)+n(state.rooms?.buanderie);
+    if(wet>0&&(!c.vmcType||c.vmcType==="none")) add("warn","ELEC_VMC","Pièces humides sans VMC.");
+    if((n(c.vmcExtraMouths)>0||c.vmcRoof)&&(!c.vmcType||c.vmcType==="none")) add("block","ELEC_VMC_ORPHAN","Options VMC sans VMC.");
+    for(const [flag,key,label] of [["pac","pacManual","PAC"],["clim","climManual","Climatisation"],["gainable","gainableManual","Gainable"],["tone","toneManual","T.One"],["irve","irveManual","IRVE"],["pv","pvManual","Photovoltaïque"]]) if(c[flag]){ const m=c[key]||{}; if(!n(m.section)||!n(m.breaker))add("block","ELEC_MANUAL_"+flag.toUpperCase(),label+" : section/protection manquante."); if(n(m.materialPrice)<=0)add("warn","ELEC_PRICE_"+flag.toUpperCase(),label+" : prix matériel manquant."); }
+    if(state.installation?.phase==="triphase") add("info","ELEC_TRI","Triphasé : équilibrage phases à contrôler.");
+    return markers;
+  }
+
   function calculate(state){
     const alerts=[], blockers=[];
     const points=effectivePoints(state);
@@ -591,6 +638,6 @@
   }
 
   window.ElectricienEngine={
-    ROOM_PROFILES,HEATING,SOMFY,FIXED,LENGTH_RATIOS,DIFFICULTY,TABLEAU_HOURS,CONTROL_FIXED_PRICE,CATALOGUE_PRICES,lengthProfileForSurface,computeAutoPoints,effectivePoints,calculate
+    ROOM_PROFILES,HEATING,SOMFY,FIXED,LENGTH_RATIOS,DIFFICULTY,TABLEAU_HOURS,CONTROL_FIXED_PRICE,CATALOGUE_PRICES,lengthProfileForSurface,computeAutoPoints,effectivePoints,audit,calculate
   };
 })();
