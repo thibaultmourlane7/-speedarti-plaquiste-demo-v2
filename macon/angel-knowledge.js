@@ -267,8 +267,13 @@ export const ANGEL_MACON_ENTRIES=[
 
 const ANGEL_STOP_WORDS=new Set(['le','la','les','un','une','des','du','de','d','a','au','aux','et','ou','pour','par','avec','sans','dans','sur','sous','quel','quelle','quels','quelles','combien','faire','fait','est','sont','mon','ma','mes','ton','ta','tes','son','sa','ses']);
 function angelTokens(q){return norm(q).split(/\s+/).filter(t=>t.length>=3&&!ANGEL_STOP_WORDS.has(t)&&!/^\d+$/.test(t))}
+function angelOutOfDomain(q){
+  const s=norm(q);
+  return /barbecue|barbeque|four a pizza|four pizza|mortier refractaire|cheminee decorative exterieure/.test(s);
+}
 function structuralSizingQuery(q){q=norm(q);return /dimension|dimensionnement|ferraillage|section|portee|profondeur|diametre|charge|charges|epaisseur minimale|quelle armature|quel acier/.test(q)&&/fondation|semelle|radier|poutre|poteau|mur porteur|soutenement|dalle|plancher|chainage|micro pieu|micropieu/.test(q)}
 export function searchAngelMacon(query,limit=5){
+ if(angelOutOfDomain(query))return [];
  const tokens=angelTokens(query);if(!tokens.length)return [];const q=norm(query),min=tokens.length===1?1:Math.ceil(tokens.length*.5);
  return ANGEL_MACON_ENTRIES.map(e=>{const title=norm(e.title),tags=(e.tags||[]).map(norm),hay=norm([e.id,e.sourceId,e.topic,e.title,e.answer,...(e.tags||[])].join(' '));let score=0,matched=0;if(q.length>=4&&hay.includes(q))score+=10;for(const t of tokens){let hit=false;if(hay.includes(t)){score++;hit=true}if(title.includes(t)){score+=3;hit=true}if(tags.some(x=>x.includes(t))){score+=3;hit=true}if(norm(e.id).includes(t)||norm(e.sourceId).includes(t)){score+=2;hit=true}if(hit)matched++}return{...e,score,matched}}).filter(e=>e.matched>=min&&e.score>=5).sort((a,b)=>b.score-a.score||b.matched-a.matched||a.id.localeCompare(b.id)).slice(0,Math.max(1,Math.min(10,Number(limit)||5)));
 }
