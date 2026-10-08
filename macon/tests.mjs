@@ -8,7 +8,7 @@ import {
   calculate, validateStep, assertBalisage,
   WORKS, WORK_BY_ID, FIBRES, PREFAB_H_PER_ML, TRUCK_8X4_DEFAULT, TRACE_TARGETS,
   TREILLIS_GUILLAUME, PUMP_DEFAULT_PRICE, TOUPIE_PRICE_M3, TOUPIE_MIN_BILLABLE_M3, TOUPIE_CAPACITY_M3,
-  PREFAB_DEFAULT_PRICE_M2, LONGRINE_PRICE_ML, micropileSuggestedPrice, estimatedVerticalChainage, toupieEstimatedCount, DEMO_SPEEDARTI_CONTEXT, detectVatContext, effectiveVatRate, projectSummary, resultCostBreakdown, MASONRY_DEFAULTS, masonryRatio, roundMoney
+  PREFAB_DEFAULT_PRICE_M2, LONGRINE_PRICE_ML, micropileSuggestedPrice, estimatedVerticalChainage, toupieEstimatedCount, DEMO_SPEEDARTI_CONTEXT, detectVatContext, effectiveVatRate, projectSummary, resultCostBreakdown, MASONRY_DEFAULTS, MORTAR_SITE_PARPAING_20, masonryRatio, roundMoney
 } from './core.js';
 import { SpeedArtiAngelMaconKnowledge, searchAngelMacon, answerAngelMacon, buildAngelMaconContext } from './angel-knowledge.js';
 import { SPEEDARTI_MACON_INTEGRATION_VERSION, SPEEDARTI_MACON_CONNECTORS, buildSpeedArtiMaconPayload, getIntegrationReadiness } from './speedarti-integration.js';
@@ -528,7 +528,7 @@ test('v2.5: Murs / Cloisons qualifie mur ou cloison non porteuse',()=>{
 
 test('Angèle Maçon: base chargée et 40 ouvrages synchronisés',()=>{
   assert.equal(SpeedArtiAngelMaconKnowledge.metier,'macon');
-  assert.equal(SpeedArtiAngelMaconKnowledge.version,'MAC-ANGEL-KB-v1.2');
+  assert.equal(SpeedArtiAngelMaconKnowledge.version,'MAC-ANGEL-KB-v1.3');
   assert.equal(SpeedArtiAngelMaconKnowledge.entries.filter(e=>e.topic==='ouvrage').length,WORKS.length);
 });
 
@@ -812,6 +812,52 @@ test('S6.1 simple mur affiche la classe béton quand un ouvrage BA la nécessite
 test('S6.1 Angèle connaît les nouvelles règles',()=>{
   assert.equal(SpeedArtiAngelMaconKnowledge.version,'MAC-ANGEL-KB-v1.2');
   for(const q of ['ratio parpaing','classe béton chaînage mur','quantité souche chapeau','arrondi TTC TVA'])assert.ok(searchAngelMacon(q,5).length>0,q);
+});
+
+
+test('S6.3 linteau vendu à la pièce : 1 pièce et non kg × prix pièce',()=>{
+  const line={id:'x-linteau-acier',name:'Acier indicatif — Linteau BA courant',category:'Ferraillage',qty:4.8,unit:'kg',catalogNeedQty:1.2,catalogNeedUnit:'ml',catalogRole:'linteau'};
+  const r=resolveCatalogueProduct(line,'1880758');
+  assert.ok(r.compatible);assert.equal(r.orderQty,1);assert.equal(r.orderUnit,'pièce');assert.equal(r.total,54);assert.equal(r.product.prixArtisanHt,54);
+});
+
+test('S6.3 linteau supérieur à 6 m commande plusieurs pièces',()=>{
+  const line={id:'x-linteau-acier',name:'Acier indicatif — Linteau BA courant',category:'Ferraillage',qty:28.8,unit:'kg',catalogNeedQty:7.2,catalogNeedUnit:'ml',catalogRole:'linteau'};
+  const r=resolveCatalogueProduct(line,'1880758');
+  assert.ok(r.compatible);assert.equal(r.orderQty,2);assert.equal(r.total,108);
+});
+
+test('S6.3 mortier traditionnel parpaing 20 = ciment + sable, aucun mortier prêt',()=>{
+  const s=base();s.mode='multiple';const e=newElement('murs_elevations');
+  Object.assign(e.data,{length:10,height:2.5,thickness:20,material:'parpaing',method:'tradi',concreteClass:'C25/30'});s.elements=[e];
+  const r=calculate(s);
+  const cement=r.lines.find(x=>x.id===e.id+'-mortar-cement');
+  const sand=r.lines.find(x=>x.id===e.id+'-mortar-sand');
+  assert.ok(cement);assert.ok(sand);
+  assert.equal(cement.qty,25*MORTAR_SITE_PARPAING_20.cementKgPerM2);
+  assert.equal(sand.qty,25*MORTAR_SITE_PARPAING_20.sandM3PerM2);
+  assert.ok(!r.lines.some(x=>/Mortier traditionnel/i.test(x.name)));
+});
+
+test('S6.3 ciment catalogue est conditionné en sacs et sable en big-bag/volume',()=>{
+  const s=base();s.mode='multiple';const e=newElement('murs_elevations');
+  Object.assign(e.data,{length:10,height:2.5,thickness:20,material:'parpaing',method:'tradi',concreteClass:'C25/30'});s.elements=[e];
+  const r=calculate(s),cement=r.lines.find(x=>x.id===e.id+'-mortar-cement'),sand=r.lines.find(x=>x.id===e.id+'-mortar-sand');
+  assert.ok(cement.catalogueResolution?.compatible);assert.ok(cement.catalogueResolution.orderQty>=1);
+  assert.ok(sand.catalogueResolution?.compatible);assert.ok(sand.catalogueResolution.orderQty>=1);
+});
+
+test('S6.3 résultat affiche prix par unité de vente réelle du catalogue',()=>{
+  const s=base();s.mode='multiple';const e=newElement('murs_elevations');
+  Object.assign(e.data,{length:10,height:2.5,thickness:20,material:'parpaing',method:'tradi',concreteClass:'C25/30',openings:[{type:'linteau_ba_courant',width:1.2,height:1,lintelLength:1.2}]});s.elements=[e];
+  const html=renderResult(s);
+  assert.match(html,/Commande : 1 pièce\(s\)/);assert.match(html,/54,00/);
+});
+
+test('S6.3 Angèle connaît mortier chantier et conditionnement fournisseur',()=>{
+  assert.equal(SpeedArtiAngelMaconKnowledge.version,'MAC-ANGEL-KB-v1.3');
+  assert.ok(searchAngelMacon('ciment sable mortier chantier parpaing',5).length>0);
+  assert.ok(searchAngelMacon('armature linteau vendue à la pièce',5).length>0);
 });
 
 console.log(`OK — V2.6 Maçon: ${pass.length} contrôles fonctionnels passés`);

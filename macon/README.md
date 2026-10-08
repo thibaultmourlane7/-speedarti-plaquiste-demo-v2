@@ -281,3 +281,17 @@ Contrôles après correction :
 - 0 contrôle sans liaison.
 
 Le dépôt réel SpeedArti n’a pas été modifié.
+
+
+## S6.3 — catalogue mur : conditionnements et mortier chantier
+
+- armatures : séparation entre **besoin métier** (ex. kg Guillaume) et **conditionnement fournisseur** (pièce, barre, panneau) ;
+- linteau catalogue réf. 1880758 : prix corrigé sur la seule référence vérifiée à **54,00 € HT / pièce de 6 m** (64,80 € TTC public vérifié le 08/10/2026) ;
+- une armature vendue à la pièce est facturée par **nombre de pièces réellement commandées**, jamais par kg × prix pièce ;
+- prix manuel : lorsqu’un article catalogue est conditionné, le prix saisi suit l’unité de vente réelle du produit ;
+- mur parpaing 20 cm traditionnel : suppression du mortier prêt à l’emploi ; décomposition automatique en **ciment + sable 0/4** ;
+- proposition de chiffrage : **10,4 kg ciment/m² + 0,0322 m³ sable 0/4/m²**, modifiable ; dosage ciment ≈ **323 kg/m³ de sable**, dans la plage DTU 20.1 **300–350 kg/m³** ;
+- Angèle Maçon mise à jour en **MAC-ANGEL-KB-v1.3** ;
+- interface estampillée **v2.6.3**.
+
+Cette correction ne remplace pas l’audit complet du catalogue Maçon, prévu séparément après S6.3.

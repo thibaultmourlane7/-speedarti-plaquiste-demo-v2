@@ -1,7 +1,7 @@
 import {
   STRUCTURE_WARNING, FIBRE_WARNING, PREFAB_TEAM_ADVICE, PREFAB_H_PER_ML,
   TRUCK_8X4_DEFAULT, FIBRES, CHIMNEY_CONDUITS, CHIMNEY_STACKS, CHIMNEY_CAPS,
-  CONCRETE_CLASSES, MASONRY_DEFAULTS, TREILLIS_GUILLAUME, MICROPILE_PRICE_BY_DEPTH, LONGRINE_PRICE_ML,
+  CONCRETE_CLASSES, MASONRY_DEFAULTS, MORTAR_SITE_PARPAING_20, TREILLIS_GUILLAUME, MICROPILE_PRICE_BY_DEPTH, LONGRINE_PRICE_ML,
   PREFAB_DEFAULT_PRICE_M2, PUMP_DEFAULT_PRICE, TOUPIE_PRICE_M3, TOUPIE_MIN_BILLABLE_M3, TOUPIE_CAPACITY_M3,
   WORKS, WORK_BY_ID
 } from './references.js';
@@ -165,6 +165,30 @@ export function masonryRatio(container,key){
   return num(masonryDefaultsFor(container?.material||'parpaing')?.[key]);
 }
 export const roundMoney = n => Math.round((Number(n||0)+Number.EPSILON)*100)/100;
+
+function mortarSiteDefaults(container){
+  const material=container?.material||'parpaing',method=container?.method||'tradi',thickness=num(container?.thickness||20);
+  return method==='tradi'&&material==='parpaing'&&Math.abs(thickness-20)<0.01?MORTAR_SITE_PARPAING_20:null;
+}
+function mortarSiteRatios(container){
+  const d=mortarSiteDefaults(container);
+  return {
+    cementKgPerM2:num(container?.cementKgM2)>0?num(container.cementKgM2):num(d?.cementKgPerM2),
+    sandM3PerM2:num(container?.sandM3M2)>0?num(container.sandM3M2):num(d?.sandM3PerM2),
+    automatic:!!d&&!(num(container?.cementKgM2)>0)&&!(num(container?.sandM3M2)>0)
+  };
+}
+function addSiteMortarLines(lines,container,net,prefix,reco){
+  if(!(net>0)||container?.method!=='tradi')return;
+  const r=mortarSiteRatios(container);
+  if(r.cementKgPerM2>0){
+    lines.push(line(`${prefix}-cement`,'Ciment — mortier fabriqué sur chantier','Ciments / chaux',net*r.cementKgPerM2,'kg',0,'required',{catalogRole:'mortar_cement'}));
+  }
+  if(r.sandM3PerM2>0){
+    lines.push(line(`${prefix}-sand`,'Sable 0/4 — mortier fabriqué sur chantier','Granulats',net*r.sandM3PerM2,'m³',0,'required',{catalogRole:'mortar_sand'}));
+  }
+  if(r.automatic)reco.push(`Mortier chantier parpaing 20 cm : ${fmt(r.cementKgPerM2,2)} kg ciment/m² + ${fmt(r.sandM3PerM2,4)} m³ sable 0/4/m² proposés automatiquement, modifiables. Dosage ciment ≈ ${MORTAR_SITE_PARPAING_20.cementDosageKgPerM3Sand} kg/m³ de sable, dans la plage DTU 20.1 ${MORTAR_SITE_PARPAING_20.dtuCementRangeKgPerM3Sand[0]}–${MORTAR_SITE_PARPAING_20.dtuCementRangeKgPerM3Sand[1]} kg/m³.`);
+}
 export const fmt = (n,d=2) => Number(n||0).toLocaleString('fr-FR',{minimumFractionDigits:d,maximumFractionDigits:d});
 export const money = n => `${fmt(n,2)} €`;
 export const esc = s => String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -315,7 +339,7 @@ export function renderSimpleConfig(state){
     </div>
     <details class="accordion" open><summary>⚙️ Réglages métier avancés</summary><div class="accordion-body"><div class="grid cols-3">
       ${field('Consommation blocs (u/m²)','blocksPerM2',masonryRatio(d,'blocksPerM2')||'',{required:true,step:'0.1',trace:'wallBlocksPerM2',help:masonryDefaultsFor(d.material||'parpaing')?'Proposition parpaing préremplie, modifiable.':'Valeur à renseigner pour ce matériau.'})}
-      ${field('Mortier / colle (kg/m²)','mortarKgM2',d.mortarKgM2??'',{step:'0.1',trace:'wallMortarKgM2'})}
+      ${d.method==='tradi'?`${field('Ciment mortier chantier (kg/m²)','cementKgM2',num(d.cementKgM2)>0?d.cementKgM2:(mortarSiteDefaults(d)?.cementKgPerM2??''),{step:'0.1',trace:'wallMortarKgM2',help:'Parpaing 20 cm : proposition automatique modifiable.'})}${field('Sable 0/4 mortier chantier (m³/m²)','sandM3M2',num(d.sandM3M2)>0?d.sandM3M2:(mortarSiteDefaults(d)?.sandM3PerM2??''),{step:'0.0001',trace:'wallMortarKgM2',help:'Parpaing 20 cm : proposition automatique modifiable.'})}`:field('Colle / mortier-colle (kg/m²)','mortarKgM2',d.mortarKgM2??'',{step:'0.1',trace:'wallMortarKgM2'})}
       ${field('Temps de pose (h-homme/m²)','wallHPerM2',masonryRatio(d,'wallHPerM2')||'',{required:true,step:'0.01',trace:'wallHoursPerM2',help:masonryDefaultsFor(d.material||'parpaing')?'Proposition parpaing préremplie, modifiable.':'Valeur à renseigner pour ce matériau.'})}
     </div><div class="info-box">Ces ratios restent nécessaires au calcul tant que le référentiel automatique correspondant n’est pas fourni au moteur.</div></div></details>${openingRowsSimple(d)}`;
 
@@ -537,7 +561,7 @@ function renderElevationElement(e){
   </div>`;
   if(d.material!=='beton_banche') h+=`<details class="accordion" open><summary>⚙️ Réglages métier avancés — maçonnerie</summary><div class="accordion-body"><div class="grid cols-3">
     ${ef(e,'Consommation blocs (u/m²)','blocksPerM2',masonryRatio(d,'blocksPerM2')||'',{required:true,step:'0.1',trace:'elevationBlocksPerM2',help:masonryDefaultsFor(d.material||'parpaing')?'Proposition parpaing préremplie, modifiable.':'Valeur à renseigner pour ce matériau.'})}
-    ${ef(e,'Mortier / colle (kg/m²)','mortarKgM2',d.mortarKgM2??'',{step:'0.1',trace:'elevationMortarKgM2'})}
+    ${d.method==='tradi'?`${ef(e,'Ciment mortier chantier (kg/m²)','cementKgM2',num(d.cementKgM2)>0?d.cementKgM2:(mortarSiteDefaults(d)?.cementKgPerM2??''),{step:'0.1',trace:'elevationMortarKgM2',help:'Parpaing 20 cm : proposition automatique modifiable.'})}${ef(e,'Sable 0/4 mortier chantier (m³/m²)','sandM3M2',num(d.sandM3M2)>0?d.sandM3M2:(mortarSiteDefaults(d)?.sandM3PerM2??''),{step:'0.0001',trace:'elevationMortarKgM2',help:'Parpaing 20 cm : proposition automatique modifiable.'})}`:ef(e,'Colle / mortier-colle (kg/m²)','mortarKgM2',d.mortarKgM2??'',{step:'0.1',trace:'elevationMortarKgM2'})}
     ${ef(e,'Temps pose (h-homme/m²)','wallHPerM2',masonryRatio(d,'wallHPerM2')||'',{required:true,step:'0.01',trace:'elevationHoursPerM2',help:masonryDefaultsFor(d.material||'parpaing')?'Proposition parpaing préremplie, modifiable.':'Valeur à renseigner pour ce matériau.'})}
   </div></div></details>`;
   else if(d.method==='prefabrique') h+=`<div class="info-box">Préfabriqué : prix Guillaume par m², modifiable. Pose incluse dans le prix commercial ; planning séparé.</div>`;
@@ -919,7 +943,8 @@ function calcWallSimple(state,lines,lab,alerts,reco){
     if(!(masonryRatio(d,'blocksPerM2')>0))alerts.push('🚨 Consommation blocs/m² obligatoire dans les réglages métier avancés.');
     if(!(masonryRatio(d,'wallHPerM2')>0))alerts.push('🚨 Temps de pose h-homme/m² obligatoire dans les réglages métier avancés.');
     if(net>0&&masonryRatio(d,'blocksPerM2')>0)lines.push(line(`simple-wall-block-${d.material||'parpaing'}-${T}`,`${d.material||'parpaing'} ${T} cm`,'Maçonnerie',net*masonryRatio(d,'blocksPerM2'),'unité'));
-    if(net>0&&num(d.mortarKgM2)>0)lines.push(line(`simple-wall-mortar-${d.method||'tradi'}`,d.method==='colle'?'Colle / mortier-colle':'Mortier traditionnel','Liants',net*num(d.mortarKgM2),'kg'));
+    if(d.method==='tradi')addSiteMortarLines(lines,d,net,'simple-wall-mortar',reco);
+    else if(net>0&&num(d.mortarKgM2)>0)lines.push(line('simple-wall-colle','Colle / mortier-colle','Liants',net*num(d.mortarKgM2),'kg'));
     if(masonryRatio(d,'wallHPerM2')>0)lab.push(labor('Maçonnerie murs',net*masonryRatio(d,'wallHPerM2')));
   }
   for(let i=0;i<(d.openings||[]).length;i++) addOpeningAssociated(lines,lab,d.openings[i],`simple-open-${i}`,d,cc,alerts);
@@ -1113,7 +1138,8 @@ function calcElevationWall(state,e,lines,lab,alerts,reco){
     }
   }else{
     if(!(masonryRatio(d,'blocksPerM2')>0))alerts.push(`🚨 ${e.name} : consommation blocs/m² obligatoire dans les réglages métier avancés.`);else lines.push(line(`${p}-blocks-${d.material}-${d.thickness}`,`${d.material} ${d.thickness||20} cm`,'Maçonnerie',net*masonryRatio(d,'blocksPerM2'),'unité'));
-    if(num(d.mortarKgM2)>0)lines.push(line(`${p}-mortar-${d.method}`,d.method==='colle'?'Colle / mortier-colle':'Mortier traditionnel','Liants',net*num(d.mortarKgM2),'kg'));
+    if(d.method==='tradi')addSiteMortarLines(lines,d,net,`${p}-mortar`,reco);
+    else if(num(d.mortarKgM2)>0)lines.push(line(`${p}-colle`,'Colle / mortier-colle','Liants',net*num(d.mortarKgM2),'kg'));
     if(!(masonryRatio(d,'wallHPerM2')>0))alerts.push(`🚨 ${e.name} : temps de pose h/m² obligatoire dans les réglages métier avancés.`);else lab.push(labor(e.name,net*masonryRatio(d,'wallHPerM2')));
   }
   openings.forEach((o,i)=>addOpeningAssociated(lines,lab,o,`${p}-open-${i}`,d,cc,alerts));
@@ -1237,6 +1263,10 @@ export function calculate(state){
       const storedRef=state.catalogSelections?.[l.id]||'';
       const auto=resolveAutomaticCataloguePrice(l,storedRef);
       if(manual>0){
+        if(auto.resolved?.compatible && auto.resolved.orderQty>0 && auto.resolved.orderUnit && auto.resolved.orderUnit!==l.unit){
+          const total=roundMoney(auto.resolved.orderQty*manual);
+          return {...l,price:total/Math.max(l.qty,1e-9),source:`prix personnel / ${auto.resolved.orderUnit}`,catalogueSelection:storedRef||auto.referenceCatalogue||null,catalogueResolution:auto.resolved,automaticCatalogue:false,manualOrderUnitPrice:manual,manualOrderTotal:total};
+        }
         return {...l,price:manual,source:'prix personnel',catalogueSelection:storedRef||auto.referenceCatalogue||null,catalogueResolution:auto.resolved,automaticCatalogue:false};
       }
       if(auto.resolved?.compatible){
@@ -1283,8 +1313,9 @@ export function renderPrices(state){
       const productTitle=resolved?.compatible?`${esc(resolved.product.marque)} — ${esc(resolved.product.produit)}`:(l.price>0?esc(l.source||'Prix de référence SpeedArti'):'Prix à confirmer');
       const productMeta=resolved?.compatible?`Réf. ${esc(resolved.product.referenceCatalogue)} · ${esc(resolved.orderLabel)}`:(fibre?'Référence fibre non choisie automatiquement : le dosage produit doit correspondre au dosage métier.':'Aucune référence catalogue fiable retenue automatiquement.');
       const selector=`<details class="catalog-details"><summary>Voir / modifier le produit</summary><div class="catalog-detail-body">${field('Article catalogue',`catalogSelections.${l.id}`,selectedRef,{scope:'root',trace:'catalogSelection',options}).replace('data-field=',`data-root-field=`)}<div class="tiny muted" style="margin-top:7px">${productMeta}</div></div></details>`;
-      const retained=l.price>0?money(l.price):'À confirmer';
-      const priceEditor=`<details class="catalog-details"><summary>Modifier le prix</summary><div class="catalog-detail-body">${field('Prix U. HT personnel / unité métier',`manualPrices.${l.id}`,currentManual,{scope:'root',step:'0.01',trace:'priceInput',help:'Facultatif : remplace le prix automatique ou permet de valoriser un poste à confirmer.'}).replace('data-field=',`data-root-field=`)}</div></details>`;
+      const saleUnit=resolved?.compatible?resolved.orderUnit:l.unit;
+      const retained=resolved?.compatible?(`${money(l.manualOrderUnitPrice||resolved.product.prixArtisanHt)} / ${esc(saleUnit)} · commande ${money(l.qty*l.price)} HT`):(l.price>0?money(l.price):'À confirmer');
+      const priceEditor=`<details class="catalog-details"><summary>Modifier le prix</summary><div class="catalog-detail-body">${field(`Prix HT personnel / ${saleUnit||l.unit}`,`manualPrices.${l.id}`,currentManual,{scope:'root',step:'0.01',trace:'priceInput',help:resolved?.compatible?'Le prix personnel suit l’unité de vente réelle du produit catalogue.':'Permet de valoriser manuellement le poste.'}).replace('data-field=',`data-root-field=`)}</div></details>`;
       return `<tr class="${l.price>0?'':'missing-price'}"><td><strong>${esc(l.name)}</strong><br><span class="muted">${esc(l.category)}</span></td><td>${fmt(l.qty,2)} ${esc(l.unit)}</td><td><strong>${productTitle}</strong><div class="tiny muted">${productMeta}</div>${selector}</td><td><strong>${retained}</strong><div class="tiny muted">${l.price>0?esc(l.source||''):'Le chiffrage continue sans bloquer.'}</div>${priceEditor}</td></tr>`;
     }
     return `<tr><td><strong>${esc(l.name)}</strong><br><span class="muted">${esc(l.category)}</span></td><td>${fmt(l.qty,2)} ${esc(l.unit)}</td><td><strong>${esc(l.source||'Prix défini')}</strong></td><td><strong>${money(l.price)}</strong></td></tr>`;
@@ -1349,8 +1380,10 @@ export function renderResult(state){
     const extra=product?`<br><span class="tiny muted">${l.automaticCatalogue?'Sélection automatique · ':''}${esc(product.marque)} · ${esc(product.produit)} · réf. ${esc(product.referenceCatalogue)} · ${esc(cat.orderLabel)}</span>`:'';
     const unpriced=l.priceMode==='required'&&!(l.price>0);
     const currentManual=state.manualPrices?.[l.id]??'';
+    const saleUnit=cat?.orderUnit||l.unit;
+    const shownUnitPrice=cat?.compatible?(l.manualOrderUnitPrice||cat.product.prixArtisanHt):l.price;
     const priceCell=l.priceMode==='required'
-      ? `${field('Modifier le prix HT',`manualPrices.${l.id}`,currentManual,{scope:'root',step:'0.01',trace:'priceInput',help:unpriced?'Facultatif : ce poste n’a pas de prix automatique.':'Facultatif : remplace le prix automatique.'}).replace('data-field=',`data-root-field=`)}<div class="tiny muted">${unpriced?'À confirmer':`Actuel : ${money(l.price)} · ${esc(l.source)}`}</div>`
+      ? `${field(`Modifier prix HT / ${saleUnit}`,`manualPrices.${l.id}`,currentManual,{scope:'root',step:'0.01',trace:'priceInput',help:unpriced?'Facultatif : ce poste n’a pas de prix automatique.':cat?.compatible?'Le prix suit l’unité de vente du catalogue.':'Facultatif : remplace le prix automatique.'}).replace('data-field=',`data-root-field=`)}<div class="tiny muted">${unpriced?'À confirmer':cat?.compatible?`Commande : ${cat.orderLabel} × ${money(shownUnitPrice)} = ${money(l.qty*l.price)} HT`:`Actuel : ${money(l.price)} · ${esc(l.source)}`}</div>`
       : `<strong>${money(l.price)}</strong>`;
     return `<tr><td><strong>${esc(l.name)}</strong><br><span class="muted">${esc(l.category)}</span>${extra}</td><td>${fmt(l.qty,2)}</td><td>${esc(l.unit)}</td><td>${priceCell}</td><td><strong>${unpriced?'À confirmer':money(l.qty*l.price)}</strong></td></tr>`;
   }).join('');
@@ -1413,4 +1446,4 @@ export function assertBalisage(html){
   return true;
 }
 
-export { WORKS, WORK_BY_ID, FIBRES, CHIMNEY_CONDUITS, CHIMNEY_STACKS, CHIMNEY_CAPS, PREFAB_H_PER_ML, TRUCK_8X4_DEFAULT, STRUCTURE_WARNING, FIBRE_WARNING, PREFAB_TEAM_ADVICE, TREILLIS_GUILLAUME, PUMP_DEFAULT_PRICE, TOUPIE_PRICE_M3, TOUPIE_MIN_BILLABLE_M3, TOUPIE_CAPACITY_M3, PREFAB_DEFAULT_PRICE_M2, LONGRINE_PRICE_ML, MASONRY_DEFAULTS };
+export { WORKS, WORK_BY_ID, FIBRES, CHIMNEY_CONDUITS, CHIMNEY_STACKS, CHIMNEY_CAPS, PREFAB_H_PER_ML, TRUCK_8X4_DEFAULT, STRUCTURE_WARNING, FIBRE_WARNING, PREFAB_TEAM_ADVICE, TREILLIS_GUILLAUME, PUMP_DEFAULT_PRICE, TOUPIE_PRICE_M3, TOUPIE_MIN_BILLABLE_M3, TOUPIE_CAPACITY_M3, PREFAB_DEFAULT_PRICE_M2, LONGRINE_PRICE_ML, MASONRY_DEFAULTS, MORTAR_SITE_PARPAING_20 };

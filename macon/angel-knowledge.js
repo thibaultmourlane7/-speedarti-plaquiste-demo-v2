@@ -1,7 +1,7 @@
 import {
   STRUCTURE_WARNING, FIBRE_WARNING, PREFAB_TEAM_ADVICE, PREFAB_H_PER_ML,
   TRUCK_8X4_DEFAULT, FIBRES, CHIMNEY_CONDUITS, CHIMNEY_STACKS, CHIMNEY_CAPS,
-  CONCRETE_CLASSES, MASONRY_DEFAULTS, TREILLIS_GUILLAUME, MICROPILE_PRICE_BY_DEPTH, LONGRINE_PRICE_ML,
+  CONCRETE_CLASSES, MASONRY_DEFAULTS, MORTAR_SITE_PARPAING_20, TREILLIS_GUILLAUME, MICROPILE_PRICE_BY_DEPTH, LONGRINE_PRICE_ML,
   PREFAB_DEFAULT_PRICE_M2, PUMP_DEFAULT_PRICE, TOUPIE_PRICE_M3, TOUPIE_MIN_BILLABLE_M3,
   TOUPIE_CAPACITY_M3, WORKS
 } from './references.js';
@@ -52,6 +52,18 @@ const baseEntries=[
     tags:['arrondi','centime','tva','ttc','ht','total'],
     title:'Arrondis monétaires cohérents',
     answer:'Les montants monétaires sont arrondis au centime. La TVA est arrondie au centime et le TTC est calculé comme HT arrondi + TVA arrondie, afin que les montants affichés s’additionnent exactement.'
+  },
+  {
+    id:'MAC-MORTIER-CHANTIER-PARPAING',topic:'murs',
+    tags:['mortier','chantier','ciment','sable','parpaing','20 cm','dtu 20.1'],
+    title:'Mortier traditionnel fabriqué sur chantier',
+    answer:'Pour un mur en parpaings de 20 cm à pose traditionnelle, la démo propose '+MORTAR_SITE_PARPAING_20.cementKgPerM2+' kg de ciment/m² et '+MORTAR_SITE_PARPAING_20.sandM3PerM2+' m³ de sable 0/4/m². Le dosage correspond à environ '+MORTAR_SITE_PARPAING_20.cementDosageKgPerM3Sand+' kg de ciment par m³ de sable, dans la plage DTU 20.1 de 300 à 350 kg/m³. Les valeurs restent modifiables.'
+  },
+  {
+    id:'MAC-CATALOGUE-CONDITIONNEMENT',topic:'catalogue',
+    tags:['catalogue','piece','barre','conditionnement','linteau','prix','kg'],
+    title:'Besoin métier et conditionnement fournisseur',
+    answer:'Le besoin métier peut rester exprimé en kg tandis que le fournisseur vend une armature à la pièce. Dans ce cas SpeedArti calcule le nombre de pièces à commander à partir de la longueur réelle et facture le nombre de pièces, jamais les kilogrammes multipliés par le prix d’une pièce.'
   },
   {
     id:'MAC-MURS-OUVERTURES',topic:'murs',
@@ -331,7 +343,7 @@ export function getAngelMaconEntry(id){
 }
 
 export const SpeedArtiAngelMaconKnowledge=Object.freeze({
-  version:'MAC-ANGEL-KB-v1.2',
+  version:'MAC-ANGEL-KB-v1.3',
   metier:'macon',
   source:'macon/references.js + macon/core.js + macon/catalogue-macon.js + macon/speedarti-integration.js (main)',
   entries:ANGEL_MACON_ENTRIES,

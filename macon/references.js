@@ -12,6 +12,17 @@ export const MASONRY_DEFAULTS = Object.freeze({
   parpaing:Object.freeze({blocksPerM2:10,wallHPerM2:0.8})
 });
 
+// Référence de chiffrage pour parpaing 20 cm à joints épais, mortier fabriqué sur chantier.
+// Le dosage ciment se situe dans la plage DTU 20.1 de 300 à 350 kg/m³ de sable sec.
+// Les quantités au m² restent visibles et modifiables par l'artisan.
+export const MORTAR_SITE_PARPAING_20 = Object.freeze({
+  cementKgPerM2:10.4,
+  sandM3PerM2:0.0322,
+  cementDosageKgPerM3Sand:323,
+  dtuCementRangeKgPerM3Sand:Object.freeze([300,350]),
+  sandGrading:'0/4'
+});
+
 // Référentiel métier Guillaume — valeurs commerciales / de chiffrage, jamais dimensionnement structurel.
 export const TREILLIS_GUILLAUME = {
   ST10:{label:'ST10',diametre:'5,5 mm',maille:'200 × 200',usage:'Petites dalles',priceM2:2.00,hPerM2:0.12},
