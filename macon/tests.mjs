@@ -87,7 +87,7 @@ test('prix catalogue automatique: aucun prix personnel requis pour continuer',()
   const r=calculate(s);const blocks=r.lines.find(x=>x.id.startsWith('simple-wall-block'));
   assert.ok(blocks.price>0);assert.equal(blocks.source,'Catalogue Maçon SpeedArti — sélection automatique');
   assert.equal(r.missingPrices.length,0);assert.equal(r.canFinalize,true);assert.equal(validateStep(s,4),'');
-  const html=renderPrices(s);assert.match(html,/Sélection automatique SpeedArti/);assert.match(html,/Prix U\. HT personnel/);
+  const html=renderPrices(s);assert.match(html,/Sélection automatique SpeedArti/);assert.match(html,/Prix HT personnel \//);
 });
 
 test('absence de famille catalogue fiable ne bloque plus le résultat',()=>{
