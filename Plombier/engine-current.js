@@ -190,7 +190,9 @@
     evier_siphon:{label:'Siphon évier Ø40',code:'1066748',context:'all',q:'siphon evier',group:'Évier'},
     evier_bonde_simple:{label:'Bonde évier 1 cuve avec trop-plein',code:'4272991',context:'all',q:'bonde evier 1 cuve trop plein',group:'Évier'},
     evier_bonde_double:{label:'Bonde évier 2 cuves avec trop-plein',code:'4273023',context:'all',q:'bonde evier 2 cuves trop plein',group:'Évier'},
-    wc_poser_fixations:{label:'Fixations au sol WC',code:'1085426',context:'all',q:'fixation wc 70',group:'WC à poser'}
+    wc_poser_fixations:{label:'Fixations au sol WC',code:'1085426',context:'all',q:'fixation wc 70',group:'WC à poser'},
+    meuble_vasque_robinet:{label:'Robinetterie meuble vasque',code:'',context:'all',q:'mitigeur lavabo',group:'Robinetterie'},
+    lave_main_robinet:{label:'Robinetterie lave-mains',code:'',context:'all',q:'robinet lave mains',group:'Robinetterie'}
   };
   const AUTO_COMPONENT_DEFAULTS={
     lavabo:{siphon:'lavabo_siphon',bonde:'lavabo_bonde'},
@@ -221,6 +223,7 @@
     return eq?.subtype==='suspendu'?'wc_suspendu':eq?.subtype==='urinoir'||eq?.subtype==='urinoir_bati'?'':'wc_poser';
   }
   function autoComponentPreferenceKey(kind,key,subtype='',config=''){
+    if(kind==='evier'&&!config)config='simple';
     const def=AUTO_COMPONENT_DEFAULTS[kind]?.[key];
     if(!def)return '';
     if(typeof def==='string')return def;
@@ -258,6 +261,21 @@
   function companyComponentPreference(d,prefKey){
     const cfg=AUTO_COMPONENT_PREFERENCES[prefKey];if(!cfg)return null;
     const r=preferenceSelection(d,prefKey);return {...cfg,selection:r.selection,source:r.source};
+  }
+  function sanitaryTimeKey(eq){
+    if(!eq||!eq.kind||['lave_linge','lave_vaisselle','element_specifique'].includes(eq.kind))return '';
+    if(eq.kind==='wc')return 'wc_'+(eq.subtype||'poser');
+    if(eq.kind==='douche')return 'douche_'+(eq.subtype||'bac');
+    if(eq.kind==='baignoire')return 'baignoire_'+(eq.subtype||'droite');
+    if(eq.kind==='meuble_vasque')return 'meuble_vasque_'+(eq.subtype||'simple');
+    if(eq.kind==='lave_main')return 'lave_main_'+(eq.subtype||'standard');
+    if(eq.kind==='evier')return 'evier_'+(eq.config||'simple');
+    return eq.kind;
+  }
+  function companyTimePreference(d,eqOrKey){
+    const key=typeof eqOrKey==='string'?eqOrKey:sanitaryTimeKey(eqOrKey);
+    const value=key?n(d?.settings?.sanitary_time_preferences?.[key],0):0;
+    return {key,time:value,source:value>0?'preference_entreprise':'introuvable'};
   }
 
 function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='suspendu')key='wc_suspendu';else if(subtype==='poser'||!subtype)key='wc_poser';else return []}const x=ANNEXE2_COMPONENTS[key];return typeof x==='string'?ANNEXE2_COMPONENTS[x]||[]:x||[]}
@@ -452,7 +470,7 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
         else if(def.dedicated==='spec')status=eq.spec_mode?'prestation étanchéité sélectionnée':'non activé';
       }else if(def.role==='selectable'){
         if(def.key==='mitigeur'&&(eq.kind==='meuble_vasque'||eq.kind==='lave_main')){
-          selected=eq.robinet_catalogue||null;status=eq.robinet?(hasCatalogue(selected)?'géré par option robinetterie':'option robinetterie activée à renseigner'):'géré par option robinetterie';
+          const prefKey=eq.kind==='meuble_vasque'?'meuble_vasque_robinet':'lave_main_robinet';const pref=companyComponentPreference(d,prefKey);selected=eq.robinet_catalogue||pref?.selection||null;status=eq.robinet?(hasCatalogue(selected)?(eq.robinet_catalogue?'géré par option robinetterie':'automatique — habitude entreprise'):'option robinetterie activée à renseigner'):'géré par option robinetterie';
         }else if(isAutoComponent(autoComponentKind(eq),def.key,eq.subtype||'',eq.config||'')){
           const p=autoComponentProposal(d,eq,def.key);selected=p?.selection||null;
           if(p?.included)status=p.source==='inclus_catalogue'?'compris d’après la référence principale':'déclaré compris dans le produit principal';
@@ -484,7 +502,8 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
     let price=basePrice;
     // Une référence catalogue exacte ou un prix manuel garde son prix exact. Les moyennes sont déjà ventilées par gamme.
     if(!isUnitForfait&&!catalogueSelected&&basePrice>0&&!average)price=basePrice*coef;
-    const baseTime=n(eq.time_h,def.time);
+    const timeProvided=eq.time_h!==undefined&&eq.time_h!==null&&eq.time_h!=='';const timePref=companyTimePreference(d,eq);
+    const baseTime=timeProvided?n(eq.time_h,0):(timePref.time>0?timePref.time:def.time);
     let time=baseTime;
     if(eq.kind==='douche'&&eq.subtype==='italienne')time*=1.4;
     const label=def.label||labelFor(eq);
@@ -513,13 +532,16 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
       if(ot>0)time+=ot; else alerts.push('Temps de pose manquant pour la colonne de baignoire.');
     }
     if((eq.kind==='meuble_vasque'||eq.kind==='lave_main')&&eq.robinet){
-      const sel=eq.robinet_catalogue;const name=eq.kind==='meuble_vasque'?'Robinetterie meuble vasque':'Robinetterie lave-mains';
+      const prefKey=eq.kind==='meuble_vasque'?'meuble_vasque_robinet':'lave_main_robinet';const pref=companyComponentPreference(d,prefKey);
+      const selectedByArtisan=hasCatalogue(eq.robinet_catalogue);const sel=selectedByArtisan?eq.robinet_catalogue:pref?.selection;const name=eq.kind==='meuble_vasque'?'Robinetterie meuble vasque':'Robinetterie lave-mains';
       const qty=Math.max(1,n(eq.robinet_qty,eq.kind==='meuble_vasque'&&eq.subtype==='double'?2:1));
       checkCatalogueSelection(sel,eq.robinet_price_ht,name,alerts);
-      const overridden=hasCatalogue(sel)&&!!sel.price_overridden;
-      const op=hasCatalogue(sel)&&!overridden?cataloguePrice(sel,0):n(eq.robinet_price_ht,0),ot=n(eq.robinet_time_h,0);
-      if(op>0)out.push(line(`robinet_${eq.id}`,hasCatalogue(sel)?(sel.produit||name):name,op,qty,'unité','Option sanitaire',{...(hasCatalogue(sel)?catalogueExtra(sel,`${uiPath}.robinet_catalogue`,overridden):{source:'catalogue / saisie',balise_ui:`${uiPath}.robinet_price_ht`,balise_prix:'manuel'}),stockable:true})); else alerts.push(`Prix catalogue manquant pour « ${name} ».`);
-      if(ot>0)time+=ot; else alerts.push(`Temps de pose manquant pour « ${name} ».`);
+      const overridden=selectedByArtisan&&!!sel?.price_overridden;
+      const op=hasCatalogue(sel)&&!overridden?cataloguePrice(sel,0):n(eq.robinet_price_ht,0);
+      const optionTimeProvided=eq.robinet_time_h!==undefined&&eq.robinet_time_h!==null&&eq.robinet_time_h!=='';const optionTimePref=companyTimePreference(d,'option_'+prefKey);const ot=optionTimeProvided?n(eq.robinet_time_h,0):optionTimePref.time;
+      if(op>0){const extra=hasCatalogue(sel)?catalogueExtra(sel,`${uiPath}.robinet_catalogue`,overridden):{source:'catalogue / saisie',balise_ui:`${uiPath}.robinet_price_ht`,balise_prix:'manuel'};if(!selectedByArtisan&&hasCatalogue(sel)){extra.source=`Habitude entreprise — Téréva ${sel.code}`;extra.balise_prix='preference_entreprise'}out.push(line(`robinet_${eq.id}`,hasCatalogue(sel)?(sel.produit||name):name,op,qty,'unité','Option sanitaire',{...extra,stockable:true}))}
+      else alerts.push(`BALISE ROBINETTERIE : « ${name} » activée sans référence/prix. Définir une habitude entreprise ou sélectionner une référence Téréva.`);
+      if(ot>0)time+=ot; else alerts.push(`Temps de pose manquant pour « ${name} ». Définir une habitude de temps ou saisir la durée une première fois.`);
     }
     if(eq.pmr_wc&&eq.kind==='wc')out.push(line(`pmr_wc_${eq.id}`,'Forfait PMR WC',300,1,'forfait','Forfait complet',{source:'Guillaume',balise_ui:`${uiPath}.pmr_wc`,balise_prix:'forfait_guillaume'}));
     if(eq.pmr_douche&&eq.kind==='douche')out.push(line(`pmr_douche_${eq.id}`,'Forfait PMR douche',300,1,'forfait','Forfait complet',{source:'Guillaume',balise_ui:`${uiPath}.pmr_douche`,balise_prix:'forfait_guillaume'}));
@@ -550,14 +572,14 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
     const zones=d.installation?.zones;
     const hasZoneModel=!!zones;
     const noSanitaryZones=hasZoneModel?((zones.rdc_sans?1:0)+(zones.r1_sans?1:0)):0;
-    let efPoints=0,ecPoints=0,evacPoints=0,wcEvacPoints=0,sanitaryEvacPoints=0,specificEvacPoints=0;
+    let efPoints=0,ecPoints=0,evacPoints=0,wcEvacPoints=0,sanitaryEvacPoints=0,specificEvacPoints=0,specificEvacDn40Points=0,specificEvacDn100Points=0,specificEvacUnknownPoints=0;
     equipments.forEach(eq=>{
       const p=connectionProfile(eq);
       if(p.ef)efPoints++;
       if(p.ec)ecPoints++;
       if(p.evac){
         evacPoints++;
-        if(eq.kind==='element_specifique')specificEvacPoints++;
+        if(eq.kind==='element_specifique'){specificEvacPoints++;const diam=String(eq.evac_diameter||'');if(diam==='40')specificEvacDn40Points++;else if(diam==='100')specificEvacDn100Points++;else specificEvacUnknownPoints++;}
         else {
           sanitaryEvacPoints++;
           if(eq.kind==='wc')wcEvacPoints++;
@@ -637,7 +659,7 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
     const stopValves=useOverride('manual_stop_valve_qty',autoStopValves);
 
     return {efPoints,ecPoints,evacPoints,fittingUnits,autoEF,autoEC,autoEvac,autoLocalEvac,autoGeneralEvac,ef,ec,evac,localEvac,generalEvac,hasHotBathroom,hasHotKitchen,
-      sanitaryLocalEvacPoints:sanitaryEvacPoints,sanitaryEvacPoints,specificEvacPoints,generalEvacPoints,localEvacForLabor,generalEvacForLabor,legacyEvacAmbiguous,
+      sanitaryLocalEvacPoints:sanitaryEvacPoints,sanitaryEvacPoints,specificEvacPoints,specificEvacDn40Points,specificEvacDn100Points,specificEvacUnknownPoints,generalEvacPoints,localEvacForLabor,generalEvacForLabor,legacyEvacAmbiguous,
       noSanitaryZones,wcEvacPoints,otherEvacPoints:Math.max(0,sanitaryEvacPoints-wcEvacPoints),autoPlatineEf,autoPlatineEc,autoPlatineEfEc,autoPlatineEvac,autoPlatineEvacWc,autoPlatineEvacOther,autoPlatineEvacGeneral,
       platineEf,platineEc,platineEfEc,platineEvac,platineEvacWc,platineEvacOther,platineEvacGeneral,legacyPlatineEvacAmbiguous,
       autoFittings,fittings,autoStopValves,stopValves};
@@ -701,7 +723,14 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
       if(wcMl>0){const x=requiredTechnicalSelection(TECH_REF_CODES.pvc100,alerts,'Tube évacuation locale WC DN100');if(x)lines.push(line('evac_local_pvc100',(x.produit||'Tube PVC évacuation')+' DN100 — raccordement local WC',x.prix,wcMl,'ml','Raccordement local sanitaire',{stockable:true,...technicalCatalogueExtra(x,'installation.network.manual_evac_local_ml')}))}
     }
     if(network.generalEvac>0){
-      alerts.push('BALISE ÉVACUATION GÉNÉRALE : une longueur de réseau général/spécifique est présente, mais aucun diamètre n’est défini. Créer/configurer un élément spécifique avec le diamètre/référence adéquat avant finalisation.');
+      const explicitGeneral=net.manual_evac_general_ml!==undefined&&net.manual_evac_general_ml!==null&&net.manual_evac_general_ml!=='';
+      const legacyGeneral=net.manual_evac_ml!==undefined&&net.manual_evac_ml!==null&&net.manual_evac_ml!=='';
+      const canSplitAutomatically=!explicitGeneral&&!legacyGeneral;
+      const spec40Ml=canSplitAutomatically?network.specificEvacDn40Points*1:0,spec100Ml=canSplitAutomatically?network.specificEvacDn100Points*1:0;
+      if(spec40Ml>0){const tube=requiredTechnicalSelection(TECH_REF_CODES.pvc40,alerts,'Tube évacuation spécifique DN40'),fit=requiredTechnicalSelection(TECH_REF_CODES.evac40,alerts,'Raccord évacuation spécifique DN40');if(tube)lines.push(line('evac_specific_pvc40',(tube.produit||'Tube PVC évacuation')+' DN40 — élément spécifique',tube.prix,spec40Ml,'ml','Réseau général / spécifique',{stockable:true,...technicalCatalogueExtra(tube,'installation.equipments.evac_diameter')}));if(fit)lines.push(line('evac_specific_raccord40',fit.produit||'Raccord évacuation DN40',fit.prix,network.specificEvacDn40Points,'unité','Réseau général / spécifique',{stockable:true,...technicalCatalogueExtra(fit,'installation.equipments.evac_diameter')}))}
+      if(spec100Ml>0){const tube=requiredTechnicalSelection(TECH_REF_CODES.pvc100,alerts,'Tube évacuation spécifique DN100'),fit=requiredTechnicalSelection(TECH_REF_CODES.evac100,alerts,'Raccord évacuation spécifique DN100');if(tube)lines.push(line('evac_specific_pvc100',(tube.produit||'Tube PVC évacuation')+' DN100 — élément spécifique',tube.prix,spec100Ml,'ml','Réseau général / spécifique',{stockable:true,...technicalCatalogueExtra(tube,'installation.equipments.evac_diameter')}));if(fit)lines.push(line('evac_specific_raccord100',fit.produit||'Raccord évacuation DN100',fit.prix,network.specificEvacDn100Points,'unité','Réseau général / spécifique',{stockable:true,...technicalCatalogueExtra(fit,'installation.equipments.evac_diameter')}))}
+      const knownMl=r2(spec40Ml+spec100Ml),unknownMl=r2(Math.max(0,network.generalEvac-knownMl));
+      if(unknownMl>0)alerts.push(`BALISE ÉVACUATION GÉNÉRALE : ${unknownMl} ml de réseau général/spécifique restent sans diamètre exploitable. Choisir DN40/DN100 sur l’élément spécifique ou sélectionner une solution adaptée ; cette fourniture reste non chiffrée.`);
     }
     if(network.legacyEvacAmbiguous)alerts.push('BALISE MIGRATION ÉVACUATION : une ancienne valeur globale d’évacuation ne peut pas être répartie automatiquement entre raccordement local et réseau général. Confirmer les deux longueurs séparément.');
     if(network.legacyPlatineEvacAmbiguous)alerts.push('BALISE MIGRATION RACCORD ÉVACUATION : une ancienne quantité globale de raccordements ne peut pas être répartie automatiquement entre DN100 WC et DN40 autres sanitaires. Confirmer les deux quantités séparément.');
@@ -915,5 +944,5 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
     if(!d.nom_calcul)throw new Error('Le nom du calcul est requis');
     return d.options?.type_projet==='petits_travaux'?petits(d):complete(d);
   }
-  window.SpeedArtiPlombierCurrent={calculate,previewNetwork:(d)=>{const x=computeNetwork(d,d?.installation?.equipments||[]);return {...x,autoTimeH:networkTimeProposal(x,(d.options?.type_tuyau||'per').toLowerCase())}},ANNEXE1_DEFAULTS,FORFAITS_DEFAULTS,PIPE_FALLBACK,TECH_REF_CODES,resolveTechnicalReference,EQUIPMENT_AVERAGE_PRICES,equipmentAveragePrice,ANNEXE2_COMPONENTS,annexe2For,AUTO_COMPONENT_PREFERENCES,AUTO_COMPONENT_DEFAULTS,autoComponentKind,isAutoComponent,autoComponentProposal,companyComponentPreference};
+  window.SpeedArtiPlombierCurrent={calculate,previewNetwork:(d)=>{const x=computeNetwork(d,d?.installation?.equipments||[]);return {...x,autoTimeH:networkTimeProposal(x,(d.options?.type_tuyau||'per').toLowerCase())}},ANNEXE1_DEFAULTS,FORFAITS_DEFAULTS,PIPE_FALLBACK,TECH_REF_CODES,resolveTechnicalReference,EQUIPMENT_AVERAGE_PRICES,equipmentAveragePrice,ANNEXE2_COMPONENTS,annexe2For,AUTO_COMPONENT_PREFERENCES,AUTO_COMPONENT_DEFAULTS,autoComponentKind,isAutoComponent,autoComponentProposal,companyComponentPreference,sanitaryTimeKey,companyTimePreference};
 })();
