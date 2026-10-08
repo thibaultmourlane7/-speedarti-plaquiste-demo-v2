@@ -1,35 +1,39 @@
-# SpeedArti — Plombier v0.7.1 — Auto-contrôle
+# SpeedArti — Plombier v0.8.0 — Auto-contrôle
 
 Date : 2026-10-08
 
 ## Résultat
 
-**608 / 608 assertions réussies** avec le code réellement poussé sur `main`.
+**634 / 634 assertions réussies** sur le code réellement présent sur `main`.
 
-Catalogue contrôlé :
+Catalogue Téréva contrôlé :
 - 7 456 références ;
 - 7 451 prix exploitables.
 
 Balises : `BALISES-ABSOLUES-v1.8`.
 
-## Contrôles Sprint D
+## Contrôles Sprint E
 
-- évier sans configuration explicite → simple bac + bonde `4272991` ;
-- habitude de temps sanitaire automatiquement réutilisée ;
-- aucune durée sanitaire inventée si aucune habitude/base fiable n’existe ;
-- élément spécifique DN40 → tube `044755V` + raccord `059805D` ;
-- élément spécifique sans diamètre → fourniture explicitement non chiffrée ;
-- robinetterie meuble double : habitude entreprise + quantité 2 ;
-- habitude de temps robinetterie réutilisée automatiquement ;
-- absence d’habitude robinetterie → message explicite ;
-- UI initialise réellement l’évier en simple bac ;
-- UI expose le diamètre évacuation spécifique ;
-- Ángel v1.6 cohérent avec le moteur.
+- distances SDB/cuisine appliquées à EF + EC ;
+- lavabo SDB : 8 ml + 5 m = 13 ml EF et 13 ml EC ;
+- scénario douche + évier : 5/8 m → 29 ml EF et EC ; 10/10 m → 36 ml EF et EC ;
+- lave-main = EF + EC + platine double Téréva `3160404` ;
+- ancien mode lave-main EF seul absent de l’UI ;
+- choix rapide robinet sur lavabo/vasque ;
+- habitude robinetterie lavabo réutilisée automatiquement ;
+- habitudes entreprise génériques pour accessoires configurables ;
+- fournisseur Téréva tracé dans les sélections et l’approvisionnement ;
+- CCL préparé mais inactif avec zéro article ;
+- payload fournisseur `PLB-APPRO-V2` ;
+- catalogue visuel présent à l’étape 3 ;
+- protection CSS anti-chevauchement et layout empilé sous 1180 px ;
+- résumé visible des composants automatiques ;
+- Ángel Plombier v1.7 cohérent avec les nouvelles règles.
 
 ## Régressions
 
-Les **590 assertions** précédentes restent validées.
+Les **608 assertions** de la v0.7.1 restent intégrées dans la suite.
 
 ## Limite
 
-Le contrôle logique est validé. Un nouveau contrôle navigateur ciblé doit encore être réalisé sur les quatre anomalies de l’audit humain.
+Les tests logiques ne remplacent pas un contrôle visuel navigateur. Les chevauchements signalés par Guillaume doivent être revalidés sur la page publique v0.8.0.
