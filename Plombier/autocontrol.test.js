@@ -651,7 +651,7 @@ const pLm=API.previewNetwork(lm),rLm=API.calculate(lm);
 assert(pLm.efPoints===1&&pLm.ecPoints===1,'Lave-main = un point EF + un point EC');
 assert(pLm.autoPlatineEfEc===1&&pLm.autoPlatineEf===0,'Lave-main utilise une platine EF+EC');
 assert(pLm.autoEF===13&&pLm.autoEC===13,'Lave-main SDB applique aussi la distance 5 m à EF + EC');
-assert(rLm.materiaux.some(x=>x.article_id==='platines_per_double'),'Lave-main chiffre la platine double EF+EC');
+assert(rLm.materiaux.some(x=>x.article_id==='platine_ef_ec'&&x.catalogue_code==='3160404'&&x.quantite_finale===1),'Lave-main chiffre la platine double EF+EC Téréva 3160404');
 assert(appSrc.includes('Alimentation automatique EF + EC'),'UI explique la règle EF+EC du lave-main');
 assert(!appSrc.includes("toggle(`${prefix}.ec`,'Eau chaude prévue'"),'Ancien choix lave-main EF seul supprimé');
 
