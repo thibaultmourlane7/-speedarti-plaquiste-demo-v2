@@ -811,7 +811,7 @@ test('S6.1 simple mur affiche la classe béton quand un ouvrage BA la nécessite
 });
 
 test('S6.1 Angèle connaît les nouvelles règles',()=>{
-  assert.equal(SpeedArtiAngelMaconKnowledge.version,'MAC-ANGEL-KB-v1.2');
+  assert.equal(SpeedArtiAngelMaconKnowledge.version,'MAC-ANGEL-KB-v1.3');
   for(const q of ['ratio parpaing','classe béton chaînage mur','quantité souche chapeau','arrondi TTC TVA'])assert.ok(searchAngelMacon(q,5).length>0,q);
 });
 
