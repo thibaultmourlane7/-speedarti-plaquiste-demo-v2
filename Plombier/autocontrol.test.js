@@ -5,7 +5,7 @@ for(const f of ['catalogue-data.js','catalogue-service.js','engine-current.js','
 const CAT=global.SpeedArtiCatalogueService,API=global.SpeedArtiPlombierCurrent,ANGEL=global.SpeedArtiAngelPlombierKnowledge,DB=global.SpeedArtiCataloguePlombier;
 let ok=0;function assert(cond,msg){if(!cond)throw new Error(`ASSERT ${ok+1}: ${msg}`);ok++}
 function approx(a,b,t=.011){return Math.abs(Number(a)-Number(b))<=t}
-function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.7.1',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{},services:{},component_preferences:{},sanitary_time_preferences:{}}}}
+function base(){return{metier:'plombier',nom_calcul:'AUTOCONTROLE v0.8.0',options:{type_projet:'installation_complete',gamme:'premium',complexite:'moyen',taux_horaire:52,nb_ouvriers:1,taux_tva:20,type_tuyau:'per',forfaits:{},chauffe_eau:{enabled:false,type:'cumulus',capacity:200},adoucisseur:{enabled:false,price_ht:1000},articles_libres:[]},installation:{surface_maison_m2:100,equipments:[],network:{distance_ce_sdb:5,distance_ce_cuisine:8,ef_only:0,ec_only:0,ef_ec:0,evac_points:0,platines_ef:0,platines_ec:0,platines_ef_ec:0,platines_evac:0,evac_price_ml:6,time_h:4},annexe1:{}},petits_travaux:{prestations:[]},settings:{annexe1:{},forfaits:{},services:{},component_preferences:{},slot_preferences:{},sanitary_time_preferences:{}}}}
 function selectFirst(ctx,pred=()=>true){const a=CAT.search({context:ctx,limit:100}).find(x=>x.prix>0&&x.code&&pred(x));assert(!!a,`Référence exploitable contexte ${ctx}`);return CAT.selection(a)}
 function netRefs(d){const ctx=d.options.type_tuyau==='cuivre'?'raccord_cuivre':d.options.type_tuyau==='multicouche'?'raccord_multicouche':'raccord_per';d.installation.network.fitting_catalogue=selectFirst(ctx);d.installation.network.stop_valve_catalogue=selectFirst('robinet_arret');}
 
@@ -59,7 +59,7 @@ assert(stopsWC.quantite_finale===1,'Annexe 2 WC = 1 robinet d’arrêt');
 const lavSel=selectFirst('lavabo');
 const dLav=base();netRefs(dLav);dLav.installation.equipments.push({id:'lav1',kind:'lavabo',catalogue:lavSel,price_ht:lavSel.prix,time_h:2});
 const rLav=API.calculate(dLav);
-assert(rLav.surfaces.detail_par_face.EF_ml===8,'Lavabo = 8 ml EF');
+assert(rLav.surfaces.detail_par_face.EF_ml===13,'Lavabo SDB = 8 ml EF + distance nourrice SDB 5 m');
 assert(rLav.surfaces.detail_par_face.EC_ml===13,'Lavabo SDB = 8 ml EC + distance SDB 5 m');
 assert(rLav.materiaux.find(x=>x.article_id==='raccords_per').quantite_finale===7,'Lavabo = 6 raccords/appareil +10 %, pas 12');
 assert(rLav.materiaux.find(x=>x.article_id==='robinets_arret').quantite_finale===2,'Annexe 2 lavabo : robinets d’arrêt pluriels = 2 alimentations');
@@ -189,10 +189,10 @@ assert(approx(r1.controle_balises.tva_controlee,r1.totaux.tva),'Contrôle TVA = 
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const posData=html.indexOf('catalogue-data.js'),posService=html.indexOf('catalogue-service.js'),posEngine=html.indexOf('engine-current.js'),posAngel=html.indexOf('angel-knowledge.js'),posApp=html.indexOf('app.js');
 assert(posData>0&&posData<posService&&posService<posEngine&&posEngine<posAngel&&posAngel<posApp,'Ordre de chargement catalogue -> service -> moteur -> Angel -> app');
-assert(/v0\.7\.1/.test(html),'HTML annonce v0.7.1');
+assert(/v0\.8\.0/.test(html),'HTML annonce v0.8.0');
 
 // 22. Contrôles statiques UI / absence de règles cachées
-const appSrc=fs.readFileSync(path.join(root,'app.js'),'utf8'),engSrc=fs.readFileSync(path.join(root,'engine-current.js'),'utf8'),catSrc=fs.readFileSync(path.join(root,'catalogue-service.js'),'utf8');
+const appSrc=fs.readFileSync(path.join(root,'app.js'),'utf8'),engSrc=fs.readFileSync(path.join(root,'engine-current.js'),'utf8'),catSrc=fs.readFileSync(path.join(root,'catalogue-service.js'),'utf8'),cssSrc=fs.readFileSync(path.join(root,'styles.css'),'utf8');
 assert(appSrc.includes('installation.network.time_h'),'Champ temps réseau présent dans UI');
 assert(appSrc.includes('manual_platine_ef_qty'),'Quantité platine EF automatique/modifiable présente');
 assert(!appSrc.includes('Forfait débouchage HT'),'Aucun champ prix débouchage dans le parcours artisan');
@@ -283,7 +283,7 @@ assert(!!appro&&appro.stock_connecte===false,'Approvisionnement déclare stock n
 assert(appro.statut_stock==='non_connecte','Statut approvisionnement non connecté');
 assert(appro.nombre_lignes===rA2.materiaux.filter(x=>x.stockable).length,'Liste besoins = lignes stockables');
 assert(approx(appro.total_besoins_ht,appro.items.reduce((s,x)=>s+x.total_ht,0)),'Total besoins fournisseur cohérent');
-assert(appro.payload_fournisseur.version==='PLB-APPRO-V1','Version payload fournisseur stable');
+assert(appro.payload_fournisseur.version==='PLB-APPRO-V2','Payload fournisseur V2 multi-fournisseurs');
 assert(appro.payload_fournisseur.metier==='plombier','Payload fournisseur métier plombier');
 assert(appro.payload_fournisseur.items.length===appro.items.length,'Payload fournisseur reprend tous les besoins');
 assert(appro.items.some(x=>x.article_id==='equip_lava2'),'Appareil sanitaire principal présent dans les besoins fournisseur');
@@ -307,8 +307,8 @@ assert(engSrc.includes("version:'BALISES-ABSOLUES-v1.8'"),'Moteur balises v1.8')
 
 
 // 29. Correctifs v0.5.2 issus du contrôle humain
-assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v071'"),'Clé de sauvegarde propre v0.7.1');
-assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v070','speedarti-plombier-demo-v069'"),'Migration du brouillon v0.7.0 prévue');
+assert(appSrc.includes("const storeKey='speedarti-plombier-demo-v080'"),'Clé de sauvegarde propre v0.8.0');
+assert(appSrc.includes("legacyStoreKeys=['speedarti-plombier-demo-v071','speedarti-plombier-demo-v070'"),'Migration du brouillon v0.7.1 prévue');
 assert(appSrc.includes('function migrateLegacyDraft'),'Fonction de migration brouillon présente');
 assert(appSrc.includes("delete p.duration_h"),'Migration supprime les anciennes durées CE non validées');
 assert(appSrc.includes("catalogueRenderTimer=setTimeout"),'Recherche catalogue saisie rapide temporisée');
@@ -439,16 +439,16 @@ for(const [kind,price] of Object.entries(avgExpected)){
 }
 const avgLavEco=API.equipmentAveragePrice({kind:'lavabo'},'eco'),avgLavPremium=API.equipmentAveragePrice({kind:'lavabo'},'premium');
 assert(approx(avgLavEco.price,82.66)&&approx(avgLavPremium.price,231.37),'Gammes Éco/Premium lavabo exposées');
-assert(ANGEL&&ANGEL.version==='PLB-ANGEL-KB-v1.6','Base de connaissances Angel Plombier chargée');
+assert(ANGEL&&ANGEL.version==='PLB-ANGEL-KB-v1.7','Base de connaissances Angel Plombier chargée');
 assert(ANGEL.search('prix lavabo sans catalogue',3).some(x=>x.id==='PLB-PRIX-LAVABO'),'Angel retrouve la règle de prix lavabo sans catalogue');
 assert(/165,11/.test(ANGEL.answer('prix lavabo sans catalogue')),'Angel répond avec le prix moyen standard lavabo');
 assert(appSrc.includes('Prix moyen SpeedArti'),'UI affiche explicitement le prix moyen quand le catalogue n’est pas sélectionné');
 
 // 30. Correctifs v0.6.5 Guillaume
 const dist=base();dist.installation.equipments=[{id:'shdist',kind:'douche',subtype:'bac'},{id:'evdist',kind:'evier',subtype:'inox'}];
-const pDist1=API.previewNetwork(dist);assert(pDist1.autoEC===29,'Distances chauffe-eau 5 m SDB + 8 m cuisine intégrées à EC');
+const pDist1=API.previewNetwork(dist);assert(pDist1.autoEC===29&&pDist1.autoEF===29,'Distances chauffe-eau 5 m SDB + 8 m cuisine intégrées à EF + EC');
 dist.installation.network.distance_ce_sdb=10;dist.installation.network.distance_ce_cuisine=10;
-const pDist2=API.previewNetwork(dist);assert(pDist2.autoEC===36,'Modification distances chauffe-eau modifie réellement EC');
+const pDist2=API.previewNetwork(dist);assert(pDist2.autoEC===36&&pDist2.autoEF===36,'Modification distances chauffe-eau modifie réellement EF + EC');
 assert(appSrc.includes('additionalCatalogueItemsPanel'),'Meuble vasque accepte une composition multi-articles');
 assert(engSrc.includes('addAdditionalCatalogueItems'),'Moteur chiffre les articles complémentaires du meuble vasque');
 assert(appSrc.includes('Reprendre le calcul automatique'),'Override réseau peut revenir au calcul automatique');
@@ -644,5 +644,45 @@ assert(appSrc.includes('sanitary_time_preferences'),'UI mémorise les habitudes 
 assert(appSrc.includes('Diamètre évacuation'),'UI demande le diamètre seulement pour l’élément spécifique avec évacuation');
 assert(/habitude entreprise/i.test(ANGEL.answer('temps sanitaire automatique habitude entreprise')),'Angel v1.6 connaît l’automatisation des temps par habitude');
 assert(/DN40 ou DN100/.test(ANGEL.answer('element specifique evacuation diametre automatique')),'Angel v1.6 connaît le chiffrage évacuation spécifique par diamètre');
+
+// 39. Sprint E v0.8.0 — retour Guillaume complet
+const lm=base();delete lm.installation.network.time_h;lm.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:true,r1_avec:false};lm.installation.equipments=[{id:'lm-e',kind:'lave_main',subtype:'standard',time_h:1}];
+const pLm=API.previewNetwork(lm),rLm=API.calculate(lm);
+assert(pLm.efPoints===1&&pLm.ecPoints===1,'Lave-main = un point EF + un point EC');
+assert(pLm.autoPlatineEfEc===1&&pLm.autoPlatineEf===0,'Lave-main utilise une platine EF+EC');
+assert(pLm.autoEF===13&&pLm.autoEC===13,'Lave-main SDB applique aussi la distance 5 m à EF + EC');
+assert(rLm.materiaux.some(x=>x.article_id==='platines_per_double'),'Lave-main chiffre la platine double EF+EC');
+assert(appSrc.includes('Alimentation automatique EF + EC'),'UI explique la règle EF+EC du lave-main');
+assert(!appSrc.includes("toggle(`${prefix}.ec`,'Eau chaude prévue'"),'Ancien choix lave-main EF seul supprimé');
+
+const lavRobRef=CAT.selection(CAT.search({context:'all',q:'mitigeur lavabo',limit:100}).find(a=>a.prix>0&&a.code));
+assert(!!lavRobRef?.code,'Référence robinet lavabo exploitable');
+const lavRob=base();delete lavRob.installation.network.time_h;lavRob.settings.component_preferences.lavabo_robinet=lavRobRef;lavRob.settings.sanitary_time_preferences.option_lavabo_robinet=.5;lavRob.installation.zones={rdc_sans:false,r1_sans:false,rdc_avec:true,r1_avec:false};lavRob.installation.equipments=[{id:'lav-rob',kind:'lavabo',time_h:1,robinet:true}];
+const rLavRob=API.calculate(lavRob),lavRobLine=rLavRob.materiaux.find(x=>x.article_id==='robinet_lav-rob');
+assert(lavRobLine?.catalogue_code===lavRobRef.code,'Lavabo/vasque reprend automatiquement la robinetterie habituelle');
+assert(appSrc.includes("'lavabo_robinet','Robinet / mitigeur'"),'Lavabo/vasque possède le choix rapide robinet Oui/Non');
+
+const flexRaw=CAT.search({context:'all',q:'flexible',limit:100}).find(a=>a.prix>0&&a.code);assert(!!flexRaw,'Référence flexible exploitable pour habitude générique');
+const flexSel=CAT.selection(flexRaw),slot=base();slot.settings.slot_preferences['lavabo_flexibles']=flexSel;slot.installation.equipments=[{id:'lav-slot',kind:'lavabo',time_h:1}];
+const rSlot=API.calculate(slot),slotLine=rSlot.materiaux.find(x=>x.article_id==='annexe2_lav-slot_flexibles');
+assert(slotLine?.catalogue_code===flexSel.code&&slotLine.slot_preference_source==='preference_entreprise','Habitude accessoire générique appliquée sans sélection chantier');
+assert(API.slotPreferenceKey({kind:'lavabo'},'flexibles')==='lavabo_flexibles','Clé habitude accessoire stable');
+assert(appSrc.includes('Mémoriser comme habitude'),'UI permet de mémoriser un accessoire configurable comme habitude');
+
+assert(CAT.providers?.tereva?.enabled===true,'Téréva reste fournisseur actif');
+assert(CAT.providers?.ccl?.enabled===false&&CAT.providers.ccl.count===0,'CCL préparé mais inactif sans données inventées');
+const supplierSel=CAT.selection(CAT.byCode('1054371'));assert(supplierSel.supplier_id==='tereva','Sélection catalogue trace le fournisseur Téréva');
+const supp=base();supp.installation.equipments=[{id:'sup-lav',kind:'lavabo',time_h:1}];const rSupp=API.calculate(supp);
+assert(rSupp.approvisionnement.payload_fournisseur.version==='PLB-APPRO-V2','Payload fournisseur passe en V2 multi-fournisseurs');
+assert(rSupp.approvisionnement.items.some(x=>x.catalogue_fournisseur==='tereva'),'Approvisionnement conserve le fournisseur article');
+
+assert(appSrc.includes('catalogue-shortcuts')&&appSrc.includes('catalogueShortcutIcon'),'Catalogue visuel par familles présent');
+assert(appSrc.includes('catalogueGlobalPanel()+componentPreferencesCard()'),'Catalogue visuel affiché à l’étape 3');
+assert(cssSrc.includes('@media(max-width:1180px)')&&cssSrc.includes('.layout-with-cart{display:block}'),'Étape 3 bascule sans chevauchement sur écrans intermédiaires');
+assert(cssSrc.includes('.grid>*{min-width:0}'),'Protection anti-débordement des grilles active');
+assert(appSrc.includes('Ajouté automatiquement au chiffrage'),'Résumé visible des composants automatiques présent');
+assert(/nourrices/.test(ANGEL.answer('distance chauffe eau eau froide nourrices')),'Angel v1.7 connaît EF + EC selon distance nourrices');
+assert(/platine EF\+EC/.test(ANGEL.answer('lave main eau chaude froide platine')),'Angel v1.7 connaît lave-main EF+EC');
+assert(/CCL/.test(ANGEL.answer('catalogue CCL fournisseur')),'Angel v1.7 sait que CCL est préparé sans données inventées');
 
 console.log(JSON.stringify({status:'OK',assertions:ok,catalogueCount:CAT.count,priceCount:CAT.priceCount,knownPrice117_19:known[0].prix,balisesVersion:r1.controle_balises.version,networkOnly:{ef:r2.surfaces.detail_par_face.EF_ml,ec:r2.surfaces.detail_par_face.EC_ml},fittingsOneFixture:fittingsWC.quantite_finale},null,2));
