@@ -529,7 +529,7 @@ test('v2.5: Murs / Cloisons qualifie mur ou cloison non porteuse',()=>{
 
 test('Angèle Maçon: base chargée et 40 ouvrages synchronisés',()=>{
   assert.equal(SpeedArtiAngelMaconKnowledge.metier,'macon');
-  assert.equal(SpeedArtiAngelMaconKnowledge.version,'MAC-ANGEL-KB-v1.3');
+  assert.equal(SpeedArtiAngelMaconKnowledge.version,'MAC-ANGEL-KB-v1.4');
   assert.equal(SpeedArtiAngelMaconKnowledge.entries.filter(e=>e.topic==='ouvrage').length,WORKS.length);
 });
 
@@ -765,14 +765,15 @@ test('S6.1 parpaing utilise les ratios préremplis sans blocage',()=>{
   assert.ok(!r.alerts.some(a=>/consommation blocs|temps de pose/i.test(a)));
   const blockLine=r.lines.find(x=>x.id.startsWith(e.id+'-blocks'));
   assert.equal(blockLine.qty,250);
-  assert.match(renderConfig(s),/<details class="accordion" open><summary>⚙️ Réglages métier avancés — maçonnerie/);
+  const html=renderConfig(s);
+  assert.ok(!/Consommation blocs \(u\/m²\)|Temps pose \(h-homme\/m²\)|Réglages métier avancés — maçonnerie/.test(html));
 });
 
 test('S6.1 autres matériaux ne reçoivent pas le ratio parpaing',()=>{
   const s=base();s.mode='multiple';const e=newElement('murs_elevations');
   Object.assign(e.data,{length:10,height:2.5,thickness:20,material:'brique',method:'tradi',concreteClass:'C25/30'});s.elements=[e];
   assert.equal(masonryRatio(e.data,'blocksPerM2'),0);
-  assert.match(validateStep(s,2),/consommation blocs/i);
+  assert.match(validateStep(s,2),/référentiel interne SpeedArti indisponible/i);
 });
 
 test('S6.1 cheminée sélectionnée avec quantité 0 est signalée',()=>{
@@ -811,7 +812,7 @@ test('S6.1 simple mur affiche la classe béton quand un ouvrage BA la nécessite
 });
 
 test('S6.1 Angèle connaît les nouvelles règles',()=>{
-  assert.equal(SpeedArtiAngelMaconKnowledge.version,'MAC-ANGEL-KB-v1.3');
+  assert.equal(SpeedArtiAngelMaconKnowledge.version,'MAC-ANGEL-KB-v1.4');
   for(const q of ['ratio parpaing','classe béton chaînage mur','quantité souche chapeau','arrondi TTC TVA'])assert.ok(searchAngelMacon(q,5).length>0,q);
 });
 
@@ -856,9 +857,55 @@ test('S6.3 résultat affiche prix par unité de vente réelle du catalogue',()=>
 });
 
 test('S6.3 Angèle connaît mortier chantier et conditionnement fournisseur',()=>{
-  assert.equal(SpeedArtiAngelMaconKnowledge.version,'MAC-ANGEL-KB-v1.3');
+  assert.equal(SpeedArtiAngelMaconKnowledge.version,'MAC-ANGEL-KB-v1.4');
   assert.ok(searchAngelMacon('ciment sable mortier chantier parpaing',5).length>0);
   assert.ok(searchAngelMacon('armature linteau vendue à la pièce',5).length>0);
+});
+
+
+test('S6.4 navigation : réouverture toujours étape 1 et étape non persistée',()=>{
+  const app=fs.readFileSync(new URL('./app.js',import.meta.url),'utf8');
+  assert.match(app,/state\.step=0/);
+  assert.match(app,/delete snapshot\.step/);
+  assert.match(app,/data-step-nav/);
+  assert.match(app,/\$\$\('\[data-step-nav\]'\)/);
+});
+
+test('S6.4 UX : ratios internes murs invisibles pour artisan',()=>{
+  const s=base();s.simpleType='murs';Object.assign(s.simple,{length:10,height:2.5,thickness:20,material:'parpaing',method:'tradi'});
+  const simple=renderConfig(s);
+  for(const txt of ['Consommation blocs (u/m²)','Temps de pose (h-homme/m²)','Ciment mortier chantier (kg/m²)','Sable 0/4 mortier chantier (m³/m²)','Réglages métier avancés'])assert.ok(!simple.includes(txt),txt);
+  s.mode='multiple';const e=newElement('murs_elevations');Object.assign(e.data,{length:10,height:2.5,thickness:20,material:'parpaing',method:'tradi',concreteClass:'C25/30'});s.elements=[e];
+  const multi=renderConfig(s);
+  for(const txt of ['Consommation blocs (u/m²)','Temps pose (h-homme/m²)','Ciment mortier chantier (kg/m²)','Sable 0/4 mortier chantier (m³/m²)','Réglages métier avancés — maçonnerie'])assert.ok(!multi.includes(txt),txt);
+});
+
+test('S6.4 moteur : ratios internes parpaing restent actifs sans champs artisan',()=>{
+  const s=base();s.mode='multiple';const e=newElement('murs_elevations');
+  Object.assign(e.data,{length:10,height:2.5,thickness:20,material:'parpaing',method:'tradi',concreteClass:'C25/30'});s.elements=[e];
+  const r=calculate(s);
+  assert.equal(r.lines.find(x=>x.id.startsWith(e.id+'-blocks')).qty,250);
+  assert.equal(r.labor.find(x=>x.name===e.name).hours,20);
+  assert.ok(r.lines.some(x=>x.id===e.id+'-mortar-cement'));
+  assert.ok(r.lines.some(x=>x.id===e.id+'-mortar-sand'));
+  assert.ok(!r.alerts.some(a=>/référentiel interne SpeedArti indisponible/i.test(a)));
+});
+
+test('S6.4 fondations : soubassement et refend n’exposent plus leurs ratios et utilisent SpeedArti',()=>{
+  const s=base();s.mode='multiple';const e=newElement('fondations');
+  Object.assign(e.data,{foundationType:'vide_sanitaire',perimeter:20,blockHeight:.2,rows:2,footingWidthCm:40,footingHeightCm:30,foundationConcreteClass:'C25/30',refendLength:5,refendHeight:1,refendStiffeners:0});s.elements=[e];
+  const html=renderConfig(s);
+  for(const txt of ['Consommation blocs (u/m²)','Temps mur (h-homme/m²)','Blocs refend (u/m²)','Temps refend (h-homme/m²)','Réglages métier avancés — soubassement','Réglages métier avancés — refend'])assert.ok(!html.includes(txt),txt);
+  const r=calculate(s);
+  assert.equal(r.lines.find(x=>x.id===e.id+'-basement-blocks').qty,80);
+  assert.equal(r.lines.find(x=>x.id===e.id+'-refend-blocks').qty,50);
+  assert.ok(!r.alerts.some(a=>/consommation blocs\/m² soubassement|temps mur soubassement|consommation blocs\/m² refend|temps refend/i.test(a)));
+});
+
+test('S6.4 Angèle connaît la règle ratios internes et navigation',()=>{
+  assert.equal(SpeedArtiAngelMaconKnowledge.version,'MAC-ANGEL-KB-v1.4');
+  assert.ok(searchAngelMacon('consommation par m2 donnée interne SpeedArti artisan',5).length>0);
+  assert.ok(searchAngelMacon('réouverture étape 1 navigation retour',5).length>0);
 });
 
 console.log(`OK — V2.6 Maçon: ${pass.length} contrôles fonctionnels passés`);
