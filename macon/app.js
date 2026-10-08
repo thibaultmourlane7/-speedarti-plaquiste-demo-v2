@@ -16,19 +16,25 @@ function loadState(){
     const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');
     const truck=Number(localStorage.getItem(TRUCK_PREF_KEY));
     const state=saved?{...base,...saved,globals:{...base.globals,...saved.globals},simple:{...base.simple,...saved.simple}}:base;
+    state.step=0;
     if(Number.isFinite(truck)&&truck>0)state.globals.truckPrice=truck;
     return state;
   }catch{return base;}
 }
 function saveState(){
-  localStorage.setItem(STORAGE_KEY,JSON.stringify({...state,result:null}));
+  const snapshot={...state,result:null};
+  delete snapshot.step;
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(snapshot));
   if(state.globals.saveTruckPrice&&num(state.globals.truckPrice)>0)localStorage.setItem(TRUCK_PREF_KEY,String(num(state.globals.truckPrice)));
 }
 
 let state=loadState();
 
 function renderSteps(){
-  $('#stepsNav').innerHTML=STEPS.map((s,i)=>`<div class="step-chip ${i===state.step?'active':i<state.step?'done':''}"><span class="num">${i<state.step?'✓':i+1}</span>${s}</div>`).join('');
+  $('#stepsNav').innerHTML=STEPS.map((s,i)=>{
+    const back=i<=state.step?` data-step-nav="${i}" role="button" tabindex="0" title="Aller à l’étape ${i+1}"`:'';
+    return `<div class="step-chip ${i===state.step?'active':i<state.step?'done':''}"${back}><span class="num">${i<state.step?'✓':i+1}</span>${s}</div>`;
+  }).join('');
 }
 function render(){
   renderSteps();
@@ -64,7 +70,12 @@ function splitPair(v){const [id,idx]=String(v).split(':');return [id,Number(idx)
 
 function bindEvents(){
   $$('input[type="number"]').forEach(el=>el.addEventListener('focus',()=>{try{el.select()}catch{}}));
-  $$('[data-mode]').forEach(b=>b.onclick=()=>{
+  $('[data-step-nav]').forEach(el=>{
+    const go=()=>{const target=Number(el.dataset.stepNav);if(Number.isInteger(target)&&target>=0&&target<=state.step){state.step=target;saveState();render();scrollWizardTop();}};
+    el.onclick=go;
+    el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}};
+  });
+  $('[data-mode]').forEach(b=>b.onclick=()=>{
     state.mode=b.dataset.mode;
     if(state.mode==='simple')state.elements=[]; else resetSimple();
     saveState();render();
