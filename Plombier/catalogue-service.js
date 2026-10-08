@@ -2,6 +2,11 @@
   const DB=window.SpeedArtiCataloguePlombier;
   if(!DB||!Array.isArray(DB.articles)) throw new Error('Catalogue Plombier Téréva non chargé');
   const ARTICLES=DB.articles;
+  const PROVIDERS={
+    tereva:{id:'tereva',label:'Téréva',enabled:true,catalogue:'Téréva 2026 -20%',count:DB.count,priceCount:DB.priceCount},
+    ccl:{id:'ccl',label:'CCL',enabled:false,catalogue:null,count:0,priceCount:0},
+    other:{id:'other',label:'Autre fournisseur',enabled:false,catalogue:null,count:0,priceCount:0}
+  };
   const CODE_INDEX=new Map();
   for(let i=0;i<ARTICLES.length;i++){const code=String(ARTICLES[i]?.code||'').trim();if(code&&!CODE_INDEX.has(code))CODE_INDEX.set(code,i)}
   const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
@@ -116,7 +121,7 @@
   }
   function byIndex(i){const a=ARTICLES[Number(i)];return a?{...a,__index:Number(i)}:null}
   function byCode(code){const i=CODE_INDEX.get(String(code??'').trim());return Number.isInteger(i)?{...ARTICLES[i],__index:i}:null}
-  function selection(a){if(!a)return null;return {catalogue:'Téréva 2026 -20%',index:a.__index,code:a.code||'',ref_fab:a.ref_fab||'',cr:a.cr||'',marque:a.marque||'',famille:a.famille||'',type:a.type||'',produit:a.produit||'',variante:a.variante||'',finition:a.finition||'',prix:a.prix==null?null:Number(a.prix),source:a.source||'',price_overridden:false,selected_at:new Date().toISOString()}}
+  function selection(a){if(!a)return null;return {supplier_id:'tereva',supplier_label:'Téréva',catalogue:'Téréva 2026 -20%',index:a.__index,code:a.code||'',ref_fab:a.ref_fab||'',cr:a.cr||'',marque:a.marque||'',famille:a.famille||'',type:a.type||'',produit:a.produit||'',variante:a.variante||'',finition:a.finition||'',prix:a.prix==null?null:Number(a.prix),source:a.source||'',price_overridden:false,selected_at:new Date().toISOString()}}
   function label(s){if(!s)return'';return [s.marque,s.produit,s.variante,s.finition].filter(Boolean).join(' — ')}
-  window.SpeedArtiCatalogueService={version:DB.version,count:DB.count,priceCount:DB.priceCount,search,filters,byIndex,byCode,selection,label,contextTypes};
+  window.SpeedArtiCatalogueService={version:DB.version,count:DB.count,priceCount:DB.priceCount,search,filters,byIndex,byCode,selection,label,contextTypes,providers:PROVIDERS,providerList:()=>Object.values(PROVIDERS)};
 })();
