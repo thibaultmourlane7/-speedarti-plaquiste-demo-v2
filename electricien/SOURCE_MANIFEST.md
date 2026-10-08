@@ -47,3 +47,14 @@ Le moteur V3 reprend uniquement les prix existants dans cette table.
 - Les gammes composables utilisent uniquement des composants présents dans le catalogue embarqué.
 - Une plaque et un enjoliveur de finitions incompatibles ne sont plus assemblés automatiquement.
 - Si la composition complète n'existe pas dans la base de démo, elle est signalée comme incomplète au lieu d'être présentée comme une référence exacte.
+
+
+## V6.1 — fiabilisation
+- Audit technique interne non affiché dans l'interface.
+- Protections par calibre 2/10/16/20/25/32 A.
+- Contacteur jour/nuit chauffe-eau.
+- Équipements fabricant : modèle/référence + prix HT.
+- Tableau partiel rénovation : temps et matériel.
+- Différentiels A / AC / F distingués.
+- Coffret communication recalculé après overrides.
+- Éclairage extérieur : type, commande, détecteurs, prix luminaire optionnel.
