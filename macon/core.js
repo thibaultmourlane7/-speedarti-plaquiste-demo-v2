@@ -329,7 +329,7 @@ function openingRowsSimple(d){
 
 export function renderSimpleConfig(state){
   const d=state.simple;
-  if(state.simpleType==='murs') return `<div class="section-title"><h2>Dimensions de l'ouvrage</h2><p>Murs / Cloisons — les ratios métier sont regroupés dans les réglages avancés.</p></div>
+  if(state.simpleType==='murs') return `<div class="section-title"><h2>Dimensions de l'ouvrage</h2><p>Murs / Cloisons — les consommations et temps unitaires sont gérés automatiquement par SpeedArti.</p></div>
     <div class="grid cols-5">
       ${field('Nature de l’ouvrage','wallKind',d.wallKind??'mur',{trace:'wallKind',options:[{value:'mur',label:'Mur'},{value:'cloison_non_porteuse',label:'Cloison non porteuse'}]})}
       ${field('Longueur totale murs (m)','length',d.length??'',{required:true,step:'0.1',trace:'wallLength'})}
@@ -337,11 +337,7 @@ export function renderSimpleConfig(state){
       ${field('Hauteur (m)','height',d.height??'',{required:true,step:'0.1',trace:'wallHeight'})}
       ${field('Épaisseur (cm)','thickness',d.thickness??'',{required:true,step:'1',trace:'wallThickness'})}
     </div>
-    <details class="accordion" open><summary>⚙️ Réglages métier avancés</summary><div class="accordion-body"><div class="grid cols-3">
-      ${field('Consommation blocs (u/m²)','blocksPerM2',masonryRatio(d,'blocksPerM2')||'',{required:true,step:'0.1',trace:'wallBlocksPerM2',help:masonryDefaultsFor(d.material||'parpaing')?'Proposition parpaing préremplie, modifiable.':'Valeur à renseigner pour ce matériau.'})}
-      ${d.method==='tradi'?`${field('Ciment mortier chantier (kg/m²)','cementKgM2',num(d.cementKgM2)>0?d.cementKgM2:(mortarSiteDefaults(d)?.cementKgPerM2??''),{step:'0.1',trace:'wallMortarKgM2',help:'Parpaing 20 cm : proposition automatique modifiable.'})}${field('Sable 0/4 mortier chantier (m³/m²)','sandM3M2',num(d.sandM3M2)>0?d.sandM3M2:(mortarSiteDefaults(d)?.sandM3PerM2??''),{step:'0.0001',trace:'wallMortarKgM2',help:'Parpaing 20 cm : proposition automatique modifiable.'})}`:field('Colle / mortier-colle (kg/m²)','mortarKgM2',d.mortarKgM2??'',{step:'0.1',trace:'wallMortarKgM2'})}
-      ${field('Temps de pose (h-homme/m²)','wallHPerM2',masonryRatio(d,'wallHPerM2')||'',{required:true,step:'0.01',trace:'wallHoursPerM2',help:masonryDefaultsFor(d.material||'parpaing')?'Proposition parpaing préremplie, modifiable.':'Valeur à renseigner pour ce matériau.'})}
-    </div><div class="info-box">Ces ratios restent nécessaires au calcul tant que le référentiel automatique correspondant n’est pas fourni au moteur.</div></div></details>${openingRowsSimple(d)}`;
+    <div class="info-box">Les consommations matières et temps unitaires sont calculés automatiquement par les référentiels internes SpeedArti.</div>${openingRowsSimple(d)}`;
 
   if(['dalle','terrasse'].includes(state.simpleType)){
     const refId=d.slabRef||'';
@@ -491,20 +487,14 @@ function renderFoundationElement(e){
       ${ef(e,'Hauteur semelle (cm)','footingHeightCm',d.footingHeightCm??'',{required:true,step:'1',trace:'basementFootingHeight'})}
       ${ef(e,'Classe béton semelle','foundationConcreteClass',d.foundationConcreteClass??'',{required:true,trace:'concreteClass',options:[{value:'',label:'Choisir…'},...concreteClassOptions()]})}
     </div>
-    <details class="accordion"><summary>⚙️ Réglages métier avancés — soubassement</summary><div class="accordion-body"><div class="grid cols-2">
-      ${ef(e,'Consommation blocs (u/m²)','blocksPerM2',d.blocksPerM2??'',{step:'0.1',trace:'basementBlocksPerM2'})}
-      ${ef(e,'Temps mur (h-homme/m²)','wallHPerM2',d.wallHPerM2??'',{step:'0.01',trace:'basementHoursPerM2'})}
-    </div></div></details>
+    <div class="info-box">Consommations et temps de soubassement calculés automatiquement par SpeedArti.</div>
     <div class="separator"></div><h3>Mur de refend</h3>
     <div class="grid cols-3">
       ${ef(e,'Longueur refend (m)','refendLength',d.refendLength??'',{step:'0.1',trace:'refendLength'})}
       ${ef(e,'Hauteur refend (m)','refendHeight',d.refendHeight??'',{step:'0.1',trace:'refendHeight'})}
       ${ef(e,'Raidisseurs refend (nb)','refendStiffeners',d.refendStiffeners??'',{step:'1',trace:'refendStiffeners'})}
     </div>
-    <details class="accordion"><summary>⚙️ Réglages métier avancés — refend</summary><div class="accordion-body"><div class="grid cols-2">
-      ${ef(e,'Blocs refend (u/m²)','refendBlocksPerM2',d.refendBlocksPerM2??'',{step:'0.1',trace:'refendBlocksPerM2'})}
-      ${ef(e,'Temps refend (h-homme/m²)','refendHoursPerM2',d.refendHoursPerM2??'',{step:'0.01',trace:'refendHoursPerM2'})}
-    </div></div></details>
+    <div class="info-box">Consommations et temps du refend calculés automatiquement par SpeedArti.</div>
     ${renderAssociatedSlabControls(e,d,{surfaceKey:'slabSurface',surfaceLabel:'Surface dalle associée (m²)',insulationKey:d.foundationType==='vide_sanitaire'?'slabInsulation':null,insulationLabel:'Type de plancher VS'})}`;
     sub+=renderRefOverrides('element',d,'semelle_filante').replaceAll('data-field=',`data-el-id="${e.id}" data-field=`);
     sub+=renderRefOverrides('element',d,'potelet_raidisseur_vertical').replaceAll('data-field=',`data-el-id="${e.id}" data-field=`);
@@ -559,11 +549,7 @@ function renderElevationElement(e){
     ${d.material==='beton_banche'&&d.method==='prefabrique'?ef(e,'Type préfabriqué','prefabType',d.prefabType??'standard',{trace:'prefabType',options:[{value:'standard',label:'Standard — 1,55 h-homme/ml'},{value:'hauteur_importante',label:'Hauteur importante — 1,90 h-homme/ml'},{value:'lourd_complexe',label:'Lourd / complexe — 2,75 h-homme/ml'}]}):''}
     ${d.material==='beton_banche'&&d.method==='prefabrique'?ef(e,'Prix total HT / m² — posé, livré, gruté','prefabPriceM2',d.prefabPriceM2??PREFAB_DEFAULT_PRICE_M2,{step:'1',trace:'prefabPriceM2'}):''}
   </div>`;
-  if(d.material!=='beton_banche') h+=`<details class="accordion" open><summary>⚙️ Réglages métier avancés — maçonnerie</summary><div class="accordion-body"><div class="grid cols-3">
-    ${ef(e,'Consommation blocs (u/m²)','blocksPerM2',masonryRatio(d,'blocksPerM2')||'',{required:true,step:'0.1',trace:'elevationBlocksPerM2',help:masonryDefaultsFor(d.material||'parpaing')?'Proposition parpaing préremplie, modifiable.':'Valeur à renseigner pour ce matériau.'})}
-    ${d.method==='tradi'?`${ef(e,'Ciment mortier chantier (kg/m²)','cementKgM2',num(d.cementKgM2)>0?d.cementKgM2:(mortarSiteDefaults(d)?.cementKgPerM2??''),{step:'0.1',trace:'elevationMortarKgM2',help:'Parpaing 20 cm : proposition automatique modifiable.'})}${ef(e,'Sable 0/4 mortier chantier (m³/m²)','sandM3M2',num(d.sandM3M2)>0?d.sandM3M2:(mortarSiteDefaults(d)?.sandM3PerM2??''),{step:'0.0001',trace:'elevationMortarKgM2',help:'Parpaing 20 cm : proposition automatique modifiable.'})}`:ef(e,'Colle / mortier-colle (kg/m²)','mortarKgM2',d.mortarKgM2??'',{step:'0.1',trace:'elevationMortarKgM2'})}
-    ${ef(e,'Temps pose (h-homme/m²)','wallHPerM2',masonryRatio(d,'wallHPerM2')||'',{required:true,step:'0.01',trace:'elevationHoursPerM2',help:masonryDefaultsFor(d.material||'parpaing')?'Proposition parpaing préremplie, modifiable.':'Valeur à renseigner pour ce matériau.'})}
-  </div></div></details>`;
+  if(d.material!=='beton_banche') h+=`<div class="info-box">SpeedArti applique automatiquement les consommations matières et temps unitaires du matériau sélectionné.</div>`;
   else if(d.method==='prefabrique') h+=`<div class="info-box">Préfabriqué : prix Guillaume par m², modifiable. Pose incluse dans le prix commercial ; planning séparé.</div>`;
   else h+=renderRefOverrides('element',d,'mur_banche_courant').replaceAll('data-field=',`data-el-id="${e.id}" data-field=`);
 
@@ -940,8 +926,8 @@ function calcWallSimple(state,lines,lab,alerts,reco){
       lab.push(labor('Mur banché',addRefLines(lines,ref,net,'simple-wall-banche',cc)));
     }
   }else{
-    if(!(masonryRatio(d,'blocksPerM2')>0))alerts.push('🚨 Consommation blocs/m² obligatoire dans les réglages métier avancés.');
-    if(!(masonryRatio(d,'wallHPerM2')>0))alerts.push('🚨 Temps de pose h-homme/m² obligatoire dans les réglages métier avancés.');
+    if(!(masonryRatio(d,'blocksPerM2')>0))alerts.push('🚨 Référentiel interne SpeedArti indisponible pour la consommation de ce matériau.');
+    if(!(masonryRatio(d,'wallHPerM2')>0))alerts.push('🚨 Référentiel interne SpeedArti indisponible pour le temps de pose de ce matériau.');
     if(net>0&&masonryRatio(d,'blocksPerM2')>0)lines.push(line(`simple-wall-block-${d.material||'parpaing'}-${T}`,`${d.material||'parpaing'} ${T} cm`,'Maçonnerie',net*masonryRatio(d,'blocksPerM2'),'unité'));
     if(d.method==='tradi')addSiteMortarLines(lines,d,net,'simple-wall-mortar',reco);
     else if(net>0&&num(d.mortarKgM2)>0)lines.push(line('simple-wall-colle','Colle / mortier-colle','Liants',net*num(d.mortarKgM2),'kg'));
@@ -1062,8 +1048,10 @@ function calcFoundationElement(state,e,lines,lab,alerts,reco){
     if(!(per>0&&fw>0&&fh>0))alerts.push(`🚨 ${e.name} : semelle soubassement incomplète.`);
     if(vol>0){const ref=resolvedRef(d,'semelle_filante'),cc=d.foundationConcreteClass||g.concreteClass||'';lab.push(labor(`${e.name} — semelle`,addRefLines(lines,ref,vol,`${p}-foot`,cc)));}
     if(surface>0){
-      if(!(num(d.blocksPerM2)>0))alerts.push(`🚨 ${e.name} : consommation blocs/m² soubassement obligatoire dans les réglages métier avancés.`); else lines.push(line(`${p}-basement-blocks`,'Blocs de soubassement','Maçonnerie',surface*num(d.blocksPerM2),'unité'));
-      if(!(num(d.wallHPerM2)>0))alerts.push(`🚨 ${e.name} : temps mur soubassement obligatoire dans les réglages métier avancés.`); else lab.push(labor(`${e.name} — murs soubassement`,surface*num(d.wallHPerM2)));
+      const basementBlocks=num(d.blocksPerM2)>0?num(d.blocksPerM2):MASONRY_DEFAULTS.parpaing.blocksPerM2;
+      const basementHours=num(d.wallHPerM2)>0?num(d.wallHPerM2):MASONRY_DEFAULTS.parpaing.wallHPerM2;
+      lines.push(line(`${p}-basement-blocks`,'Blocs de soubassement','Maçonnerie',surface*basementBlocks,'unité'));
+      lab.push(labor(`${e.name} — murs soubassement`,surface*basementHours));
     }
     const mlStiff=num(d.stiffeners)*bh*rows;
     if(mlStiff>0){const ref=resolvedRef(d,'potelet_raidisseur_vertical');lab.push(labor(`${e.name} — raidisseurs`,addRefLines(lines,ref,mlStiff,`${p}-stiff`,d.foundationConcreteClass||g.concreteClass||'')));}
@@ -1072,8 +1060,10 @@ function calcFoundationElement(state,e,lines,lab,alerts,reco){
     if(num(d.refendLength)>0||num(d.refendHeight)>0){
       if(!(rs>0))alerts.push(`🚨 ${e.name} : longueur et hauteur du refend doivent être renseignées ensemble.`);
       if(rs>0){
-        if(!(num(d.refendBlocksPerM2)>0))alerts.push(`🚨 ${e.name} : consommation blocs/m² refend obligatoire dans les réglages métier avancés.`); else lines.push(line(`${p}-refend-blocks`,'Blocs mur de refend','Maçonnerie',rs*num(d.refendBlocksPerM2),'unité'));
-        if(!(num(d.refendHoursPerM2)>0))alerts.push(`🚨 ${e.name} : temps refend h/m² obligatoire dans les réglages métier avancés.`); else lab.push(labor(`${e.name} — mur refend`,rs*num(d.refendHoursPerM2)));
+        const refendBlocks=num(d.refendBlocksPerM2)>0?num(d.refendBlocksPerM2):MASONRY_DEFAULTS.parpaing.blocksPerM2;
+        const refendHours=num(d.refendHoursPerM2)>0?num(d.refendHoursPerM2):MASONRY_DEFAULTS.parpaing.wallHPerM2;
+        lines.push(line(`${p}-refend-blocks`,'Blocs mur de refend','Maçonnerie',rs*refendBlocks,'unité'));
+        lab.push(labor(`${e.name} — mur refend`,rs*refendHours));
         const rml=num(d.refendStiffeners)*num(d.refendHeight);
         if(rml>0){const ref=resolvedRef(d,'potelet_raidisseur_vertical');lab.push(labor(`${e.name} — raidisseurs refend`,addRefLines(lines,ref,rml,`${p}-refend-stiff`,d.foundationConcreteClass||g.concreteClass||'')));}
       }
@@ -1137,10 +1127,10 @@ function calcElevationWall(state,e,lines,lab,alerts,reco){
       reco.push(`${e.name} : volume béton réel ${fmt(net*ep,3)} m³ ; classe ${cc} ; contrôle annexe ${fmt(net*ref.betonParUnite,3)} m³.`);
     }
   }else{
-    if(!(masonryRatio(d,'blocksPerM2')>0))alerts.push(`🚨 ${e.name} : consommation blocs/m² obligatoire dans les réglages métier avancés.`);else lines.push(line(`${p}-blocks-${d.material}-${d.thickness}`,`${d.material} ${d.thickness||20} cm`,'Maçonnerie',net*masonryRatio(d,'blocksPerM2'),'unité'));
+    if(!(masonryRatio(d,'blocksPerM2')>0))alerts.push(`🚨 ${e.name} : référentiel interne SpeedArti indisponible pour la consommation de ce matériau.`);else lines.push(line(`${p}-blocks-${d.material}-${d.thickness}`,`${d.material} ${d.thickness||20} cm`,'Maçonnerie',net*masonryRatio(d,'blocksPerM2'),'unité'));
     if(d.method==='tradi')addSiteMortarLines(lines,d,net,`${p}-mortar`,reco);
     else if(num(d.mortarKgM2)>0)lines.push(line(`${p}-colle`,'Colle / mortier-colle','Liants',net*num(d.mortarKgM2),'kg'));
-    if(!(masonryRatio(d,'wallHPerM2')>0))alerts.push(`🚨 ${e.name} : temps de pose h/m² obligatoire dans les réglages métier avancés.`);else lab.push(labor(e.name,net*masonryRatio(d,'wallHPerM2')));
+    if(!(masonryRatio(d,'wallHPerM2')>0))alerts.push(`🚨 ${e.name} : référentiel interne SpeedArti indisponible pour le temps de pose de ce matériau.`);else lab.push(labor(e.name,net*masonryRatio(d,'wallHPerM2')));
   }
   openings.forEach((o,i)=>addOpeningAssociated(lines,lab,o,`${p}-open-${i}`,d,cc,alerts));
   (d.beams||[]).forEach((b,i)=>{
