@@ -49,7 +49,7 @@
     lave_main:{label:'Lave-main',sample:24,retained:20,eco:58.94,standard:83.59,premium:101.01}
   };
   const COMPLEXITE={simple:.8,moyen:1,complexe:1.4};
-  const HOT_KINDS=new Set(['lavabo','meuble_vasque','douche','baignoire','evier']);
+  const HOT_KINDS=new Set(['lavabo','meuble_vasque','douche','baignoire','evier','lave_main']);
   const EF_KINDS=new Set(['lavabo','meuble_vasque','douche','baignoire','evier','wc','lave_main','lave_linge','lave_vaisselle']);
   const EVAC_KINDS=new Set(['lavabo','meuble_vasque','douche','baignoire','evier','wc','lave_main','lave_linge','lave_vaisselle']);
   // Annexe 2 Guillaume : nomenclature de référence par appareil.
@@ -191,6 +191,7 @@
     evier_bonde_simple:{label:'Bonde évier 1 cuve avec trop-plein',code:'4272991',context:'all',q:'bonde evier 1 cuve trop plein',group:'Évier'},
     evier_bonde_double:{label:'Bonde évier 2 cuves avec trop-plein',code:'4273023',context:'all',q:'bonde evier 2 cuves trop plein',group:'Évier'},
     wc_poser_fixations:{label:'Fixations au sol WC',code:'1085426',context:'all',q:'fixation wc 70',group:'WC à poser'},
+    lavabo_robinet:{label:'Robinetterie lavabo / vasque',code:'',context:'all',q:'mitigeur lavabo',group:'Robinetterie'},
     meuble_vasque_robinet:{label:'Robinetterie meuble vasque',code:'',context:'all',q:'mitigeur lavabo',group:'Robinetterie'},
     lave_main_robinet:{label:'Robinetterie lave-mains',code:'',context:'all',q:'robinet lave mains',group:'Robinetterie'}
   };
@@ -262,6 +263,13 @@
     const cfg=AUTO_COMPONENT_PREFERENCES[prefKey];if(!cfg)return null;
     const r=preferenceSelection(d,prefKey);return {...cfg,selection:r.selection,source:r.source};
   }
+  function slotPreferenceKey(eq,key){
+    const k=autoComponentKind(eq)||eq?.kind||'equipement';return k+'_'+String(key||'');
+  }
+  function slotPreferenceSelection(d,eq,key){
+    const prefKey=slotPreferenceKey(eq,key);const pref=d?.settings?.slot_preferences?.[prefKey];
+    return {prefKey,selection:hasCatalogue(pref)?pref:null,source:hasCatalogue(pref)?'preference_entreprise':'introuvable'};
+  }
   function sanitaryTimeKey(eq){
     if(!eq||!eq.kind||['lave_linge','lave_vaisselle','element_specifique'].includes(eq.kind))return '';
     if(eq.kind==='wc')return 'wc_'+(eq.subtype||'poser');
@@ -302,7 +310,7 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
   }
   function catalogueExtra(sel,uiPath,manual=false){
     if(!hasCatalogue(sel))return {source:manual?'saisie artisan':'catalogue / saisie',balise_ui:uiPath||'',balise_prix:manual?'manuel':'non_catalogue'};
-    return {source:catalogueSource(sel,manual),catalogue_code:sel.code,catalogue_ref_fabricant:sel.ref_fab||'',catalogue_marque:sel.marque||'',catalogue_famille:sel.famille||'',catalogue_type:sel.type||'',catalogue_produit:sel.produit||'',catalogue_variante:sel.variante||'',catalogue_finition:sel.finition||'',catalogue_source_page:sel.source||'',catalogue_version:sel.catalogue||'Téréva 2026 -20%',balise_ui:uiPath||'',balise_prix:manual?'manuel_sur_reference':'reference_exacte'};
+    return {source:catalogueSource(sel,manual),catalogue_fournisseur:sel.supplier_id||'tereva',catalogue_fournisseur_label:sel.supplier_label||'Téréva',catalogue_code:sel.code,catalogue_ref_fabricant:sel.ref_fab||'',catalogue_marque:sel.marque||'',catalogue_famille:sel.famille||'',catalogue_type:sel.type||'',catalogue_produit:sel.produit||'',catalogue_variante:sel.variante||'',catalogue_finition:sel.finition||'',catalogue_source_page:sel.source||'',catalogue_version:sel.catalogue||'Téréva 2026 -20%',balise_ui:uiPath||'',balise_prix:manual?'manuel_sur_reference':'reference_exacte'};
   }
   function technicalCatalogueExtra(sel,uiPath){
     return {...catalogueExtra(sel,uiPath,false),balise_prix:'reference_technique_tereva',reference_technique:true};
@@ -407,21 +415,23 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
   }
   function connectionProfile(eq){
     if(eq.kind==='element_specifique')return {ef:!!eq.ef,ec:!!eq.ec,evac:!!eq.evac};
-    return {ef:EF_KINDS.has(eq.kind),ec:HOT_KINDS.has(eq.kind)||(eq.kind==='lave_main'&&!!eq.ec),evac:EVAC_KINDS.has(eq.kind)};
+    return {ef:EF_KINDS.has(eq.kind),ec:HOT_KINDS.has(eq.kind),evac:EVAC_KINDS.has(eq.kind)};
   }
 
-  function addAnnexe2SelectedItems(eq,uiPath,alerts){
-    const out=[];const items=eq.annexe2_items||{};const autoKind=autoComponentKind(eq);const allowed=new Map(annexe2For(eq.kind,eq.subtype).filter(x=>x.role==='selectable'&&!isAutoComponent(autoKind,x.key,eq.subtype||'',eq.config||'')&&!(x.key==='mitigeur'&&(eq.kind==='meuble_vasque'||eq.kind==='lave_main'))).map(x=>[x.key,x]));
-    Object.entries(items).forEach(([key,item])=>{
-      const def=allowed.get(key);if(!def)return;
-      const sel=item?.catalogue;const qty=n(item?.quantite,0);const manual=n(item?.price_ht,0);
-      if(!hasCatalogue(sel)){if(qty>0||manual>0)alerts.push(`BALISE ANNEXE 2 : « ${def.label} » est renseigné sans référence catalogue.`);return}
+  function addAnnexe2SelectedItems(eq,d,uiPath,alerts){
+    const out=[];const items=eq.annexe2_items||{};const autoKind=autoComponentKind(eq);const allowed=new Map(annexe2For(eq.kind,eq.subtype).filter(x=>x.role==='selectable'&&!isAutoComponent(autoKind,x.key,eq.subtype||'',eq.config||'')&&!(x.key==='mitigeur'&&['lavabo','meuble_vasque','lave_main'].includes(eq.kind))).map(x=>[x.key,x]));
+    for(const [key,def] of allowed){
+      const item=items[key]||{};const explicit=hasCatalogue(item.catalogue);const pref=slotPreferenceSelection(d,eq,key);const sel=explicit?item.catalogue:pref.selection;
+      const qtyEntered=item.quantite!==undefined&&item.quantite!==null&&item.quantite!=='';const qty=qtyEntered?n(item.quantite,0):(hasCatalogue(sel)?1:0);const manual=n(item.price_ht,0);
+      if(!hasCatalogue(sel)){if(qty>0||manual>0)alerts.push(`BALISE ANNEXE 2 : « ${def.label} » est renseigné sans référence catalogue.`);continue}
       checkCatalogueSelection(sel,manual,def.label,alerts);
-      if(qty<=0){alerts.push(`BALISE QUANTITÉ ANNEXE 2 : quantité manquante pour « ${def.label} ».`);return}
+      if(qty<=0){alerts.push(`BALISE QUANTITÉ ANNEXE 2 : quantité manquante pour « ${def.label} ».`);continue}
       const pr=pricedSelection(sel,manual);
-      if(pr.price<=0){alerts.push(`BALISE PRIX ANNEXE 2 : prix manquant pour « ${def.label} » (${sel.code}).`);return}
-      out.push(line(`annexe2_${eq.id}_${key}`,sel.produit||def.label,pr.price,qty,'unité','Fourniture Annexe 2',{stockable:true,parent_equipment_id:eq.id,annexe2_slot:key,annexe2_label:def.label,annexe2_source:'Annexe 2 Guillaume',...catalogueExtra(sel,`${uiPath}.annexe2_items.${key}.catalogue`,pr.manual)}));
-    });
+      if(pr.price<=0){alerts.push(`BALISE PRIX ANNEXE 2 : prix manquant pour « ${def.label} » (${sel.code}).`);continue}
+      const extra=catalogueExtra(sel,`${uiPath}.annexe2_items.${key}.catalogue`,pr.manual);
+      if(!explicit){extra.source=`Habitude entreprise — ${sel.supplier_label||'Téréva'} ${sel.code}`;extra.balise_prix='preference_entreprise'}
+      out.push(line(`annexe2_${eq.id}_${key}`,sel.produit||def.label,pr.price,qty,'unité','Fourniture Annexe 2',{stockable:true,parent_equipment_id:eq.id,annexe2_slot:key,annexe2_label:def.label,annexe2_source:'Annexe 2 Guillaume',slot_preference_key:pref.prefKey,slot_preference_source:explicit?'selection_artisan':pref.source,...extra}));
+    }
     return out;
   }
   function addAutoComponents(eq,d,uiPath,alerts){
@@ -469,8 +479,8 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
         else if(def.dedicated==='paroi')status=eq.paroi?(hasCatalogue(eq.paroi_catalogue)?'option catalogue sélectionnée':'option activée à renseigner'):'non activé';
         else if(def.dedicated==='spec')status=eq.spec_mode?'prestation étanchéité sélectionnée':'non activé';
       }else if(def.role==='selectable'){
-        if(def.key==='mitigeur'&&(eq.kind==='meuble_vasque'||eq.kind==='lave_main')){
-          const prefKey=eq.kind==='meuble_vasque'?'meuble_vasque_robinet':'lave_main_robinet';const pref=companyComponentPreference(d,prefKey);selected=eq.robinet_catalogue||pref?.selection||null;status=eq.robinet?(hasCatalogue(selected)?(eq.robinet_catalogue?'géré par option robinetterie':'automatique — habitude entreprise'):'option robinetterie activée à renseigner'):'géré par option robinetterie';
+        if(def.key==='mitigeur'&&['lavabo','meuble_vasque','lave_main'].includes(eq.kind)){
+          const prefKey=eq.kind==='lavabo'?'lavabo_robinet':eq.kind==='meuble_vasque'?'meuble_vasque_robinet':'lave_main_robinet';const pref=companyComponentPreference(d,prefKey);selected=eq.robinet_catalogue||pref?.selection||null;status=eq.robinet?(hasCatalogue(selected)?(eq.robinet_catalogue?'géré par option robinetterie':'automatique — habitude entreprise'):'option robinetterie activée à renseigner'):'géré par option robinetterie';
         }else if(isAutoComponent(autoComponentKind(eq),def.key,eq.subtype||'',eq.config||'')){
           const p=autoComponentProposal(d,eq,def.key);selected=p?.selection||null;
           if(p?.included)status=p.source==='inclus_catalogue'?'compris d’après la référence principale':'déclaré compris dans le produit principal';
@@ -479,7 +489,8 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
           else if(hasCatalogue(selected))status='automatique — défaut SpeedArti';
           else status='automatique indisponible';
         }else{
-          selected=items[def.key]?.catalogue||null;status=hasCatalogue(selected)?'référence associée':(def.optional?'conditionnel / non renseigné':'non renseigné');
+          const explicit=items[def.key]?.catalogue||null;const pref=slotPreferenceSelection(d,eq,def.key);selected=hasCatalogue(explicit)?explicit:pref.selection;
+          status=hasCatalogue(explicit)?'référence associée':hasCatalogue(pref.selection)?'automatique — habitude entreprise':(def.optional?'conditionnel / non renseigné':'non renseigné');
         }
       }
       return {key:def.key,label:def.label,role:def.role,optional:!!def.optional,status,catalogue_code:selected?.code||'',catalogue_marque:selected?.marque||''};
@@ -531,9 +542,9 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
       if(op>0)out.push(line(`baignoire_${eq.id}_colonne`,hasCatalogue(sel)?(sel.produit||'Colonne / ensemble douche baignoire'):'Colonne / ensemble douche baignoire',op,1,'unité','Option sanitaire',{...(hasCatalogue(sel)?catalogueExtra(sel,`${uiPath}.colonne_catalogue`,overridden):{source:'catalogue / saisie',balise_ui:`${uiPath}.colonne_price_ht`,balise_prix:'manuel'}),stockable:true})); else alerts.push('Prix catalogue manquant pour la colonne de baignoire.');
       if(ot>0)time+=ot; else alerts.push('Temps de pose manquant pour la colonne de baignoire.');
     }
-    if((eq.kind==='meuble_vasque'||eq.kind==='lave_main')&&eq.robinet){
-      const prefKey=eq.kind==='meuble_vasque'?'meuble_vasque_robinet':'lave_main_robinet';const pref=companyComponentPreference(d,prefKey);
-      const selectedByArtisan=hasCatalogue(eq.robinet_catalogue);const sel=selectedByArtisan?eq.robinet_catalogue:pref?.selection;const name=eq.kind==='meuble_vasque'?'Robinetterie meuble vasque':'Robinetterie lave-mains';
+    if(['lavabo','meuble_vasque','lave_main'].includes(eq.kind)&&eq.robinet){
+      const prefKey=eq.kind==='lavabo'?'lavabo_robinet':eq.kind==='meuble_vasque'?'meuble_vasque_robinet':'lave_main_robinet';const pref=companyComponentPreference(d,prefKey);
+      const selectedByArtisan=hasCatalogue(eq.robinet_catalogue);const sel=selectedByArtisan?eq.robinet_catalogue:pref?.selection;const name=eq.kind==='lavabo'?'Robinetterie lavabo / vasque':eq.kind==='meuble_vasque'?'Robinetterie meuble vasque':'Robinetterie lave-mains';
       const qty=Math.max(1,n(eq.robinet_qty,eq.kind==='meuble_vasque'&&eq.subtype==='double'?2:1));
       checkCatalogueSelection(sel,eq.robinet_price_ht,name,alerts);
       const overridden=selectedByArtisan&&!!sel?.price_overridden;
@@ -555,7 +566,7 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
     }
     out.push(...addAdditionalCatalogueItems(eq,uiPath,alerts));
     out.push(...addAutoComponents(eq,d,uiPath,alerts));
-    out.push(...addAnnexe2SelectedItems(eq,uiPath,alerts));
+    out.push(...addAnnexe2SelectedItems(eq,d,uiPath,alerts));
     return {lines:out,time,profile:connectionProfile(eq),nomenclature:annexe2Nomenclature(eq,d)};
   }
 
@@ -605,7 +616,7 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
       ? noSanitaryZones+n(net.ef_only,0)+n(net.ec_only,0)+n(net.ef_ec,0)
       : waitRdc+waitR1+n(net.ef_only,0)+n(net.ec_only,0)+n(net.ef_ec,0)+n(net.platines_ef,0)+n(net.platines_ec,0)+n(net.platines_ef_ec,0);
     const fittingUnits=waterEquipments+standaloneWaterPoints;
-    const autoEF=efPoints*8;
+    const autoEF=efPoints*8+(hasHotBathroom?n(net.distance_ce_sdb,5):0)+(hasHotKitchen?n(net.distance_ce_cuisine,8):0);
     const autoEC=ecPoints*8+(hasHotBathroom?n(net.distance_ce_sdb,5):0)+(hasHotKitchen?n(net.distance_ce_cuisine,8):0);
     const generalEvacPoints=Math.max(0,evacPoints-sanitaryEvacPoints);
     const autoLocalEvac=sanitaryEvacPoints*1;
@@ -896,7 +907,7 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
     const items=lines.filter(l=>l.stockable).map(l=>({
       article_id:l.article_id,designation:l.nom,categorie:l.categorie,quantite_besoin:r2(l.quantite_finale),unite:l.unite,
       prix_unitaire_ht:r2(l.prix_unitaire_ht),total_ht:r2(l.total_ht),source_prix:l.source||'',
-      catalogue_code:l.catalogue_code||'',catalogue_marque:l.catalogue_marque||'',catalogue_ref_fabricant:l.catalogue_ref_fabricant||'',
+      catalogue_fournisseur:l.catalogue_fournisseur||'',catalogue_fournisseur_label:l.catalogue_fournisseur_label||'',catalogue_code:l.catalogue_code||'',catalogue_marque:l.catalogue_marque||'',catalogue_ref_fabricant:l.catalogue_ref_fabricant||'',
       catalogue_version:l.catalogue_version||'',catalogue_source_page:l.catalogue_source_page||'',
       stock_status:'non_connecte',stock_disponible:null,quantite_a_commander:null,
       statut_prix:r2(l.prix_unitaire_ht)>0?'prix_renseigne':'prix_manquant',
@@ -910,7 +921,7 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
       message_stock:'Aucune donnée de stock réelle n’est connectée dans la démo. Les quantités ci-dessous sont des besoins chantier, pas des quantités à commander.',
       items,articles_catalogue:catalogue,articles_hors_catalogue:horsCatalogue,prix_manquants:prixManquants,
       nombre_lignes:items.length,total_besoins_ht:r2(items.reduce((s,x)=>s+n(x.total_ht),0)),
-      payload_fournisseur:{version:'PLB-APPRO-V1',metier:'plombier',items:items.map(x=>({code_tereva:x.catalogue_code,reference_fabricant:x.catalogue_ref_fabricant,marque:x.catalogue_marque,designation:x.designation,quantite:x.quantite_besoin,unite:x.unite,prix_unitaire_ht:x.prix_unitaire_ht,source_prix:x.source_prix,source_page:x.catalogue_source_page}))}
+      payload_fournisseur:{version:'PLB-APPRO-V2',metier:'plombier',items:items.map(x=>({fournisseur:x.catalogue_fournisseur||'',fournisseur_label:x.catalogue_fournisseur_label||'',code_fournisseur:x.catalogue_code,code_tereva:x.catalogue_fournisseur==='tereva'||!x.catalogue_fournisseur?x.catalogue_code:'',reference_fabricant:x.catalogue_ref_fabricant,marque:x.catalogue_marque,designation:x.designation,quantite:x.quantite_besoin,unite:x.unite,prix_unitaire_ht:x.prix_unitaire_ht,source_prix:x.source_prix,source_page:x.catalogue_source_page}))}
     };
   }
 
@@ -944,5 +955,5 @@ function annexe2For(kind,subtype=''){let key=kind;if(kind==='wc'){if(subtype==='
     if(!d.nom_calcul)throw new Error('Le nom du calcul est requis');
     return d.options?.type_projet==='petits_travaux'?petits(d):complete(d);
   }
-  window.SpeedArtiPlombierCurrent={calculate,previewNetwork:(d)=>{const x=computeNetwork(d,d?.installation?.equipments||[]);return {...x,autoTimeH:networkTimeProposal(x,(d.options?.type_tuyau||'per').toLowerCase())}},ANNEXE1_DEFAULTS,FORFAITS_DEFAULTS,PIPE_FALLBACK,TECH_REF_CODES,resolveTechnicalReference,EQUIPMENT_AVERAGE_PRICES,equipmentAveragePrice,ANNEXE2_COMPONENTS,annexe2For,AUTO_COMPONENT_PREFERENCES,AUTO_COMPONENT_DEFAULTS,autoComponentKind,isAutoComponent,autoComponentProposal,companyComponentPreference,sanitaryTimeKey,companyTimePreference};
+  window.SpeedArtiPlombierCurrent={calculate,previewNetwork:(d)=>{const x=computeNetwork(d,d?.installation?.equipments||[]);return {...x,autoTimeH:networkTimeProposal(x,(d.options?.type_tuyau||'per').toLowerCase())}},ANNEXE1_DEFAULTS,FORFAITS_DEFAULTS,PIPE_FALLBACK,TECH_REF_CODES,resolveTechnicalReference,EQUIPMENT_AVERAGE_PRICES,equipmentAveragePrice,ANNEXE2_COMPONENTS,annexe2For,AUTO_COMPONENT_PREFERENCES,AUTO_COMPONENT_DEFAULTS,autoComponentKind,isAutoComponent,autoComponentProposal,companyComponentPreference,slotPreferenceKey,slotPreferenceSelection,sanitaryTimeKey,companyTimePreference};
 })();
