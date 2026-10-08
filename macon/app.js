@@ -70,12 +70,12 @@ function splitPair(v){const [id,idx]=String(v).split(':');return [id,Number(idx)
 
 function bindEvents(){
   $$('input[type="number"]').forEach(el=>el.addEventListener('focus',()=>{try{el.select()}catch{}}));
-  $('[data-step-nav]').forEach(el=>{
+  $$('[data-step-nav]').forEach(el=>{
     const go=()=>{const target=Number(el.dataset.stepNav);if(Number.isInteger(target)&&target>=0&&target<=state.step){state.step=target;saveState();render();scrollWizardTop();}};
     el.onclick=go;
     el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}};
   });
-  $('[data-mode]').forEach(b=>b.onclick=()=>{
+  $$('[data-mode]').forEach(b=>b.onclick=()=>{
     state.mode=b.dataset.mode;
     if(state.mode==='simple')state.elements=[]; else resetSimple();
     saveState();render();
