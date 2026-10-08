@@ -66,6 +66,18 @@ const baseEntries=[
     answer:'Le besoin métier peut rester exprimé en kg tandis que le fournisseur vend une armature à la pièce. Dans ce cas SpeedArti calcule le nombre de pièces à commander à partir de la longueur réelle et facture le nombre de pièces, jamais les kilogrammes multipliés par le prix d’une pièce.'
   },
   {
+    id:'MAC-REFERENTIELS-INTERNES-UX',topic:'murs',
+    tags:['consommation','blocs','temps','ratio','interne','speedarti','artisan','interface'],
+    title:'Référentiels métier internes masqués aux artisans',
+    answer:'Les consommations par m², temps unitaires et dosages internes servant au calcul sont des données SpeedArti. Elles alimentent automatiquement le moteur mais ne doivent pas être demandées ni affichées comme réglages métier à l’artisan.'
+  },
+  {
+    id:'MAC-NAVIGATION-DEPART',topic:'parcours',
+    tags:['etape','navigation','demarrage','retour','precedent'],
+    title:'Démarrage et retour entre étapes',
+    answer:'À chaque ouverture de la démo, le parcours démarre à l’étape 1. Les données du projet peuvent être conservées, mais l’étape courante n’est pas persistée. Les étapes déjà parcourues restent accessibles pour revenir en arrière.'
+  },
+  {
     id:'MAC-MURS-OUVERTURES',topic:'murs',
     tags:['mur','murs','ouverture','ouvertures','fenetre','porte','surface nette','linteau','seuil','appui'],
     title:'Déduction des ouvertures dans les murs',
@@ -348,7 +360,7 @@ export function getAngelMaconEntry(id){
 }
 
 export const SpeedArtiAngelMaconKnowledge=Object.freeze({
-  version:'MAC-ANGEL-KB-v1.3',
+  version:'MAC-ANGEL-KB-v1.4',
   metier:'macon',
   source:'macon/references.js + macon/core.js + macon/catalogue-macon.js + macon/speedarti-integration.js (main)',
   entries:ANGEL_MACON_ENTRIES,
