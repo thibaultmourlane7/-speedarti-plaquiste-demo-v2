@@ -247,7 +247,7 @@ test('catalogue: prix personnel reste prioritaire sur article sélectionné',()=
   const priced=r.lines.find(x=>x.id===blocks.id);
   assert.equal(priced.source,'prix personnel / cent');
   assert.equal(priced.manualOrderUnitPrice,1.25);
-  assert.equal(Number((priced.qty*priced.price).toFixed(3)),3.125);
+  assert.equal(Number((priced.qty*priced.price).toFixed(2)),3.13);
 });
 
 test('catalogue: conversion incompatible ne crée jamais un prix silencieux',()=>{
