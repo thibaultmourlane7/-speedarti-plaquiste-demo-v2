@@ -1,10 +1,10 @@
-# SpeedArti — Plombier v0.7.0 — Auto-contrôle
+# SpeedArti — Plombier v0.7.1 — Auto-contrôle
 
-Date : 2026-10-07
+Date : 2026-10-08
 
 ## Résultat
 
-**590 / 590 assertions réussies** avec le catalogue Téréva réel embarqué.
+**608 / 608 assertions réussies** avec le code réellement poussé sur `main`.
 
 Catalogue contrôlé :
 - 7 456 références ;
@@ -12,22 +12,24 @@ Catalogue contrôlé :
 
 Balises : `BALISES-ABSOLUES-v1.8`.
 
-## Contrôles Sprint C
+## Contrôles Sprint D
 
-- résolution exacte des références réseau avec `catalogue-service.byCode()` ;
-- prix et métadonnées réseau lus depuis `catalogue-data.js`, sans copie dans le moteur ;
-- disparition d’une référence technique détectée ;
-- incompatibilité d’une référence technique détectée ;
-- aucun prix Téréva réseau recopié en dur dans `engine-current.js` ;
-- seuls les codes métier et conditionnements nécessaires restent dans le moteur ;
-- fallbacks PER/multicouche supprimés ;
-- fallback cuivre validé 8 €/ml conservé ;
-- Ángel Plombier v1.5 cohérent avec la règle de source unique.
+- évier sans configuration explicite → simple bac + bonde `4272991` ;
+- habitude de temps sanitaire automatiquement réutilisée ;
+- aucune durée sanitaire inventée si aucune habitude/base fiable n’existe ;
+- élément spécifique DN40 → tube `044755V` + raccord `059805D` ;
+- élément spécifique sans diamètre → fourniture explicitement non chiffrée ;
+- robinetterie meuble double : habitude entreprise + quantité 2 ;
+- habitude de temps robinetterie réutilisée automatiquement ;
+- absence d’habitude robinetterie → message explicite ;
+- UI initialise réellement l’évier en simple bac ;
+- UI expose le diamètre évacuation spécifique ;
+- Ángel v1.6 cohérent avec le moteur.
 
-## Régressions conservées
+## Régressions
 
-Les 580 assertions précédentes restent validées : composition sanitaire, DN40/DN100, raccordement local/réseau général, cumul main-d’œuvre, catalogue, TVA, aléas, approvisionnement, habitudes entreprise et non-double-comptage.
+Les **590 assertions** précédentes restent validées.
 
 ## Limite
 
-Le contrôle logique complet est validé. Le contrôle visuel interactif dans un navigateur réel reste distinct.
+Le contrôle logique est validé. Un nouveau contrôle navigateur ciblé doit encore être réalisé sur les quatre anomalies de l’audit humain.
