@@ -10,8 +10,8 @@ const steps=[
   ['Configuration & options','Réglages facultatifs'],
   ['Résultats','Contrôle avant devis']
 ];
-const storeKey='speedarti-plombier-demo-v071';
-const legacyStoreKeys=['speedarti-plombier-demo-v070','speedarti-plombier-demo-v069','speedarti-plombier-demo-v068','speedarti-plombier-demo-v067','speedarti-plombier-demo-v066','speedarti-plombier-demo-v065','speedarti-plombier-demo-v064','speedarti-plombier-demo-v063','speedarti-plombier-demo-v061','speedarti-plombier-demo-v060','speedarti-plombier-demo-v052','speedarti-plombier-demo-v051','speedarti-plombier-demo-v040','speedarti-plombier-demo-v031'];
+const storeKey='speedarti-plombier-demo-v080';
+const legacyStoreKeys=['speedarti-plombier-demo-v071','speedarti-plombier-demo-v070','speedarti-plombier-demo-v069','speedarti-plombier-demo-v068','speedarti-plombier-demo-v067','speedarti-plombier-demo-v066','speedarti-plombier-demo-v065','speedarti-plombier-demo-v064','speedarti-plombier-demo-v063','speedarti-plombier-demo-v061','speedarti-plombier-demo-v060','speedarti-plombier-demo-v052','speedarti-plombier-demo-v051','speedarti-plombier-demo-v040','speedarti-plombier-demo-v031'];
 let step=0;
 let d=load()||initial();
 const q=s=>document.querySelector(s);
@@ -50,14 +50,14 @@ function initial(){
       annexe1:{}
     },
     petits_travaux:{prestations:[]},
-    settings:{annexe1:{},forfaits:{},services:{},component_preferences:{},sanitary_time_preferences:{}}
+    settings:{annexe1:{},forfaits:{},services:{},component_preferences:{},slot_preferences:{},sanitary_time_preferences:{}}
   };
 }
 function save(show=false){localStorage.setItem(storeKey,JSON.stringify(d));if(show)flash('Brouillon enregistré','ok')}
 function migrateLegacyDraft(val){
   if(!val||typeof val!=='object')return val;
   const ps=val.petits_travaux?.prestations||[];ps.forEach(p=>{if(p?.type==='chauffe_eau'&&p.ce_type!=='reparation')delete p.duration_h});
-  val.installation=val.installation||{};val.installation.network=val.installation.network||{};val.installation.annexe1=val.installation.annexe1||{};val.settings=val.settings||{};val.settings.services=val.settings.services||{};val.settings.component_preferences=val.settings.component_preferences||{};val.settings.sanitary_time_preferences=val.settings.sanitary_time_preferences||{};
+  val.installation=val.installation||{};val.installation.network=val.installation.network||{};val.installation.annexe1=val.installation.annexe1||{};val.settings=val.settings||{};val.settings.services=val.settings.services||{};val.settings.component_preferences=val.settings.component_preferences||{};val.settings.slot_preferences=val.settings.slot_preferences||{};val.settings.sanitary_time_preferences=val.settings.sanitary_time_preferences||{};
   if(!val.installation.zones){val.installation.zones={rdc_sans:Number(val.installation.annexe1.attente_rdc||0)>0,r1_sans:Number(val.installation.annexe1.attente_r1||0)>0,rdc_avec:false,r1_avec:false}}
   const oldEqs=val.installation.equipments||[];const onlyZone=val.installation.zones.rdc_avec&&!val.installation.zones.r1_avec?'rdc':val.installation.zones.r1_avec&&!val.installation.zones.rdc_avec?'r1':'';if(onlyZone)oldEqs.forEach(eq=>{if(!eq.zone)eq.zone=onlyZone});
   if(!val.options?.type_projet){val.options=val.options||{};val.options.type_projet='installation_complete'}
@@ -101,13 +101,27 @@ function averageEquipmentHint(eq){
   const gammeLabel={eco:'Éco',standard:'Standard',premium:'Premium'}[avg.gamme]||avg.gamme;
   return `<div class="c12 info compact-info"><b>Sans référence Téréva : prix moyen SpeedArti ${eur(avg.price)} HT</b><br><small>Gamme ${esc(gammeLabel)} · calculé sur ${fmt(avg.retained)} références Téréva 2026 retenues après filtrage. Ce prix est compté automatiquement dans le total.</small></div>`;
 }
+function catalogueShortcutIcon(key){
+  if(['wc','douche','baignoire','lavabo','meuble_vasque','lave_main','evier'].includes(key))return equipmentIcon(key);
+  const common='viewBox="0 0 48 48" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+  if(key==='robinet')return `<svg ${common}><path d="M10 18h17v-6h8v6h5v8H25v8H14v-8h-4z"/><path d="M30 34v6"/></svg>`;
+  if(key==='siphon')return `<svg ${common}><path d="M14 8v16c0 8 20 8 20 0V14"/><path d="M34 14h6M14 8H8"/></svg>`;
+  if(key==='bonde')return `<svg ${common}><circle cx="24" cy="24" r="12"/><path d="M18 24h12M24 18v12"/></svg>`;
+  if(key==='platine')return `<svg ${common}><rect x="8" y="13" width="32" height="22" rx="3"/><circle cx="17" cy="24" r="4"/><circle cx="31" cy="24" r="4"/></svg>`;
+  return `<svg ${common}><path d="M9 24h30M15 16l-6 8 6 8M33 16l6 8-6 8"/></svg>`;
+}
 function catalogueGlobalPanel(){
-  const arr=d.options.articles_libres||[];
-  return `<div class="card catalogue-global"><div class="row between"><div><h2>Catalogue Téréva 2026</h2><p class="muted">${fmt(CAT.count)} références — prix de la base diminués de 20 %. Recherche par produit, marque, finition, référence fabricant ou code Téréva.</p></div><button type="button" class="btn primary" data-open-catalogue data-catalogue-target="options.articles_libres" data-catalogue-context="all" data-catalogue-label="un article" data-catalogue-mode="append">🔎 Ouvrir le catalogue</button></div>${arr.length?`<div class="free-articles">${arr.map((x,i)=>`<div class="mini-card"><div><strong>${esc(x.catalogue?.marque||'')} — ${esc(x.catalogue?.produit||`Référence Téréva ${x.catalogue?.code||''}`)}</strong><span>Code ${esc(x.catalogue?.code||'')} · ${x.catalogue?.prix==null?'tarif catalogue indisponible — choisir une autre référence ou mettre à jour le catalogue':eur(x.catalogue?.prix)}</span></div><div class="row">${numField('Qté',`options.articles_libres.${i}.quantite`,x.quantite||1,'mini-field',0,1)}<button type="button" class="btn danger compact" data-remove-free-article="${i}">Supprimer</button></div></div>`).join('')}</div>`:''}</div>`;
+  const arr=d.options.articles_libres||[];const providers=CAT.providerList?.()||[];const active=providers.filter(x=>x.enabled),future=providers.filter(x=>!x.enabled);
+  const shortcuts=[
+    ['wc','WC','wc',''],['douche','Douche','douche',''],['baignoire','Baignoire','baignoire',''],['lavabo','Lavabo / vasque','lavabo',''],
+    ['meuble_vasque','Meuble vasque','meuble_vasque',''],['lave_main','Lave-main','lave_main',''],['evier','Évier','evier',''],
+    ['robinet','Robinetterie','all','mitigeur'],['siphon','Siphons','evacuation','siphon'],['bonde','Bondes / vidages','evacuation','bonde'],['platine','Platines','platine',''],['raccord','Raccords','raccord','']
+  ];
+  return `<div class="card catalogue-global"><div class="row between wrap"><div><h2>Catalogue fournitures</h2><p class="muted">${fmt(CAT.count)} références Téréva actives. Choisis d’abord une famille pour réduire immédiatement la recherche.</p><div class="provider-status">${active.map(x=>`<span class="pill ok-pill">${esc(x.label)} actif</span>`).join('')}${future.map(x=>`<span class="pill">${esc(x.label)} prêt à connecter</span>`).join('')}</div></div><button type="button" class="btn primary" data-open-catalogue data-catalogue-target="options.articles_libres" data-catalogue-context="all" data-catalogue-label="un article" data-catalogue-mode="append">🔎 Recherche complète</button></div><div class="catalogue-shortcuts">${shortcuts.map(([k,l,ctx,query])=>`<button type="button" class="catalogue-shortcut" data-open-catalogue data-catalogue-target="options.articles_libres" data-catalogue-context="${ctx}" data-catalogue-label="${esc(l)}" data-catalogue-q="${esc(query)}" data-catalogue-mode="append"><span>${catalogueShortcutIcon(k)}</span><b>${esc(l)}</b></button>`).join('')}</div>${arr.length?`<div class="free-articles">${arr.map((x,i)=>`<div class="mini-card"><div><strong>${esc(x.catalogue?.marque||'')} — ${esc(x.catalogue?.produit||`Référence fournisseur ${x.catalogue?.code||''}`)}</strong><span>${esc(x.catalogue?.supplier_label||'Téréva')} · Code ${esc(x.catalogue?.code||'')} · ${x.catalogue?.prix==null?'tarif catalogue indisponible':eur(x.catalogue?.prix)}</span></div><div class="row">${numField('Qté',`options.articles_libres.${i}.quantite`,x.quantite||1,'mini-field',0,1)}<button type="button" class="btn danger compact" data-remove-free-article="${i}">Supprimer</button></div></div>`).join('')}</div>`:''}</div>`;
 }
 
 function equipmentImpact(eq){const p=profile(eq);const arr=[];if(p.ef)arr.push('EF');if(p.ec)arr.push('EC');if(p.evac)arr.push('évac.');return arr.length?`Impact réseau : ${arr.join(' + ')}`:'Réseau défini dans la configuration'}
-function profile(eq){if(eq.kind==='element_specifique')return{ef:!!eq.ef,ec:!!eq.ec,evac:!!eq.evac};const hot=['lavabo','meuble_vasque','douche','baignoire','evier'];const ef=['lavabo','meuble_vasque','douche','baignoire','evier','wc','lave_main','lave_linge','lave_vaisselle'];const ev=['lavabo','meuble_vasque','douche','baignoire','evier','wc','lave_main','lave_linge','lave_vaisselle'];return{ef:ef.includes(eq.kind),ec:hot.includes(eq.kind)||(eq.kind==='lave_main'&&!!eq.ec),evac:ev.includes(eq.kind)}}
+function profile(eq){if(eq.kind==='element_specifique')return{ef:!!eq.ef,ec:!!eq.ec,evac:!!eq.evac};const hot=['lavabo','meuble_vasque','douche','baignoire','evier','lave_main'];const ef=['lavabo','meuble_vasque','douche','baignoire','evier','wc','lave_main','lave_linge','lave_vaisselle'];const ev=['lavabo','meuble_vasque','douche','baignoire','evier','wc','lave_main','lave_linge','lave_vaisselle'];return{ef:ef.includes(eq.kind),ec:hot.includes(eq.kind),evac:ev.includes(eq.kind)}}
 function labelSubtype(eq){const m={poser:'à poser',suspendu:'suspendu',urinoir:'urinoir',urinoir_bati:'urinoir + bâti',bac:'bac classique',extra_plat:'extra-plat',italienne:'italienne',droite:'droite',asymetrique:'asymétrique',angle:'angle',simple:'simple',double:'double',inox:'inox',resine:'résine',ceramique:'céramique',timbre:'timbre céramique'};return m[eq.subtype]||eq.subtype}
 
 
@@ -149,7 +163,7 @@ function renderNetworkPreview(){
   const net=d.installation.network||{};const p=API.previewNetwork(d);
   const specificWithoutNetwork=(d.installation.equipments||[]).filter(eq=>eq.kind==='element_specifique'&&!eq.ef&&!eq.ec&&!eq.evac);
   const specialNotice=specificWithoutNetwork.length?`<div class="alert warn"><b>Élément spécifique :</b> aucune platine ni longueur réseau n’est calculée tant qu’EF, EC ou évacuation n’est pas activé dans sa configuration. ${specificWithoutNetwork.length} élément(s) sont actuellement sans raccordement défini.</div>`:'';
-  const distanceNotice=`<div class="network-source-notes"><span>Distance SDB : <b>${fmt(net.distance_ce_sdb)} m</b> ${p.hasHotBathroom?'prise en compte':'non utilisée (aucun point EC SDB)'}</span><span>Distance cuisine : <b>${fmt(net.distance_ce_cuisine)} m</b> ${p.hasHotKitchen?'prise en compte':'non utilisée (aucun évier EC)'}</span></div>`;
+  const distanceNotice=`<div class="network-source-notes"><span>Distance SDB : <b>${fmt(net.distance_ce_sdb)} m</b> ${p.hasHotBathroom?'ajoutée à EF + EC (nourrices près du chauffe-eau)':'non utilisée (aucun sanitaire EF+EC SDB)'}</span><span>Distance cuisine : <b>${fmt(net.distance_ce_cuisine)} m</b> ${p.hasHotKitchen?'ajoutée à EF + EC':'non utilisée (aucun évier EF+EC)'}</span></div>`;
   const generalEvacNotice=p.autoGeneralEvac>0?`<div class="alert warn"><b>Évacuation générale / spécifique :</b> SpeedArti calcule la longueur, mais ne choisit plus automatiquement un DN. Le diamètre et la référence doivent être définis sur l’élément spécifique concerné avant finalisation.</div>`:'';
   const migrationNotice=(p.legacyEvacAmbiguous||p.legacyPlatineEvacAmbiguous)?`<div class="alert warn"><b>Ancien brouillon :</b> une ancienne valeur globale d’évacuation doit être confirmée dans les nouveaux champs DN100/DN40 et local/général.</div>`:'';
   return `<div class="card network-live"><div class="row between wrap"><div><h2>Quantités réseau proposées</h2><p class="muted">SpeedArti sépare maintenant le raccordement local du sanitaire et le réseau général. Toutes les quantités restent modifiables par l’artisan.</p></div><span class="pill ok-pill">Calcul automatique</span></div>
@@ -161,7 +175,7 @@ function renderNetworkPreview(){
 function renderInstallationBase(){
   const z=d.installation.zones||{};
   const dim=`<div class="card"><h2>1. Dimensionnement du chantier</h2><div class="grid">${textField('Nom du calcul','nom_calcul',d.nom_calcul,'c6')}${numField('Surface du chantier (m²)','installation.surface_maison_m2',d.installation.surface_maison_m2,'c3',0,.1,'ex. 120')}${selectField('Type de canalisation','options.type_tuyau',[['per','PER'],['multicouche','Multicouche'],['cuivre','Cuivre']],d.options.type_tuyau,'c3')}${numField('Ouvriers','options.nb_ouvriers',d.options.nb_ouvriers,'c3',1,1)}</div><p class="subtle surface-note">La surface est conservée comme donnée chantier. Elle ne modifie pas automatiquement les longueurs de tuyaux tant qu’aucune règle métier validée ne relie m² et métrés réseau.</p></div>`;
-  const distances=`<div class="card distance-card"><div class="row between wrap"><div><h2>2. Distances depuis le chauffe-eau</h2><p class="muted">Ces longueurs s’ajoutent réellement à la proposition d’eau chaude uniquement lorsqu’un équipement EC correspondant existe : salle de bains pour SDB, évier pour cuisine.</p></div><span class="pill">Base réseau EC</span></div><div class="grid">${numField('Chauffe-eau → salle de bains (m)','installation.network.distance_ce_sdb',d.installation.network.distance_ce_sdb,'c6',0,.1)}${numField('Chauffe-eau → cuisine (m)','installation.network.distance_ce_cuisine',d.installation.network.distance_ce_cuisine,'c6',0,.1)}</div></div>`;
+  const distances=`<div class="card distance-card"><div class="row between wrap"><div><h2>2. Distances depuis le chauffe-eau</h2><p class="muted">Règle Guillaume : les nourrices étant généralement proches du chauffe-eau, ces distances s’ajoutent aux propositions EF et EC lorsqu’un équipement correspondant existe.</p></div><span class="pill">Base réseau EF + EC</span></div><div class="grid">${numField('Chauffe-eau → salle de bains (m)','installation.network.distance_ce_sdb',d.installation.network.distance_ce_sdb,'c6',0,.1)}${numField('Chauffe-eau → cuisine (m)','installation.network.distance_ce_cuisine',d.installation.network.distance_ce_cuisine,'c6',0,.1)}</div></div>`;
   const zones=`<div class="card"><h2>3. Type d’installation</h2><p class="muted">Chaque case est indépendante : tu peux combiner plusieurs zones sur le même chantier.</p><div class="zone-grid">${zoneCard('installation.zones.rdc_sans','RDC','RDC — Sans sanitaire','Eau froide + eau chaude + évacuation encastrable')}${zoneCard('installation.zones.r1_sans','R+1','R+1 — Sans sanitaire','Eau froide + eau chaude + évacuation encastrable')}${zoneCard('installation.zones.rdc_avec','RDC','RDC — Avec sanitaires','Eau froide + eau chaude + évacuation + sanitaires')}${zoneCard('installation.zones.r1_avec','R+1','R+1 — Avec sanitaires','Eau froide + eau chaude + évacuation + sanitaires')}</div></div>`;
   content.innerHTML=head('Étape 1','Base chantier','Commence par les dimensions, les distances du chauffe-eau et les zones du chantier.')+projectSelector()+dim+distances+zones;
 }
@@ -198,7 +212,7 @@ function artisanOptions(){
   const gamme=`<div class="card"><h2>Réglages du chiffrage</h2><h3>Gamme matériel</h3><div class="gamme">${['eco','standard','premium'].map(v=>`<button class="choice ${d.options.gamme===v?'active':''}" data-gamme="${v}"><strong>${v==='eco'?'ECO':v==='standard'?'Standard':'Premium'}</strong></button>`).join('')}</div><h3 class="subhead">Complexité du chantier</h3><div class="gamme">${[['simple','Simple × 0,80'],['moyen','Moyen × 1'],['complexe','Complexe × 1,40']].map(([v,l])=>`<button class="choice ${d.options.complexite===v?'active':''}" data-complexite="${v}"><strong>${l}</strong></button>`).join('')}</div><p class="subtle">La complexité agit uniquement sur la main-d’œuvre.</p><h3 class="subhead">TVA</h3><div class="choice-grid">${choice('10','TVA 10 %','Rénovation éligible',String(d.options.taux_tva),'data-tva')}${choice('20','TVA 20 %','Neuf / cas standard',String(d.options.taux_tva),'data-tva')}</div></div>`;
   const eauChaude=`<div class="card"><h2>Équipements complémentaires</h2>${toggle('options.chauffe_eau.enabled','Ajouter un chauffe-eau','Sélection du modèle dans le catalogue')}${d.options.chauffe_eau.enabled?`<div class="inset">${cataloguePicker('options.chauffe_eau.catalogue','options.chauffe_eau.price_ht','chauffe_eau','un chauffe-eau',d.options.chauffe_eau.catalogue)}<div class="grid">${selectField('Type','options.chauffe_eau.type',[['cumulus','Cumulus électrique'],['ballon_thermo','Ballon thermodynamique'],['instantane','Instantané'],['chaudiere','Via chaudière']],d.options.chauffe_eau.type,'c4')}${selectField('Capacité','options.chauffe_eau.capacity',[[100,'100 L'],[150,'150 L'],[200,'200 L'],[300,'300 L']],d.options.chauffe_eau.capacity,'c4')}${numField('Temps de pose (h)','options.chauffe_eau.time_h',d.options.chauffe_eau.time_h,'c4',0,.25)}</div></div>`:''}${toggle('options.adoucisseur.enabled','Ajouter un adoucisseur','Sélection du modèle dans le catalogue')}${d.options.adoucisseur.enabled?`<div class="inset">${cataloguePicker('options.adoucisseur.catalogue','options.adoucisseur.price_ht','adoucisseur','un adoucisseur',d.options.adoucisseur.catalogue)}<div class="grid">${numField('Temps de pose (h)','options.adoucisseur.time_h',d.options.adoucisseur.time_h,'c4',0,.25)}</div></div>`:''}</div>`;
   const opts=`<div class="card"><h2>Options complémentaires</h2><div class="grid">${numField('Robinets extérieurs','installation.annexe1.robinet_exterieur',a.robinet_exterieur,'c6',0,1)}${numField('Limiteurs de pression','installation.annexe1.limiteur_pression',a.limiteur_pression,'c6',0,1)}</div><div class="choice-grid option-clean">${toggle('installation.annexe1.arret_general',"Alimentation + robinet d’arrêt général")}${toggle('installation.annexe1.raccordement_exterieur','Raccordement extérieur eau')}${toggle('installation.annexe1.ventilation_wc','Ventilation haute WC')}${toggle('installation.annexe1.ventilation_fosse','Ventilation fosse + extracteur')}${toggle('installation.annexe1.forfait_etage','Canalisation + alimentation étage')}${toggle('installation.annexe1.aleas','Aléas 4 %','Appliqués uniquement à la main-d’œuvre HT')}${['demolition','platrerie','raccordement','traversee','renovation','acces_difficile','boucle_ecs','pompe_relevage'].map(k=>toggle(`options.forfaits.${k}`,forfaitLabel(k),forfaitHelp(k))).join('')}</div></div>`;
-  return gamme+componentPreferencesCard()+eauChaude+opts;
+  return gamme+catalogueGlobalPanel()+componentPreferencesCard()+eauChaude+opts;
 }
 function renderSmallWorkflow(){
   const ps=d.petits_travaux.prestations||[];
@@ -266,7 +280,7 @@ function componentPreferencesCard(){
 
 function annexe2Panel(eq,prefix){
   const rawDefs=API.annexe2For?.(eq.kind,eq.subtype)||[];
-  const defs=rawDefs.filter(def=>!(def.key==='mitigeur'&&(eq.kind==='meuble_vasque'||eq.kind==='lave_main')));
+  const defs=rawDefs.filter(def=>!(def.key==='mitigeur'&&['lavabo','meuble_vasque','lave_main'].includes(eq.kind)));
   if(!defs.length)return'';const items=eq.annexe2_items||{};
   const rows=defs.map(def=>{
     if(def.role!=='selectable'){
@@ -275,13 +289,19 @@ function annexe2Panel(eq,prefix){
     const item=items[def.key]||{};
     const autoKind=API.autoComponentKind?.(eq)||eq.kind;
     if(API.isAutoComponent?.(autoKind,def.key,eq.subtype||'',eq.config||''))return autoComponentRow(eq,prefix,def,item);
-    const has=!!item.catalogue?.code;
-    const picker=cataloguePicker(`${prefix}.annexe2_items.${def.key}.catalogue`,`${prefix}.annexe2_items.${def.key}.price_ht`,def.context||'all',def.label,item.catalogue,true,def.q||'');
-    return `<div class="annexe2-row selectable"><div class="annexe2-row-head"><div><strong>${esc(def.label)}</strong>${def.optional?'<small>Conditionnel / si non compris dans le produit principal</small>':'<small>À vérifier selon le produit principal choisi</small>'}</div><span class="annexe2-status ${has?'ok':'info'}">${has?'Référence associée':'Non renseigné'}</span></div>${picker}${has?`<div class="grid annexe2-fields">${numField('Quantité',`${prefix}.annexe2_items.${def.key}.quantite`,item.quantite??1,'c4',0,1)}${textField('Note / inclusion pack',`${prefix}.annexe2_items.${def.key}.note`,item.note,'c4','optionnel')}</div>`:''}</div>`;
+    const has=!!item.catalogue?.code;const pref=API.slotPreferenceSelection?.(d,eq,def.key);const prefSel=!has?pref?.selection:null;const effective=has?item.catalogue:prefSel;
+    const picker=cataloguePicker(`${prefix}.annexe2_items.${def.key}.catalogue`,`${prefix}.annexe2_items.${def.key}.price_ht`,def.context||'all',def.label,effective,true,def.q||'');
+    const prefActions=has?`<button type="button" class="btn ghost compact" data-save-slot-preference data-equipment-prefix="${esc(prefix)}" data-slot-key="${esc(def.key)}">Mémoriser comme habitude</button>`:prefSel?`<button type="button" class="btn ghost compact" data-clear-slot-preference="${esc(pref.prefKey)}">Supprimer l’habitude</button>`:'';
+    return `<div class="annexe2-row selectable"><div class="annexe2-row-head"><div><strong>${esc(def.label)}</strong>${prefSel?'<small>Habitude entreprise appliquée automatiquement.</small>':def.optional?'<small>Conditionnel / si non compris dans le produit principal</small>':'<small>À vérifier selon le produit principal choisi</small>'}</div><span class="annexe2-status ${has||prefSel?'ok':'info'}">${has?'Référence chantier':prefSel?'Habitude entreprise':'Non renseigné'}</span></div>${picker}${has||prefSel?`<div class="grid annexe2-fields">${numField('Quantité',`${prefix}.annexe2_items.${def.key}.quantite`,item.quantite??1,'c4',0,1)}${textField('Note / inclusion pack',`${prefix}.annexe2_items.${def.key}.note`,item.note,'c4','optionnel')}<div class="c4 slot-preference-action">${prefActions}</div></div>`:''}</div>`;
   }).join('');
   return `<details class="annexe2-panel" open><summary>📋 Composition de l’équipement — ${defs.length} poste(s)</summary><div class="annexe2-body"><p class="muted">Les alimentations et raccordements locaux déjà calculés ne sont pas doublés. Les composants pour lesquels SpeedArti possède une référence Téréva sûre sont préremplis automatiquement ; les composants dépendants de la pose restent à vérifier. Tout reste modifiable ou déclarable « compris dans le produit principal ».</p>${rows}</div></details>`;
 }
 
+function automaticComponentsSummary(eq){
+  const defs=API.annexe2For?.(eq.kind,eq.subtype)||[];const autoKind=API.autoComponentKind?.(eq)||eq.kind;
+  const rows=defs.filter(def=>def.role==='selectable'&&API.isAutoComponent?.(autoKind,def.key,eq.subtype||'',eq.config||'')).map(def=>{const p=API.autoComponentProposal?.(d,eq,def.key);if(!p)return'';const src=p.included?'Compris dans le produit':p.source==='preference_entreprise'?'Habitude entreprise':p.source==='selection_artisan'?'Choix chantier':'Défaut SpeedArti';return `<span class="auto-summary-chip"><b>${esc(def.label)}</b><small>${esc(src)}${p.selection?.code?' · '+esc(p.selection.code):''} · Qté ${fmt(p.qty)}</small></span>`}).filter(Boolean);
+  return rows.length?`<div class="auto-components-summary"><div><strong>Ajouté automatiquement au chiffrage</strong><small>Ces composants sont déjà comptés sans recherche manuelle.</small></div><div class="auto-summary-list">${rows.join('')}</div></div>`:'';
+}
 function equipmentOptionBlock(path,label,help,body=''){
   const on=!!get(d,path);
   return `<div class="equipment-option-block c12">${toggle(path,label,help)}${on&&body?`<div class="equipment-option-values">${body}</div>`:''}</div>`;
@@ -292,6 +312,11 @@ function additionalCatalogueItemsPanel(eq,prefix){
   const rows=items.map((item,i)=>`<div class="multi-product-item">${cataloguePicker(`${prefix}.additional_catalogue_items.${i}.catalogue`,`${prefix}.additional_catalogue_items.${i}.price_ht`,'all','un article de la composition',item.catalogue,true)}<div class="grid multi-product-controls">${numField('Quantité',`${prefix}.additional_catalogue_items.${i}.quantite`,item.quantite??1,'c4',1,1)}<div class="field c4 remove-item-field"><label>&nbsp;</label><button type="button" class="btn danger compact" data-remove-catalogue-item="${i}" data-catalogue-array="${esc(prefix+'.additional_catalogue_items')}">Retirer cet article</button></div></div></div>`).join('');
   return `<div class="c12 multi-product-panel"><div class="row between wrap"><div><h4>Composition meuble / vasque</h4><p class="subtle">Pour un pack complet, la référence principale peut suffire. Pour une composition séparée, ajoute le meuble puis une ou plusieurs vasques.</p></div></div>${rows||'<div class="empty-state compact-empty">Aucun article complémentaire ajouté.</div>'}<div class="row wrap multi-product-actions"><button type="button" class="btn secondary compact" data-open-catalogue data-catalogue-target="${esc(prefix+'.additional_catalogue_items')}" data-catalogue-context="meuble_vasque" data-catalogue-label="un meuble ou pack" data-catalogue-mode="append">+ Ajouter un meuble / pack</button><button type="button" class="btn secondary compact" data-open-catalogue data-catalogue-target="${esc(prefix+'.additional_catalogue_items')}" data-catalogue-context="lavabo" data-catalogue-label="une vasque" data-catalogue-q="vasque" data-catalogue-mode="append">+ Ajouter une vasque</button></div></div>`;
 }
+function quickRobinetOption(eq,prefix,prefKey,label,prefill,qty){
+  const habit=API.companyComponentPreference?.(d,prefKey)?.selection;const timeHabit=API.companyTimePreference?.(d,'option_'+prefKey)?.time||0;
+  const info=!eq.robinet_catalogue&&habit?`<div class="info compact-info">Habitude entreprise automatique : ${esc(habit.marque||'')} — ${esc(habit.produit||'')} · ${esc(habit.supplier_label||'Téréva')} ${esc(habit.code)}.</div>`:'';
+  return equipmentOptionBlock(`${prefix}.robinet`,label,'Choix rapide Oui / Non. Si Oui : choix chantier > habitude entreprise > référence à sélectionner.',`${info}${cataloguePicker(`${prefix}.robinet_catalogue`,`${prefix}.robinet_price_ht`,'all','un robinet / mitigeur',eq.robinet_catalogue,true,prefill)}<div class="grid">${numField('Quantité de robinets',`${prefix}.robinet_qty`,eq.robinet_qty??qty,'c4',1,1)}${numField('Temps robinetterie total (h)',`${prefix}.robinet_time_h`,eq.robinet_time_h??(timeHabit>0?timeHabit:undefined),'c4',0,.25)}</div>`);
+}
 function equipmentEditor(eq,index,scope,pid=''){
   const prefix=scope==='installation'?`installation.equipments.${index}`:`petits_travaux.prestations.${findPrestationIndex(pid)}.equipment`;
   const fixedService=eq.kind==='lave_linge'||eq.kind==='lave_vaisselle';
@@ -299,6 +324,9 @@ function equipmentEditor(eq,index,scope,pid=''){
   const mainProduct=fixedService?`<div class="c12 info compact-info">Tarif unitaire piloté par les paramètres de l’entreprise : ${eur(eq.kind==='lave_linge'?(d.settings.annexe1.robinet_mll??API.ANNEXE1_DEFAULTS.robinet_mll.price):(d.settings.annexe1.robinet_mlv??API.ANNEXE1_DEFAULTS.robinet_mlv.price))}. Aucun temps séparé n’est ajouté.</div>`:`<div class="c12 main-equipment-product"><h4>Équipement principal</h4>${mainPicker}${averageEquipmentHint(eq)}</div>`;
   const timePref=API.companyTimePreference?.(d,eq);const effectiveTime=eq.time_h??(timePref?.time>0?timePref.time:undefined);const timeField=fixedService?'':`<div class="c12 sanitary-time-block"><div class="grid">${numField('Temps pose sanitaire + raccordements locaux (h)',`${prefix}.time_h`,effectiveTime,'c4',0,.25,'temps artisan')}</div><p class="subtle">Ce temps comprend la pose de l’appareil et son raccordement local : platine(s), bonde/siphon et petite évacuation locale. ${eq.time_h==null&&timePref?.time>0?'Habitude entreprise appliquée automatiquement.':'La durée saisie est mémorisée comme habitude pour les prochains équipements comparables.'} Le réseau général est cumulé séparément.</p></div>`;
   let baseFields='',options='';
+  if(eq.kind==='lavabo'){
+    options=quickRobinetOption(eq,prefix,'lavabo_robinet','Robinet / mitigeur','mitigeur lavabo',1);
+  }
   if(eq.kind==='wc'){
     baseFields=selectField('Type de WC',`${prefix}.subtype`,[['poser','WC à poser'],['suspendu','WC suspendu + bâti'],['urinoir','Urinoir suspendu'],['urinoir_bati','Urinoir suspendu + bâti']],eq.subtype||'poser','c4');
     options=equipmentOptionBlock(`${prefix}.pmr_wc`,'Adaptation PMR WC','Barres de maintien et adaptation PMR');
@@ -319,18 +347,18 @@ function equipmentEditor(eq,index,scope,pid=''){
   if(eq.kind==='meuble_vasque'){
     const qty=eq.robinet_qty??(eq.subtype==='double'?2:1);
     baseFields=`${selectField('Configuration',`${prefix}.subtype`,[['simple','Simple vasque'],['double','Double vasque']],eq.subtype||'simple','c4')}${textField('Dimensions',`${prefix}.dimensions`,eq.dimensions,'c4','ex. 120 cm')}`;
-    const robHabit=API.companyComponentPreference?.(d,'meuble_vasque_robinet')?.selection;const robTime=API.companyTimePreference?.(d,'option_meuble_vasque_robinet')?.time||0;const robInfo=!eq.robinet_catalogue&&robHabit?`<div class="info compact-info">Habitude entreprise automatique : ${esc(robHabit.marque||'')} — ${esc(robHabit.produit||'')} · Téréva ${esc(robHabit.code)}.</div>`:'';options=`${additionalCatalogueItemsPanel(eq,prefix)}${equipmentOptionBlock(`${prefix}.robinet`,'Robinetterie','Activer seulement si la robinetterie n’est pas comprise dans le pack',`${robInfo}${cataloguePicker(`${prefix}.robinet_catalogue`,`${prefix}.robinet_price_ht`,'all','un robinet / mitigeur',eq.robinet_catalogue,true,'mitigeur lavabo')}<div class="grid">${numField('Quantité de robinets',`${prefix}.robinet_qty`,qty,'c4',1,1)}${numField('Temps robinetterie total (h)',`${prefix}.robinet_time_h`,eq.robinet_time_h??(robTime>0?robTime:undefined),'c4',0,.25)}</div>`)}`;
+    options=`${additionalCatalogueItemsPanel(eq,prefix)}${quickRobinetOption(eq,prefix,'meuble_vasque_robinet','Robinet / mitigeur','mitigeur lavabo',qty)}`;
   }
   if(eq.kind==='lave_main'){
-    baseFields=`${selectField('Format',`${prefix}.subtype`,[['standard','Standard'],['angle','D’angle']],eq.subtype||'standard','c4')}${toggle(`${prefix}.ec`,'Eau chaude prévue','Sinon EF uniquement')}`;
-    const robHabit=API.companyComponentPreference?.(d,'lave_main_robinet')?.selection;const robTime=API.companyTimePreference?.(d,'option_lave_main_robinet')?.time||0;const robInfo=!eq.robinet_catalogue&&robHabit?`<div class="info compact-info">Habitude entreprise automatique : ${esc(robHabit.marque||'')} — ${esc(robHabit.produit||'')} · Téréva ${esc(robHabit.code)}.</div>`:'';options=equipmentOptionBlock(`${prefix}.robinet`,'Robinetterie','Activer si le robinet n’est pas compris dans le lave-mains',`${robInfo}${cataloguePicker(`${prefix}.robinet_catalogue`,`${prefix}.robinet_price_ht`,'all','un robinet de lave-mains',eq.robinet_catalogue,true,'robinet lave mains')}<div class="grid">${numField('Quantité de robinets',`${prefix}.robinet_qty`,eq.robinet_qty??1,'c4',1,1)}${numField('Temps robinetterie total (h)',`${prefix}.robinet_time_h`,eq.robinet_time_h??(robTime>0?robTime:undefined),'c4',0,.25)}</div>`);
+    baseFields=`${selectField('Format',`${prefix}.subtype`,[['standard','Standard'],['angle','D’angle']],eq.subtype||'standard','c4')}<div class="c8 info compact-info"><b>Alimentation automatique EF + EC</b><br><small>Règle Guillaume : le lave-main reçoit une platine eau froide + eau chaude.</small></div>`;
+    options=quickRobinetOption(eq,prefix,'lave_main_robinet','Robinet / mitigeur','robinet lave mains',1);
   }
   if(eq.kind==='evier')baseFields=`${selectField('Matière',`${prefix}.subtype`,[['inox','Inox'],['resine','Résine'],['ceramique','Céramique'],['timbre','Timbre céramique']],eq.subtype||'inox','c4')}${selectField('Configuration',`${prefix}.config`,[['simple','Simple bac'],['double','Double bac'],['sous_plan_simple','Sous-plan simple'],['sous_plan_double','Sous-plan double']],eq.config||'simple','c4')}`;
   if(eq.kind==='element_specifique'){
     baseFields=`${textField('Désignation',`${prefix}.label`,eq.label,'c4','ex. broyeur / bidet / platine')}${toggle(`${prefix}.ef`,'Alimentation EF')}${toggle(`${prefix}.ec`,'Alimentation EC')}${toggle(`${prefix}.evac`,'Évacuation')}${eq.evac?selectField('Diamètre évacuation',`${prefix}.evac_diameter`,[['','À définir'],['40','DN40'],['100','DN100'],['autre','Autre / solution spécifique']],eq.evac_diameter||'','c4'):''}${numField('Nombre de robinets d’arrêt nécessaires',`${prefix}.stop_valves`,eq.stop_valves,'c4',0,1,'0 si aucun')}`;
     options=`<div class="c12 ${eq.ef||eq.ec||eq.evac?'info':'alert warn'} compact-info"><b>Platines et réseau :</b> ${eq.ef||eq.ec||eq.evac?'les raccordements cochés alimentent automatiquement le calcul réseau et les platines correspondantes.':'aucune platine n’est calculée tant qu’aucune alimentation EF/EC ou évacuation n’est cochée.'}</div>`;
   }
-  return `<details class="accordion" open data-equipment-anchor="${esc(eq.id)}"><summary>${index+1}. ${labelForKind(eq.kind)}${eq.subtype?` — ${labelSubtype(eq)}`:''}</summary><div class="inside"><div class="grid">${baseFields}${mainProduct}${options}${timeField}</div>${equipmentRuleNote(eq)}${annexe2Panel(eq,prefix)}</div></details>`;
+  return `<details class="accordion" open data-equipment-anchor="${esc(eq.id)}"><summary>${index+1}. ${labelForKind(eq.kind)}${eq.subtype?` — ${labelSubtype(eq)}`:''}</summary><div class="inside"><div class="grid">${baseFields}${mainProduct}${options}${timeField}</div>${automaticComponentsSummary(eq)}${equipmentRuleNote(eq)}${annexe2Panel(eq,prefix)}</div></details>`;
 }
 function equipmentRuleNote(eq){
   if(eq.kind==='wc')return `<div class="info compact-info">Réglages de base disponibles selon le type de WC. Ils restent modifiables appareil par appareil.</div>`;
@@ -420,9 +448,11 @@ function catalogueClickHandler(e){
     }else{
       set(d,catalogueUi.target,sel);if(catalogueUi.pricePath)set(d,catalogueUi.pricePath,sel.prix==null?undefined:sel.prix);const a2=catalogueUi.target.match(/^(.*\.annexe2_items\.[^.]+)\.catalogue$/);if(a2&&get(d,`${a2[1]}.quantite`)==null)set(d,`${a2[1]}.quantite`,catalogueUi.autoQty>0?catalogueUi.autoQty:1);syncCatalogueSelectionToUi(catalogueUi.target,sel);
     }
-    save(false);closeCatalogue();render();flash(`Référence Téréva ${sel.code} sélectionnée`,'ok');return;
+    save(false);closeCatalogue();render();flash(`Référence ${sel.supplier_label||'Téréva'} ${sel.code} sélectionnée`,'ok');return;
   }
   const clear=e.target.closest('[data-clear-catalogue]');if(clear){const target=clear.dataset.clearCatalogue;const a2=target.match(/^(.*\.annexe2_items\.[^.]+)\.catalogue$/);if(a2)set(d,a2[1],null);else set(d,target,null);if(clear.dataset.cataloguePricePath)set(d,clear.dataset.cataloguePricePath,undefined);save(false);render();return}
+  const savePref=e.target.closest('[data-save-slot-preference]');if(savePref){const prefix=savePref.dataset.equipmentPrefix,key=savePref.dataset.slotKey,eq=get(d,prefix),sel=get(d,`${prefix}.annexe2_items.${key}.catalogue`);if(eq&&sel?.code){d.settings.slot_preferences=d.settings.slot_preferences||{};d.settings.slot_preferences[API.slotPreferenceKey(eq,key)]=sel;save(false);render();flash('Habitude entreprise enregistrée','ok')}return}
+  const clearPref=e.target.closest('[data-clear-slot-preference]');if(clearPref){d.settings.slot_preferences=d.settings.slot_preferences||{};delete d.settings.slot_preferences[clearPref.dataset.clearSlotPreference];save(false);render();flash('Habitude entreprise supprimée','ok');return}
   const rm=e.target.closest('[data-remove-free-article]');if(rm){d.options.articles_libres.splice(Number(rm.dataset.removeFreeArticle),1);save(false);render();return}
 }
 function catalogueInputHandler(e){
@@ -492,7 +522,7 @@ function newEquipment(kind,zone=''){
   if(kind==='douche')eq.subtype='bac';
   if(kind==='baignoire')eq.subtype='droite';
   if(kind==='meuble_vasque')eq.subtype='simple';
-  if(kind==='lave_main')eq.subtype='standard';
+  if(kind==='lave_main'){eq.subtype='standard';eq.ec=true}
   if(kind==='evier'){eq.subtype='inox';eq.config='simple'}
   const pref=API.companyTimePreference?.(d,eq);if(pref?.time>0){eq.time_h=pref.time;eq.time_source='preference_entreprise'}
   return eq;
@@ -502,7 +532,7 @@ function inputHandler(e){
   if(t.type==='checkbox')v=t.checked;else if(t.type==='number')v=t.value===''?undefined:+t.value;else v=t.value;
   set(d,t.dataset.path,v);markCataloguePriceOverride(t.dataset.path,v);invalidateCatalogueOnConfigChange(t.dataset.path);
   if(/\.robinet_time_h$/.test(t.dataset.path)){
-    const base=t.dataset.path.replace(/\.robinet_time_h$/,'');const eq=get(d,base);const prefKey=eq?.kind==='meuble_vasque'?'meuble_vasque_robinet':eq?.kind==='lave_main'?'lave_main_robinet':'';if(prefKey){d.settings.sanitary_time_preferences=d.settings.sanitary_time_preferences||{};const k='option_'+prefKey;if(Number(v)>0)d.settings.sanitary_time_preferences[k]=Number(v);else delete d.settings.sanitary_time_preferences[k]}
+    const base=t.dataset.path.replace(/\.robinet_time_h$/,'');const eq=get(d,base);const prefKey=eq?.kind==='lavabo'?'lavabo_robinet':eq?.kind==='meuble_vasque'?'meuble_vasque_robinet':eq?.kind==='lave_main'?'lave_main_robinet':'';if(prefKey){d.settings.sanitary_time_preferences=d.settings.sanitary_time_preferences||{};const k='option_'+prefKey;if(Number(v)>0)d.settings.sanitary_time_preferences[k]=Number(v);else delete d.settings.sanitary_time_preferences[k]}
   }else if(/\.time_h$/.test(t.dataset.path)&&t.dataset.path.includes('equipment')){
     const base=t.dataset.path.replace(/\.time_h$/,'');const eq=get(d,base);const k=API.sanitaryTimeKey?.(eq);if(k){d.settings.sanitary_time_preferences=d.settings.sanitary_time_preferences||{};if(Number(v)>0){d.settings.sanitary_time_preferences[k]=Number(v);eq.time_source='artisan'}else{delete d.settings.sanitary_time_preferences[k];delete eq.time_source}}
   }
