@@ -1,36 +1,50 @@
-# SpeedArti — Plombier v0.7.1 — Contrôle ciblé Sprint D
+# SpeedArti — Plombier v0.8.0 — Contrôle humain à relancer
 
 Date : 2026-10-08
 
-Origine : audit navigateur humain v0.7.0 ayant remonté 4 anomalies.
+## Retour Guillaume repris intégralement
 
-## Correctifs implémentés
+À retester dans le navigateur :
 
-1. **Temps sanitaire vide**
-   - automatisation par habitude entreprise ;
-   - aucune durée arbitraire inventée ;
-   - sans valeur fiable, le message n’est plus masqué.
+1. **Étape 2 — distances**
+   - modifier distance SDB puis cuisine ;
+   - vérifier que EF et EC évoluent ensemble ;
+   - vérifier suppression d’un équipement SDB/cuisine.
 
-2. **Évier simple**
-   - configuration initiale `simple` ;
-   - moteur robuste aux anciens brouillons sans `config` ;
-   - bonde `4272991` automatique immédiatement.
+2. **Lave-main**
+   - vérifier EF + EC automatiques ;
+   - vérifier platine EF+EC ;
+   - vérifier qu’il n’existe plus de mode EF seul.
 
-3. **Élément spécifique avec évacuation**
-   - choix diamètre DN40 / DN100 / autre ;
-   - DN40/DN100 chiffrés automatiquement avec les références Téréva validées ;
-   - sans diamètre, fourniture clairement signalée comme non chiffrée.
+3. **Étape 3 — affichage**
+   - contrôler desktop, tablette et mobile ;
+   - aucun chevauchement de champ, carte, catalogue, bouton ou composition.
 
-4. **Robinetterie meuble double**
-   - référence habituelle entreprise utilisable automatiquement ;
-   - quantité 2 automatiquement conservée pour double vasque ;
-   - temps de robinetterie mémorisable comme habitude ;
-   - sans référence fiable, message utilisateur explicite.
+4. **Robinet Oui / Non**
+   - lavabo / vasque ;
+   - meuble vasque ;
+   - double vasque ;
+   - lave-main.
+
+5. **Composants automatiques**
+   - vérifier que siphon/bonde/vidage automatiques sont immédiatement visibles ;
+   - vérifier qu’ils apparaissent dans le total sans recherche manuelle.
+
+6. **Habitudes artisan**
+   - mémoriser une référence d’accessoire ;
+   - créer un nouvel équipement comparable ;
+   - vérifier sa réutilisation automatique.
+
+7. **Catalogue visuel**
+   - tester les raccourcis familles ;
+   - contrôler recherche, marque, type et finition.
+
+8. **Multi-fournisseurs**
+   - Téréva doit être actif ;
+   - CCL doit apparaître seulement comme futur connecteur, jamais comme catalogue chiffré.
 
 ## Statut logique
 
-**608 / 608 assertions réussies.**
+**634 / 634 assertions réussies.**
 
-## À retester dans le navigateur
-
-Retester uniquement les 4 scénarios ci-dessus sur la version publique v0.7.1. Le Sprint D ne doit être déclaré validé ergonomiquement qu’après ce contrôle humain ciblé.
+Le Sprint E est codé et testé logiquement. La validation ergonomique finale nécessite ce nouveau passage humain.
