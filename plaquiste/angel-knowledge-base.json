@@ -227,11 +227,11 @@
     },
     "tva": {
       "logement_moins_2_ans_ou_neuf_pct": 20,
-      "logement_plus_2_ans_non_coche_pct": 20,
+      "logement_plus_2_ans_non_coche_pct": 10,
       "renovation_eligible_pct": 10,
       "isolation_energetique_eligible_pct": 5.5,
-      "ui": "Une seule case : Travaux de rénovation éligibles aux taux réduits.",
-      "behavior": "Case non cochée = aucun blocage, TVA 20 %."
+      "ui": "Une seule case, visible uniquement pour un logement de plus de 2 ans : confirmer l’éligibilité de l’isolation énergétique au taux de 5,5 %.",
+      "behavior": "Logement de plus de 2 ans : TVA 10 % par défaut. La case cochée applique 5,5 % uniquement aux lignes d’isolation énergétique éligibles ; les autres lignes restent à 10 %. Logement de moins de 2 ans ou neuf : TVA 20 % dans tous les cas."
     },
     "ceiling_supports": {
       "bois": {
@@ -730,7 +730,7 @@
     "Un plafond suspendu exige un support parmi bois, béton ou hourdis et un plénum positif.",
     "Un plafond autoportant exige un dimensionnement spécifique de portée avant chiffrage final.",
     "Une configuration M48 dépassant sa hauteur limite documentée génère une alerte informative, jamais un blocage DTU automatique.",
-    "La case TVA rénovation non cochée ne bloque jamais : la TVA 20 % est utilisée.",
+    "Pour un logement de plus de 2 ans, la TVA 10 % s’applique par défaut ; la TVA 5,5 % est réservée aux lignes d’isolation énergétique éligibles et confirmées. Pour un logement de moins de 2 ans ou neuf, la TVA reste à 20 %.",
     "Les prix Optima intégrés au catalogue SpeedArti ne sont jamais demandés à l'artisan."
   ],
   "output_expectations": [
